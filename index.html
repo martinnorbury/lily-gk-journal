@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v22 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v23 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -557,6 +557,12 @@
     <div class="section-label">MindGym This Week</div>
     <div class="card" id="mindgym-card"></div>
 
+    <div class="section-label">IAP Review Briefing</div>
+    <div class="card">
+      <div class="hint" style="margin-bottom:12px;">Compile a date-filtered summary of her progress to bring to a review meeting.</div>
+      <button class="btn btn-primary" id="open-iap-briefing-btn">Generate IAP Review Briefing</button>
+    </div>
+
     <div class="section-label">Form Over Time</div>
     <div class="chart-wrap">
       <svg id="progress-chart" viewBox="0 0 380 140" style="width:100%; height:auto; display:block;"></svg>
@@ -625,8 +631,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v22';
+  var APP_VERSION = 'v23';
   var CHANGELOG = [
+    { version:'v23', notes:'Added the IAP Review Briefing Generator (Progress tab) — date-filtered stats, IFA evidence, Season Vision tracker, Hudl review candidates, and editable discussion points, exportable as a PDF. Recovery reported as non-scored completion rates, not a points system.' },
     { version:'v22', notes:'Added Season Development Plan (IDP) to the Standards tab — timeline stage, Season Vision goals checklist, and her 3 IFAs with status badges. Reflections can now link to an IFA to build evidence over time.' },
     { version:'v21.2', notes:'Fixed Today screen ordering — the MindGym chip and recovery check-in were showing above the Hi Lily greeting instead of below it.' },
     { version:'v21.1', notes:'Corrected syllabus data verified and extended through 12 Oct (two full 6-week cycles) after checking the date maths held together this time.' },
@@ -662,7 +669,7 @@
     { version:'v1', notes:'Started version tracking — version number now shown in Backup & Restore.' }
   ];
   var STORAGE_KEY = 'gk-journal-data-v1';
-  var state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null };
+  var state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null, iapDiscussionPoints: ['','',''] };
   var currentView = 'today';
   var currentType = 'training'; // for reflection form
   var editingReflectionId = null;
@@ -805,6 +812,282 @@
     if(!state.idp.ifaStatuses) state.idp.ifaStatuses = { ifa1:'on_track', ifa2:'on_track', ifa3:'on_track' };
     return state.idp;
   }
+
+  var IAP_PRESETS = [
+    { label:'Oct 2 — IAP Review #1', date:'2026-10-02' },
+    { label:'Jan 15 — IAP Review #2', date:'2027-01-15' }
+  ];
+
+  function openIapBriefingModal(){
+    var defaultDate = todayIso();
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>IAP Review Briefing</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="hint" style="margin-bottom:14px;">Pick a cutoff date — the briefing covers everything logged on or before it.</div>' +
+      '<div class="field"><label>Data up to</label><input type="date" id="iap-cutoff-date" value="' + defaultDate + '"></div>' +
+      '<div style="display:flex; gap:8px; margin-bottom:16px;">' +
+        IAP_PRESETS.map(function(p){ return '<button type="button" class="btn btn-ghost iap-preset-btn" data-date="' + p.date + '" style="flex:1; font-size:11px; padding:9px 4px;">' + p.label + '</button>'; }).join('') +
+      '</div>' +
+      '<button type="button" class="btn btn-primary" id="iap-generate-btn">Generate Briefing</button>' +
+      '<div id="iap-briefing-output"></div>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.querySelectorAll('.iap-preset-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        document.getElementById('iap-cutoff-date').value = b.getAttribute('data-date');
+      });
+    });
+    document.getElementById('iap-generate-btn').addEventListener('click', function(){
+      var cutoff = document.getElementById('iap-cutoff-date').value;
+      if(!cutoff){ alert('Pick a date first.'); return; }
+      renderIapBriefing(cutoff);
+    });
+  }
+
+  function computeIapData(cutoffIso){
+    var refs = state.reflections.filter(function(r){ return r.date <= cutoffIso; });
+
+    var standardsAvg = {};
+    ATTR_KEYS.forEach(function(k){
+      var vals = refs.map(function(r){ return r.attributes ? r.attributes[k] : null; }).filter(function(v){ return v; });
+      standardsAvg[k] = vals.length ? (vals.reduce(function(a,b){ return a+b; },0)/vals.length).toFixed(1) : null;
+    });
+
+    var trainingCount = refs.filter(function(r){ return r.type === 'training'; }).length;
+    var matchRefs = refs.filter(function(r){ return r.type === 'match'; });
+    var matchByClass = { assertive:0, balanced:0, challenge:0, unclassified:0 };
+    matchRefs.forEach(function(r){
+      if(r.matchClass && matchByClass.hasOwnProperty(r.matchClass)) matchByClass[r.matchClass]++;
+      else matchByClass.unclassified++;
+    });
+    var gymCount = refs.filter(function(r){ return r.type === 'gym'; }).length;
+    var analysisCount = refs.filter(function(r){ return r.type === 'analysis'; }).length;
+
+    var recoveryLogsInRange = (state.recoveryLogs || []).filter(function(r){ return r.forDate <= cutoffIso; });
+    var recoveryHabitRates = {};
+    RECOVERY_ITEMS.forEach(function(item){
+      var completed = recoveryLogsInRange.filter(function(r){ return r.checklist && r.checklist[item.key]; }).length;
+      recoveryHabitRates[item.key] = recoveryLogsInRange.length ? Math.round(100 * completed / recoveryLogsInRange.length) : null;
+    });
+
+    var ifaEvidence = {};
+    IDP_IFAS.forEach(function(ifa){
+      ifaEvidence[ifa.key] = refs.filter(function(r){ return r.linkedIfa === ifa.key; })
+        .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
+    });
+
+    var hudlCandidates = matchRefs.filter(function(r){
+      var sess = r.sessionId ? state.schedule.find(function(s){ return s.id === r.sessionId; }) : null;
+      return sess && sess.hudlLink;
+    }).map(function(r){
+      var sess = state.schedule.find(function(s){ return s.id === r.sessionId; });
+      return { date:r.date, opponent:r.opponent, hudlLink:sess.hudlLink, linkedIfa:r.linkedIfa };
+    });
+
+    return {
+      standardsAvg:standardsAvg, trainingCount:trainingCount, matchByClass:matchByClass,
+      gymCount:gymCount, analysisCount:analysisCount, recoveryLogsCount:recoveryLogsInRange.length,
+      recoveryHabitRates:recoveryHabitRates, ifaEvidence:ifaEvidence, hudlCandidates:hudlCandidates,
+      totalEntries:refs.length
+    };
+  }
+
+  function renderIapBriefing(cutoffIso){
+    var out = document.getElementById('iap-briefing-output');
+    if(!out) return;
+    var data = computeIapData(cutoffIso);
+    var idp = getIdpState();
+
+    var standardsHtml = ATTR_KEYS.map(function(k){
+      return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + (data.standardsAvg[k] || '—') + ' / 5</div></div>';
+    }).join('');
+
+    var matchSummary = 'Assertive: ' + data.matchByClass.assertive + '  ·  Balanced: ' + data.matchByClass.balanced + '  ·  Challenge: ' + data.matchByClass.challenge +
+      (data.matchByClass.unclassified ? '  ·  Unclassified: ' + data.matchByClass.unclassified : '');
+
+    var recoveryHtml = data.recoveryLogsCount === 0
+      ? '<div class="hint">No recovery check-ins logged in this period.</div>'
+      : '<div class="hint" style="margin-bottom:8px;">' + data.recoveryLogsCount + ' recovery check-in' + (data.recoveryLogsCount===1?'':'s') + ' logged. Completion rate per habit:</div>' +
+        RECOVERY_ITEMS.map(function(item){
+          var rate = data.recoveryHabitRates[item.key];
+          return '<div class="journal-detail-row"><div class="k">' + item.label + '</div><div class="v">' + (rate===null?'—':rate+'%') + '</div></div>';
+        }).join('');
+
+    var ifaHtml = IDP_IFAS.map(function(ifa){
+      var entries = data.ifaEvidence[ifa.key];
+      var quotesHtml = entries.length === 0
+        ? '<div class="hint">No linked reflections in this period.</div>'
+        : entries.slice(0,5).map(function(r){
+            var quote = r.evidence || r.wentWell || r.action || '';
+            return '<div class="journal-detail-row"><div class="k">' + fmtDate(r.date) + '</div><div class="v">' + escapeHtml(truncate(quote, 140)) + '</div></div>';
+          }).join('');
+      return '<div class="card" style="margin-top:8px;"><div class="idp-ifa-title" style="font-size:13.5px;">' + escapeHtml(ifa.title) + '</div>' + quotesHtml + '</div>';
+    }).join('');
+
+    var visionHtml = idp.seasonVisionGoals.map(function(g){
+      return '<div class="journal-detail-row"><div class="k">' + (g.achieved ? '✓' : '○') + '</div><div class="v">' + escapeHtml(g.text) + '</div></div>';
+    }).join('');
+
+    var hudlHtml = data.hudlCandidates.length === 0
+      ? '<div class="hint">No match reflections with a Hudl link in this period.</div>'
+      : data.hudlCandidates.map(function(c){
+          var ifaLabel = c.linkedIfa ? IDP_IFAS.find(function(i){ return i.key === c.linkedIfa; }) : null;
+          return '<div class="journal-detail-row"><div class="k">' + fmtDate(c.date) + '</div><div class="v">vs ' + escapeHtml(c.opponent||'—') + (ifaLabel ? ' · linked to ' + escapeHtml(ifaLabel.title) : '') + '</div></div>';
+        }).join('');
+
+    var discussionPoints = state.iapDiscussionPoints || ['','',''];
+
+    out.innerHTML =
+      '<div class="card" style="margin-top:16px;">' +
+        '<div class="section-label" style="margin-top:0;">Overview (up to ' + fmtDate(cutoffIso) + ')</div>' +
+        '<div class="journal-detail-row"><div class="k">Entries Logged</div><div class="v">' + data.totalEntries + '</div></div>' +
+        '<div class="journal-detail-row"><div class="k">Training</div><div class="v">' + data.trainingCount + '</div></div>' +
+        '<div class="journal-detail-row"><div class="k">Matches</div><div class="v">' + matchSummary + '</div></div>' +
+        '<div class="journal-detail-row"><div class="k">Gym</div><div class="v">' + data.gymCount + '</div></div>' +
+        '<div class="journal-detail-row"><div class="k">Analysis</div><div class="v">' + data.analysisCount + '</div></div>' +
+      '</div>' +
+      '<div class="card"><div class="section-label" style="margin-top:0;">5-Standards Averages</div>' + standardsHtml + '</div>' +
+      '<div class="card"><div class="section-label" style="margin-top:0;">Recovery Consistency</div>' + recoveryHtml + '</div>' +
+      '<div class="section-label">IFA Evidence</div>' + ifaHtml +
+      '<div class="card"><div class="section-label" style="margin-top:0;">Season Vision Tracker</div>' + visionHtml + '</div>' +
+      '<div class="card"><div class="section-label" style="margin-top:0;">Hudl Review Candidates</div>' + hudlHtml + '</div>' +
+      '<div class="card">' +
+        '<div class="section-label" style="margin-top:0;">Player-Led Discussion Points</div>' +
+        '<div class="hint" style="margin-bottom:8px;">What does Lily want to bring to Josh and the team?</div>' +
+        [0,1,2].map(function(i){
+          return '<div class="field"><input type="text" class="iap-discussion-input" data-idx="' + i + '" value="' + escapeHtml(discussionPoints[i] || '') + '" placeholder="Discussion point ' + (i+1) + '"></div>';
+        }).join('') +
+      '</div>' +
+      '<button type="button" class="btn btn-primary" id="iap-export-pdf-btn" style="margin-top:10px;">Export Briefing PDF</button>';
+
+    document.querySelectorAll('.iap-discussion-input').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        state.iapDiscussionPoints = state.iapDiscussionPoints || ['','',''];
+        state.iapDiscussionPoints[parseInt(inp.getAttribute('data-idx'),10)] = inp.value;
+        saveData();
+      });
+    });
+
+    document.getElementById('iap-export-pdf-btn').addEventListener('click', function(){
+      generateIapBriefingPdf(cutoffIso, data);
+    });
+  }
+
+  function generateIapBriefingPdf(cutoffIso, data){
+    var idp = getIdpState();
+    var discussionPoints = (state.iapDiscussionPoints || ['','','']).filter(function(p){ return p && p.trim(); });
+
+    var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
+    var pageW = doc.internal.pageSize.getWidth();
+    var pageH = doc.internal.pageSize.getHeight();
+    var marginX = 18, marginTop = 20, marginBottom = 18;
+    var maxWidth = pageW - marginX * 2;
+    var y = marginTop;
+
+    function checkPageBreak(extra){
+      if(y + (extra || 8) > pageH - marginBottom){ doc.addPage(); y = marginTop; }
+    }
+    function heading(text, size){
+      checkPageBreak((size || 13) * 0.6);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(size || 13); doc.setTextColor(15, 25, 50);
+      doc.text(text, marginX, y); y += (size || 13) * 0.5 + 3;
+    }
+    function subheading(text){
+      checkPageBreak(7);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(30, 55, 100);
+      var lines = doc.splitTextToSize(text, maxWidth);
+      lines.forEach(function(line){ checkPageBreak(6); doc.text(line, marginX, y); y += 5.5; });
+      y += 0.5;
+    }
+    function bodyText(text, opts){
+      opts = opts || {};
+      doc.setFont('helvetica', opts.bold ? 'bold' : 'normal'); doc.setFontSize(opts.size || 9.5);
+      var c = opts.color || [60,70,90]; doc.setTextColor(c[0], c[1], c[2]);
+      var lines = doc.splitTextToSize(text, maxWidth - (opts.indent || 0));
+      lines.forEach(function(line){ checkPageBreak(5); doc.text(line, marginX + (opts.indent || 0), y); y += 5; });
+    }
+    function spacer(h){ y += (h || 4); }
+    function divider(){
+      checkPageBreak(4); doc.setDrawColor(215,215,215); doc.line(marginX, y, pageW - marginX, y); y += 6;
+    }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(10,24,48);
+    doc.text('Lily Norbury — IAP Review Briefing', marginX, y); y += 8;
+    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(100,100,100);
+    doc.text('Data up to ' + fmtDate(cutoffIso), marginX, y); y += 10;
+    divider();
+
+    heading('Overview', 12);
+    bodyText('Entries logged: ' + data.totalEntries + '    Training: ' + data.trainingCount + '    Gym: ' + data.gymCount + '    Analysis: ' + data.analysisCount);
+    bodyText('Matches — Assertive: ' + data.matchByClass.assertive + '  Balanced: ' + data.matchByClass.balanced + '  Challenge: ' + data.matchByClass.challenge + (data.matchByClass.unclassified ? '  Unclassified: ' + data.matchByClass.unclassified : ''));
+    spacer(3); divider();
+
+    heading('5-Standards Averages', 12);
+    ATTR_KEYS.forEach(function(k){ bodyText(ATTR_LABELS[k] + ': ' + (data.standardsAvg[k] || '—') + ' / 5', { indent:2 }); });
+    spacer(3); divider();
+
+    heading('Recovery Consistency', 12);
+    if(data.recoveryLogsCount === 0){
+      bodyText('No recovery check-ins logged in this period.');
+    } else {
+      bodyText(data.recoveryLogsCount + ' recovery check-in(s) logged.');
+      RECOVERY_ITEMS.forEach(function(item){
+        var rate = data.recoveryHabitRates[item.key];
+        bodyText(item.label + ': ' + (rate === null ? '—' : rate + '%'), { indent:2 });
+      });
+    }
+    spacer(3); divider();
+
+    heading('IFA Evidence', 12);
+    IDP_IFAS.forEach(function(ifa){
+      subheading(ifa.title);
+      var entries = data.ifaEvidence[ifa.key];
+      if(entries.length === 0){
+        bodyText('No linked reflections in this period.', { indent:2, color:[140,140,140] });
+      } else {
+        entries.slice(0,5).forEach(function(r){
+          var quote = r.evidence || r.wentWell || r.action || '';
+          bodyText(fmtDate(r.date) + ' — ' + quote, { indent:2 });
+        });
+      }
+      spacer(2);
+    });
+    divider();
+
+    heading('Season Vision Tracker', 12);
+    idp.seasonVisionGoals.forEach(function(g){
+      bodyText((g.achieved ? '[Done] ' : '[In Progress] ') + g.text, { indent:2 });
+    });
+    spacer(3); divider();
+
+    heading('Hudl Review Candidates', 12);
+    if(data.hudlCandidates.length === 0){
+      bodyText('No match reflections with a Hudl link in this period.');
+    } else {
+      data.hudlCandidates.forEach(function(c){
+        var ifaLabel = c.linkedIfa ? IDP_IFAS.find(function(i){ return i.key === c.linkedIfa; }) : null;
+        bodyText(fmtDate(c.date) + ' — vs ' + (c.opponent || '—') + (ifaLabel ? ' (linked to ' + ifaLabel.title + ')' : ''), { indent:2 });
+      });
+    }
+    spacer(3); divider();
+
+    heading('Player-Led Discussion Points', 12);
+    if(discussionPoints.length === 0){
+      bodyText('Not filled in yet.');
+    } else {
+      discussionPoints.forEach(function(p, i){ bodyText((i+1) + '. ' + p, { indent:2 }); });
+    }
+
+    var pageCount = doc.internal.getNumberOfPages();
+    for(var p = 1; p <= pageCount; p++){
+      doc.setPage(p);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(165,165,165);
+      doc.text('Generated ' + new Date().toLocaleDateString('en-GB') + '   ·   Page ' + p + ' of ' + pageCount, marginX, pageH - 10);
+    }
+
+    doc.save('lily-iap-briefing-' + cutoffIso + '.pdf');
+  }
+
 
   function getIdpTimelineStage(){
     var today = todayIso();
@@ -2459,6 +2742,8 @@
     renderWeeklySummaryModal();
   });
 
+  document.getElementById('open-iap-briefing-btn').addEventListener('click', openIapBriefingModal);
+
   function renderWeeklySummaryModal(){
     var weekEnd = new Date(summaryWeekStart);
     weekEnd.setDate(summaryWeekStart.getDate() + 6);
@@ -2689,7 +2974,7 @@
     document.getElementById('reset-all-btn').addEventListener('click', function(){
       if(!confirm('This permanently deletes every schedule entry and reflection. This cannot be undone. Continue?')) return;
       if(!confirm('Really sure? Type-free double check: this wipes everything for both phones.')) return;
-      state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null };
+      state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null, iapDiscussionPoints: ['','',''] };
       saveData();
       closeModal();
       switchView('today');
