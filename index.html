@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v24.1 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v25 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -635,8 +635,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v24.1';
+  var APP_VERSION = 'v25';
   var CHANGELOG = [
+    { version:'v25', notes:'Reflections now cover Training and Match only — removed Standards Check-In from the form entirely, and removed Gym/Analysis as reflectable types. Gym and Analysis stay fully in the Schedule (location, coach, edit), just with no reflection expected. Today only shows training/match sessions. Historical Standards and gym/analysis reflections are untouched and still viewable.' },
+    { version:'v24.2', notes:'Removed the Parent/Carer edit mode from the Weekly Theme card — kept the passive theme/focus-skills display, cut the checkbox and edit dropdowns she had no reason to interact with.' },
     { version:'v24.1', notes:'Removed the next-day recovery check-in prompt and the MindGym tracker (Today and Progress) to simplify the app. Nothing previously logged for either was deleted.' },
     { version:'v24', notes:'Added an optional Box Moment field to match reflections — captures brave/hesitant box decisions independent of outcome, auto-linking to IFA 3. Collapsed Standards/P-D-E behind an optional expander to shorten the form. Added a one-time season-restart banner on Today.' },
     { version:'v23', notes:'Added the IAP Review Briefing Generator (Progress tab) — date-filtered stats, IFA evidence, Season Vision tracker, Hudl review candidates, and editable discussion points, exportable as a PDF. Recovery reported as non-scored completion rates, not a points system.' },
@@ -1194,7 +1196,6 @@
     if(!wrap) return;
     var weekStartIso = toIsoDate(scheduleWeekStart);
     var syl = getSyllabusForWeek(weekStartIso);
-    var themeOptions = ['Individual Focus / Free Week', 'Individual Focus', 'Free Week'].concat(THEMES);
 
     var html = '<div class="card syllabus-card">' +
       '<div class="syllabus-badge">This Week\'s Focus</div>';
@@ -1208,35 +1209,8 @@
     } else {
       html += '<div class="hint">No theme set for this week yet.</div>';
     }
-    html += '<label class="check-row" style="margin-top:10px;"><input type="checkbox" id="syllabus-parent-mode"><span>Parent/Carer Mode — edit this week\'s theme</span></label>' +
-      '<div id="syllabus-edit-wrap" style="display:none; margin-top:10px;">' +
-        '<div class="field"><label>Primary Theme</label><select id="syllabus-primary-select">' +
-          themeOptions.map(function(t){ return '<option value="' + t + '"' + (syl && syl.primaryTheme===t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
-        '</select></div>' +
-        '<div class="field"><label>Secondary Theme</label><select id="syllabus-secondary-select">' +
-          themeOptions.map(function(t){ return '<option value="' + t + '"' + (syl && syl.secondaryTheme===t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
-        '</select></div>' +
-        '<button type="button" class="btn btn-primary" id="syllabus-save-btn">Save Theme for This Week</button>' +
-      '</div>' +
-    '</div>';
+    html += '</div>';
     wrap.innerHTML = html;
-
-    var parentModeCheck = document.getElementById('syllabus-parent-mode');
-    var editWrap = document.getElementById('syllabus-edit-wrap');
-    parentModeCheck.addEventListener('change', function(e){
-      editWrap.style.display = e.target.checked ? '' : 'none';
-    });
-    document.getElementById('syllabus-save-btn').addEventListener('click', function(){
-      var primary = document.getElementById('syllabus-primary-select').value;
-      var secondary = document.getElementById('syllabus-secondary-select').value;
-      state.syllabusOverrides = state.syllabusOverrides || {};
-      state.syllabusOverrides[weekStartIso] = {
-        weekStart: weekStartIso, primaryTheme: primary, secondaryTheme: secondary,
-        focusSkills: (syl && syl.focusSkills) || []
-      };
-      saveData();
-      renderSyllabusCard();
-    });
   }
 
 
@@ -1554,7 +1528,7 @@
     var friendlyDate = today.toLocaleDateString('en-GB', { day:'numeric', month:'long' });
     var nudgeHtml = '<div class="today-nudge"><div class="today-nudge-letter">' + nudge.letter + '</div><div><div class="today-nudge-name">' + nudge.name + '</div><div class="today-nudge-desc">' + nudge.desc + '</div></div></div>';
 
-    var todaysSessions = sortByTimeOfDay(state.schedule.filter(function(s){ return s.date === dateStr; }));
+    var todaysSessions = sortByTimeOfDay(state.schedule.filter(function(s){ return s.date === dateStr && (s.type === 'training' || s.type === 'match'); }));
     var reflectionForSession = {};
     state.reflections.forEach(function(r){ if(r.sessionId) reflectionForSession[r.sessionId] = r; });
     var adhocToday = state.reflections.filter(function(r){ return r.date === dateStr && !r.sessionId; });
@@ -1836,6 +1810,9 @@
         if(s.time) metaBits.push(s.time);
         if(s.location) metaBits.push(s.location);
         if(s.coach) metaBits.push('Coach: ' + s.coach);
+        var needsReflection = (s.type === 'training' || s.type === 'match');
+        var statusText = needsReflection ? (hasReflection ? '✓ Reflected on' : 'Tap to reflect →') : 'Tap to edit →';
+        var statusColor = (needsReflection && hasReflection) ? 'var(--lime)' : 'var(--text-faint)';
         return '<div class="card pressable schedule-day-card" data-schedule-id="' + s.id + '">' +
           '<div class="card-top">' +
             '<div>' +
@@ -1850,8 +1827,8 @@
           (s.focus ? '<div class="card-focus">' + escapeHtml(s.focus) + '</div>' : '') +
           (s.theme ? '<div class="theme-chip">' + escapeHtml(s.theme) + '</div>' : '') +
           (s.hudlLink ? '<a href="' + escapeHtml(s.hudlLink) + '" target="_blank" rel="noopener" class="hudl-link hudl-link-inline">▶ Watch on Hudl</a>' : '') +
-          '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + (hasReflection ? 'var(--lime)' : 'var(--text-faint)') + ';">' +
-            (hasReflection ? '✓ Reflected on' : 'Tap to reflect →') +
+          '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + statusColor + ';">' +
+            statusText +
           '</div>' +
         '</div>';
       }).join('');
@@ -1877,7 +1854,8 @@
         var existing = state.reflections.find(function(r){ return r.sessionId === id; });
         if(existing){ openReflectionDetail(existing.id); }
         else if(sess.type === 'match'){ openMatchPrepModal(sess); }
-        else{ openReflectionForm(sess); }
+        else if(sess.type === 'training'){ openReflectionForm(sess); }
+        else{ openScheduleForm(sess); }
       });
     });
   }
@@ -3163,20 +3141,6 @@
     prefillScheduleId = existingReflection ? (existingReflection.sessionId || null) : (scheduleItem ? scheduleItem.id : null);
     var today = new Date().toISOString().slice(0,10);
 
-    var attrRowsHtml = ATTR_KEYS.map(function(k){
-      var savedVal = existingReflection && existingReflection.attributes ? existingReflection.attributes[k] : null;
-      return '<div class="rating-item" data-key="' + k + '">' +
-        '<div class="rating-row">' +
-          '<div class="r-label-wrap"><span class="r-label">' + ATTR_LABELS[k] + '</span>' +
-            '<button type="button" class="info-icon" data-info-key="' + k + '" aria-label="What does ' + ATTR_LABELS[k] + ' mean?">i</button></div>' +
-          '<div class="rating-scale" data-attr="' + k + '">' +
-            [1,2,3,4,5].map(function(n){ return '<button type="button" class="' + (savedVal===n ? 'selected r'+n : '') + '" data-val="' + n + '">' + n + '</button>'; }).join('') +
-          '</div>' +
-        '</div>' +
-        '<div class="info-tooltip" data-tooltip-key="' + k + '">' + escapeHtml(ATTR_DESC[k] || '') + '</div>' +
-      '</div>';
-    }).join('');
-
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>' + (isEditingReflection ? 'Edit Reflection' : 'Reflect') + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
@@ -3184,8 +3148,6 @@
       '<div class="type-toggle" id="ref-type-toggle" style="margin-bottom:16px;">' +
         '<button type="button" class="' + (currentType==='training'?'active training':'') + '" data-type="training">Training</button>' +
         '<button type="button" class="' + (currentType==='match'?'active match':'') + '" data-type="match">Match</button>' +
-        '<button type="button" class="' + (currentType==='gym'?'active gym':'') + '" data-type="gym">Gym</button>' +
-        '<button type="button" class="' + (currentType==='analysis'?'active analysis':'') + '" data-type="analysis">Analysis</button>' +
       '</div>' +
 
       '<div class="field"><label>Title</label><input type="text" id="ref-title" value="' + (existingReflection ? escapeHtml(existingReflection.title) : (scheduleItem ? escapeHtml(scheduleItem.title) : '')) + '" placeholder="e.g. Tuesday session, vs. Fulham (A), or Strength Session"></div>' +
@@ -3250,37 +3212,31 @@
       '<div class="field"><label>What\'s the evidence for that rating?</label><textarea id="ref-evidence" placeholder="Be specific — not \'I felt bad\', but what actually happened that backs up the number.">' + (existingReflection ? escapeHtml(existingReflection.evidence || '') : '') + '</textarea>' +
         '<div class="hint">This is the key habit: a rating only counts if you can back it up with something you actually saw or did.</div></div>' +
 
-      '<details class="hudl-step" id="ref-detail-toggle" style="margin-top:14px; margin-bottom:14px;"' + ((existingReflection && ((existingReflection.attributes && Object.keys(existingReflection.attributes).length) || false)) ? ' open' : '') + '>' +
-        '<summary>Add More Detail (optional)</summary>' +
-        '<div id="ref-pde-wrap" style="' + (currentType==='match' ? '' : 'display:none;') + '">' +
-          '<div class="pde-flip-outer">' +
-            '<div class="pde-flip-card" id="pde-flip-card">' +
-              '<div class="pde-flip-inner">' +
-                '<div class="pde-face pde-face-front">' +
-                  '<div class="pde-front-icons">📍 🧠 ⚡</div>' +
-                  '<div class="pde-front-title">P · D · E</div>' +
-                  '<div class="pde-front-sub">Position · Decision · Execution</div>' +
-                  '<div class="pde-front-tag">PDE Blueprint · Match Helper</div>' +
+      '<div id="ref-pde-wrap" style="' + (currentType==='match' ? 'margin-bottom:14px;' : 'display:none;') + '">' +
+        '<div class="pde-flip-outer">' +
+          '<div class="pde-flip-card" id="pde-flip-card">' +
+            '<div class="pde-flip-inner">' +
+              '<div class="pde-face pde-face-front">' +
+                '<div class="pde-front-icons">📍 🧠 ⚡</div>' +
+                '<div class="pde-front-title">P · D · E</div>' +
+                '<div class="pde-front-sub">Position · Decision · Execution</div>' +
+                '<div class="pde-front-tag">PDE Blueprint · Match Helper</div>' +
+              '</div>' +
+              '<div class="pde-face pde-face-back">' +
+                '<div class="pde-cols">' +
+                  PDE_CUES.map(function(c){
+                    return '<div class="pde-col"><div class="pde-col-head">' + c.icon + ' ' + c.title + ' <span class="pde-col-sub">(' + c.subtitle + ')</span></div>' +
+                      '<ul class="pde-list">' + c.cues.map(function(cue){ return '<li>' + escapeHtml(cue) + '</li>'; }).join('') + '</ul>' +
+                    '</div>';
+                  }).join('') +
                 '</div>' +
-                '<div class="pde-face pde-face-back">' +
-                  '<div class="pde-cols">' +
-                    PDE_CUES.map(function(c){
-                      return '<div class="pde-col"><div class="pde-col-head">' + c.icon + ' ' + c.title + ' <span class="pde-col-sub">(' + c.subtitle + ')</span></div>' +
-                        '<ul class="pde-list">' + c.cues.map(function(cue){ return '<li>' + escapeHtml(cue) + '</li>'; }).join('') + '</ul>' +
-                      '</div>';
-                    }).join('') +
-                  '</div>' +
-                  '<button type="button" class="btn btn-ghost" id="pde-insert-btn">Insert Layout into Evidence</button>' +
-                '</div>' +
+                '<button type="button" class="btn btn-ghost" id="pde-insert-btn">Insert Layout into Evidence</button>' +
               '</div>' +
             '</div>' +
-            '<div class="pde-flip-hint">Tap to Flip 🔄</div>' +
           '</div>' +
+          '<div class="pde-flip-hint">Tap to Flip 🔄</div>' +
         '</div>' +
-
-        '<div class="section-label" style="margin-top:4px;">' + (currentType === 'gym' ? 'Physical Standard' : currentType === 'analysis' ? 'Tactical & Psych' : 'Standards Check-In') + '</div>' +
-        '<div id="ref-attr-rows">' + attrRowsHtml + '</div>' +
-      '</details>' +
+      '</div>' +
 
       '<div class="section-label">One Action for Next Session</div>' +
       '<div class="field"><textarea id="ref-action" placeholder="Keep it small and doable — one thing to focus on.">' + (existingReflection ? escapeHtml(existingReflection.action || '') : '') + '</textarea></div>' +
@@ -3296,17 +3252,6 @@
       '<button class="btn btn-primary" id="save-reflection">' + (isEditingReflection ? 'Save Changes' : 'Save Reflection') + '</button>'
     );
 
-    function applyAttrVisibility(type){
-      document.querySelectorAll('#ref-attr-rows .rating-item').forEach(function(row){
-        var key = row.getAttribute('data-key');
-        var show = true;
-        if(type === 'gym') show = (key === 'physical');
-        else if(type === 'analysis') show = (key === 'tactical' || key === 'psych');
-        row.style.display = show ? '' : 'none';
-      });
-    }
-    applyAttrVisibility(currentType);
-
     document.getElementById('close-modal').addEventListener('click', closeModal);
 
     document.getElementById('ref-type-toggle').querySelectorAll('button').forEach(function(b){
@@ -3320,7 +3265,6 @@
         document.getElementById('ref-theme-wrap').style.display = (currentType === 'gym' || currentType === 'analysis') ? 'none' : '';
         document.getElementById('ref-standard-fields').style.display = currentType === 'gym' ? 'none' : '';
         document.getElementById('ref-pde-wrap').style.display = currentType === 'match' ? '' : 'none';
-        applyAttrVisibility(currentType);
       });
     });
 
