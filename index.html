@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v25 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v26 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,15 +103,15 @@
   .gk-view.hidden{display:none;}
 
   .section-label{
-    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em;
-    color:var(--text-dim); text-transform:uppercase; margin:22px 0 10px;
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:16.5px; letter-spacing:0.01em;
+    color:var(--text); margin:24px 0 10px;
   }
   .section-label:first-child{margin-top:0;}
 
   /* Cards */
   .card{
-    background:var(--surface); border:1px solid var(--line); border-radius:10px;
-    padding:14px 16px; margin-bottom:10px;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:17px 18px; margin-bottom:14px;
   }
   .card.pressable{cursor:pointer; transition:border-color .15s, background .15s;}
   .card.pressable:active{background:var(--surface-2); border-color:var(--lime-dim);}
@@ -150,14 +150,14 @@
 
   /* Buttons */
   .btn{
-    font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; text-transform:uppercase; letter-spacing:0.04em;
-    border:none; border-radius:8px; padding:13px 18px; cursor:pointer; width:100%;
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:15.5px; letter-spacing:0.02em;
+    border:none; border-radius:14px; padding:16px 18px; cursor:pointer; width:100%;
     display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .btn-primary{background:var(--lime); color:var(--bg);}
-  .btn-primary:active{background:var(--lime-dim);}
-  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--text);}
-  .btn-ghost:active{border-color:var(--text-dim);}
+  .btn-primary:active{background:var(--lime-dim); transform:scale(0.98);}
+  .btn-ghost{background:transparent; border:1.5px solid var(--line); color:var(--text);}
+  .btn-ghost:active{border-color:var(--text-dim); transform:scale(0.98);}
   .btn-fab{
     position:fixed; bottom:88px; right:calc(50% - 215px + 20px); z-index:25;
     width:52px; height:52px; border-radius:50%; background:var(--lime); color:var(--bg);
@@ -182,18 +182,18 @@
   .nav-item svg{width:20px; height:20px;}
 
   /* Forms */
-  .field{margin-bottom:16px;}
+  .field{margin-bottom:18px;}
   .field label{
-    display:block; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em;
-    text-transform:uppercase; color:var(--text-dim); margin-bottom:7px;
+    display:block; font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+    color:var(--text-dim); margin-bottom:7px;
   }
   .field input[type=text], .field input[type=date], .field textarea, .field select{
-    width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
-    padding:11px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:14.5px; resize:vertical;
+    width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; color:var(--text); font-family:'Inter',sans-serif; font-size:15.5px; resize:vertical;
   }
-  .field textarea{min-height:70px; line-height:1.5;}
+  .field textarea{min-height:78px; line-height:1.55;}
   .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--lime-dim);}
-  .field .hint{font-size:12px; color:var(--text-faint); margin-top:5px; line-height:1.4;}
+  .field .hint{font-size:12.5px; color:var(--text-faint); margin-top:6px; line-height:1.5;}
   .known-match-info{
     background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:11px 12px;
     color:var(--text-dim); font-size:14.5px;
@@ -330,9 +330,9 @@
   .rating-scale button.selected.r4{background:var(--cyan); border-color:var(--cyan); color:var(--bg);}
   .rating-scale button.selected.r5{background:var(--lime); border-color:var(--lime); color:var(--bg);}
 
-  .overall-scale{display:flex; gap:6px; margin-bottom:6px;}
-  .overall-scale button{flex:1; padding:10px 2px; border-radius:8px; border:1.5px solid var(--line); background:var(--surface-2);
-    color:var(--text-dim); font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; text-transform:uppercase; cursor:pointer; text-align:center;}
+  .overall-scale{display:flex; gap:8px; margin-bottom:8px;}
+  .overall-scale button{flex:1; padding:16px 2px; border-radius:14px; border:1.5px solid var(--line); background:var(--surface-2);
+    color:var(--text-dim); font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; cursor:pointer; text-align:center; line-height:1.4;}
   .overall-scale button.selected.r1{background:rgba(255,107,107,0.15); border-color:var(--red); color:var(--red);}
   .overall-scale button.selected.r2{background:rgba(255,180,84,0.15); border-color:var(--amber); color:var(--amber);}
   .overall-scale button.selected.r3{background:rgba(139,152,165,0.15); border-color:var(--text-dim); color:var(--text);}
@@ -635,8 +635,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v25';
+  var APP_VERSION = 'v26';
   var CHANGELOG = [
+    { version:'v26', notes:'Wording and visual pass for a 14-year-old: Evidence became What Actually Happened, section labels read as real questions not form fields, encouragement messages and the injury alert are less formal. Buttons are bigger, corners softer, spacing more generous, labels no longer shout in capitals.' },
     { version:'v25', notes:'Reflections now cover Training and Match only — removed Standards Check-In from the form entirely, and removed Gym/Analysis as reflectable types. Gym and Analysis stay fully in the Schedule (location, coach, edit), just with no reflection expected. Today only shows training/match sessions. Historical Standards and gym/analysis reflections are untouched and still viewable.' },
     { version:'v24.2', notes:'Removed the Parent/Carer edit mode from the Weekly Theme card — kept the passive theme/focus-skills display, cut the checkbox and edit dropdowns she had no reason to interact with.' },
     { version:'v24.1', notes:'Removed the next-day recovery check-in prompt and the MindGym tracker (Today and Progress) to simplify the app. Nothing previously logged for either was deleted.' },
@@ -1394,11 +1395,11 @@
 
   function encouragementForRating(rating){
     var lines = {
-      5: 'Brilliant session, Lily — that\'s exactly the standard to keep building on.',
+      5: 'Brilliant, Lily! That\'s the level to keep hitting.',
       4: 'Great work today — real signs of progress in there.',
-      3: 'A solid, honest session — that\'s exactly how good keepers build consistency.',
-      2: 'Tough one today — but naming what to work on is exactly the right response.',
-      1: 'Every keeper has days like this. What matters is you\'ve already named your next step.'
+      3: 'A solid, honest one — that\'s how you get consistent.',
+      2: 'Tough one — but knowing what to work on is exactly the right move.',
+      1: 'Everyone has days like this. You\'ve already worked out what\'s next, and that\'s what counts.'
     };
     return lines[rating] || 'Thanks for logging today, Lily.';
   }
@@ -1545,7 +1546,7 @@
         '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + ' — no session scheduled today.</div></div>' +
         seasonBannerHtml +
         nudgeHtml +
-        '<div class="today-rest">Rest and recover — or if something\'s changed, jump into Schedule to add today\'s session.</div>' +
+        '<div class="today-rest">Rest day — nothing to log. If that\'s changed, add it in Schedule.</div>' +
         '<button class="btn btn-ghost" id="today-goto-schedule" style="margin-top:16px;">View Schedule</button>';
       var gotoBtn = document.getElementById('today-goto-schedule');
       if(gotoBtn) gotoBtn.addEventListener('click', function(){ switchView('schedule'); });
@@ -1576,7 +1577,7 @@
           '</div>' +
           (s.focus ? '<div class="card-focus">' + escapeHtml(s.focus) + '</div>' : '') +
           '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + (reflected ? 'var(--lime)' : 'var(--text-faint)') + ';">' +
-            (reflected ? '✓ Reflected on' : 'Tap to reflect →') +
+            (reflected ? '✓ Logged' : 'Tap to log it →') +
           '</div>' +
         '</div>' + extras;
       }).join('');
@@ -1761,7 +1762,7 @@
         pillHtml +
         '<div class="today-encouragement">' + encouragement + '</div>' +
         (quoteText ? '<div class="today-quote">“' + escapeHtml(truncate(quoteText, 120)) + '”</div>' : '') +
-        (entry.action ? '<div class="today-next"><span class="k">Carrying into next time</span>' + escapeHtml(entry.action) + '</div>' : '') +
+        (entry.action ? '<div class="today-next"><span class="k">Next up</span>' + escapeHtml(entry.action) + '</div>' : '') +
       '</div>' +
       '<div class="today-nudge"><div class="today-nudge-letter">' + nudge.letter + '</div><div><div class="today-nudge-name">Did you show ' + nudge.name + ' today?</div><div class="today-nudge-desc">' + nudge.desc + '</div></div></div>' +
       '<div class="today-close">That\'s today done — see you next session, Lily.</div>';
@@ -1811,7 +1812,7 @@
         if(s.location) metaBits.push(s.location);
         if(s.coach) metaBits.push('Coach: ' + s.coach);
         var needsReflection = (s.type === 'training' || s.type === 'match');
-        var statusText = needsReflection ? (hasReflection ? '✓ Reflected on' : 'Tap to reflect →') : 'Tap to edit →';
+        var statusText = needsReflection ? (hasReflection ? '✓ Logged' : 'Tap to log it →') : 'Tap to edit →';
         var statusColor = (needsReflection && hasReflection) ? 'var(--lime)' : 'var(--text-faint)';
         return '<div class="card pressable schedule-day-card" data-schedule-id="' + s.id + '">' +
           '<div class="card-top">' +
@@ -3201,7 +3202,7 @@
       '</div>' +
 
       '<div id="ref-standard-fields" style="' + (currentType==='gym' ? 'display:none;' : '') + '">' +
-      '<div class="section-label" style="margin-top:4px;">Overall — Honestly, How Did It Go?</div>' +
+      '<div class="section-label" style="margin-top:4px;">How\'d It Go, Honestly?</div>' +
       '<div class="overall-scale" id="overall-scale">' +
         '<button type="button" class="r1' + (existingReflection && existingReflection.overall===1 ? ' selected' : '') + '" data-val="1">1<br>Rubbish</button>' +
         '<button type="button" class="r2' + (existingReflection && existingReflection.overall===2 ? ' selected' : '') + '" data-val="2">2</button>' +
@@ -3209,8 +3210,8 @@
         '<button type="button" class="r4' + (existingReflection && existingReflection.overall===4 ? ' selected' : '') + '" data-val="4">4</button>' +
         '<button type="button" class="r5' + (existingReflection && existingReflection.overall===5 ? ' selected' : '') + '" data-val="5">5<br>Brilliant</button>' +
       '</div>' +
-      '<div class="field"><label>What\'s the evidence for that rating?</label><textarea id="ref-evidence" placeholder="Be specific — not \'I felt bad\', but what actually happened that backs up the number.">' + (existingReflection ? escapeHtml(existingReflection.evidence || '') : '') + '</textarea>' +
-        '<div class="hint">This is the key habit: a rating only counts if you can back it up with something you actually saw or did.</div></div>' +
+      '<div class="field"><label>What actually happened?</label><textarea id="ref-evidence" placeholder="Not \'I felt bad\' — what really happened that made you pick that number?">' + (existingReflection ? escapeHtml(existingReflection.evidence || '') : '') + '</textarea>' +
+        '<div class="hint">This bit\'s the important one — a number on its own doesn\'t mean much without something real behind it.</div></div>' +
 
       '<div id="ref-pde-wrap" style="' + (currentType==='match' ? 'margin-bottom:14px;' : 'display:none;') + '">' +
         '<div class="pde-flip-outer">' +
@@ -3230,7 +3231,7 @@
                     '</div>';
                   }).join('') +
                 '</div>' +
-                '<button type="button" class="btn btn-ghost" id="pde-insert-btn">Insert Layout into Evidence</button>' +
+                '<button type="button" class="btn btn-ghost" id="pde-insert-btn">Add This Below</button>' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -3238,8 +3239,8 @@
         '</div>' +
       '</div>' +
 
-      '<div class="section-label">One Action for Next Session</div>' +
-      '<div class="field"><textarea id="ref-action" placeholder="Keep it small and doable — one thing to focus on.">' + (existingReflection ? escapeHtml(existingReflection.action || '') : '') + '</textarea></div>' +
+      '<div class="section-label">One Thing To Work On</div>' +
+      '<div class="field"><textarea id="ref-action" placeholder="Just one thing — keep it small.">' + (existingReflection ? escapeHtml(existingReflection.action || '') : '') + '</textarea></div>' +
       '</div>' +
 
       '<div class="field"><label>Link to a Focus Area (optional)</label><select id="ref-linked-ifa">' +
@@ -3247,9 +3248,9 @@
         IDP_IFAS.map(function(ifa){ return '<option value="' + ifa.key + '"' + (existingReflection && existingReflection.linkedIfa === ifa.key ? ' selected' : '') + '>' + escapeHtml(ifa.title) + '</option>'; }).join('') +
       '</select><div class="hint">Builds evidence toward that IFA on the Standards tab.</div></div>' +
 
-      '<div id="injury-alert" class="injury-alert" style="display:none;">🚨 <strong>Medical Protocol:</strong> Have you messaged U12–U16 Physiotherapist Ben Cox on Teamworks? All injuries — sustained at Chelsea or away — need reporting straight away so a review clinic time can be arranged before the next session.</div>' +
+      '<div id="injury-alert" class="injury-alert" style="display:none;">🚨 <strong>Quick check:</strong> have you told Ben Cox (the physio) on Teamworks about this? Any injury — Chelsea or not — needs telling him straight away so he can sort a time to check it before your next session.</div>' +
 
-      '<button class="btn btn-primary" id="save-reflection">' + (isEditingReflection ? 'Save Changes' : 'Save Reflection') + '</button>'
+      '<button class="btn btn-primary" id="save-reflection">' + (isEditingReflection ? 'Save Changes' : 'Save') + '</button>'
     );
 
     document.getElementById('close-modal').addEventListener('click', closeModal);
@@ -3381,7 +3382,7 @@
       var title = document.getElementById('ref-title').value.trim();
       var date = document.getElementById('ref-date').value;
       if(!title || !date){ alert('Add a title and date first.'); return; }
-      if(currentType !== 'gym' && !selectedOverall){ alert('Pick an overall rating — that\'s the one that builds objectivity over time.'); return; }
+      if(currentType !== 'gym' && !selectedOverall){ alert('Pop a rating in first — that\'s the bit that matters most.'); return; }
 
       try{
         var entry = {
@@ -3464,10 +3465,10 @@
       (r.gymFocus ? '<div class="journal-detail-row"><div class="k">Focus</div><div class="v">' + escapeHtml(r.gymFocus) + '</div></div>' : '') +
       (r.boxMoment ? '<div class="journal-detail-row"><div class="k">Box Moment</div><div class="v">' + escapeHtml(r.boxMoment) + '</div></div>' : '') +
       (r.opponent ? '<div class="journal-detail-row"><div class="k">Result</div><div class="v">vs ' + escapeHtml(r.opponent) + (r.score ? ' — ' + escapeHtml(r.score) : '') + (r.matchClass ? ' &nbsp;·&nbsp; ' + MATCH_CLASS.find(function(m){return m.key===r.matchClass;}).label : '') + '</div></div>' : '') +
-      (r.evidence ? '<div class="journal-detail-row"><div class="k">Evidence for rating</div><div class="v">' + escapeHtml(r.evidence) + '</div></div>' : '') +
+      (r.evidence ? '<div class="journal-detail-row"><div class="k">What Happened</div><div class="v">' + escapeHtml(r.evidence) + '</div></div>' : '') +
       (r.wentWell ? '<div class="journal-detail-row"><div class="k">What went well</div><div class="v">' + escapeHtml(r.wentWell) + '</div></div>' : '') +
       (r.evenBetterIf ? '<div class="journal-detail-row"><div class="k">Even better if</div><div class="v">' + escapeHtml(r.evenBetterIf) + '</div></div>' : '') +
-      (r.action ? '<div class="journal-detail-row"><div class="k">Action for next time</div><div class="v">' + escapeHtml(r.action) + '</div></div>' : '') +
+      (r.action ? '<div class="journal-detail-row"><div class="k">To Work On</div><div class="v">' + escapeHtml(r.action) + '</div></div>' : '') +
       (r.type !== 'gym' ? '<div class="section-label">Standards Check-In</div>' + attrHtml : '') +
       '<button class="btn btn-primary" id="edit-reflection" style="margin-top:18px;">Edit Reflection</button>' +
       '<button class="btn btn-ghost" id="delete-reflection" style="margin-top:10px; color:var(--red); border-color:rgba(255,107,107,0.3);">Delete Entry</button>'
