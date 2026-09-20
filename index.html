@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v24 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v24.1 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -561,9 +561,6 @@
     <div class="section-label">Overview</div>
     <div class="stat-grid" id="progress-stats"></div>
 
-    <div class="section-label">MindGym This Week</div>
-    <div class="card" id="mindgym-card"></div>
-
     <div class="section-label">IAP Review Briefing</div>
     <div class="card">
       <div class="hint" style="margin-bottom:12px;">Compile a date-filtered summary of her progress to bring to a review meeting.</div>
@@ -638,8 +635,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v24';
+  var APP_VERSION = 'v24.1';
   var CHANGELOG = [
+    { version:'v24.1', notes:'Removed the next-day recovery check-in prompt and the MindGym tracker (Today and Progress) to simplify the app. Nothing previously logged for either was deleted.' },
     { version:'v24', notes:'Added an optional Box Moment field to match reflections — captures brave/hesitant box decisions independent of outcome, auto-linking to IFA 3. Collapsed Standards/P-D-E behind an optional expander to shorten the form. Added a one-time season-restart banner on Today.' },
     { version:'v23', notes:'Added the IAP Review Briefing Generator (Progress tab) — date-filtered stats, IFA evidence, Season Vision tracker, Hudl review candidates, and editable discussion points, exportable as a PDF. Recovery reported as non-scored completion rates, not a points system.' },
     { version:'v22', notes:'Added Season Development Plan (IDP) to the Standards tab — timeline stage, Season Vision goals checklist, and her 3 IFAs with status badges. Reflections can now link to an IFA to build evidence over time.' },
@@ -1561,32 +1559,23 @@
     state.reflections.forEach(function(r){ if(r.sessionId) reflectionForSession[r.sessionId] = r; });
     var adhocToday = state.reflections.filter(function(r){ return r.date === dateStr && !r.sessionId; });
 
-    var recoveryPrompt = getYesterdayRecoveryPrompt();
-    var recoveryPromptHtml = recoveryPrompt ? renderRecoveryPromptHtml(recoveryPrompt) : '';
-    var mindGymChipHtml = renderMindGymChipHtml();
     var seasonBannerHtml = renderSeasonBannerHtml();
 
     if(todaysSessions.length === 0){
       if(adhocToday.length > 0){
-        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, seasonBannerHtml + mindGymChipHtml + recoveryPromptHtml);
+        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, seasonBannerHtml);
         wireSeasonBanner();
-        wireMindGymChip();
-        if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
         return;
       }
       el.innerHTML =
         '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + ' — no session scheduled today.</div></div>' +
         seasonBannerHtml +
-        mindGymChipHtml +
-        recoveryPromptHtml +
         nudgeHtml +
         '<div class="today-rest">Rest and recover — or if something\'s changed, jump into Schedule to add today\'s session.</div>' +
         '<button class="btn btn-ghost" id="today-goto-schedule" style="margin-top:16px;">View Schedule</button>';
       var gotoBtn = document.getElementById('today-goto-schedule');
       if(gotoBtn) gotoBtn.addEventListener('click', function(){ switchView('schedule'); });
-      wireMindGymChip();
       wireSeasonBanner();
-      if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
       return;
     }
 
@@ -1621,8 +1610,6 @@
       el.innerHTML =
         '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + '</div></div>' +
         seasonBannerHtml +
-        mindGymChipHtml +
-        recoveryPromptHtml +
         (todaysSessions.length > 1 ? '<div class="today-multi-note">' + todaysSessions.length + ' sessions today — tap either one to log it, whichever order suits.</div>' : '') +
         sessionCards +
         nudgeHtml;
@@ -1642,17 +1629,13 @@
       });
 
       wireFuelingChecklist();
-      wireMindGymChip();
       wireSeasonBanner();
-      if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
       return;
     }
 
     var doneEntry = todaysSessions.map(function(s){ return reflectionForSession[s.id]; }).filter(Boolean).pop();
-    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, seasonBannerHtml + mindGymChipHtml + recoveryPromptHtml);
+    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, seasonBannerHtml);
     wireSeasonBanner();
-    wireMindGymChip();
-    if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
   }
 
   var GK_COACH_NAMES = ['josh', 'seb', 'ella', 'kane'];
@@ -2323,7 +2306,6 @@
     drawChart(refs.filter(function(r){ return typeof r.overall === 'number'; }));
     renderAttrAverages(refs);
     renderThemeAverages(refs);
-    renderMindGym();
   }
 
   var MINDGYM_METHODS = ['VR Headset', 'Visual Training Games', 'Pattern Recognition Games', 'Scanning Games', 'Training Lights'];
