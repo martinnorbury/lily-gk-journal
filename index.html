@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v27.1 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v28 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -572,32 +572,37 @@
     <div class="section-label">Overview</div>
     <div class="stat-grid" id="progress-stats"></div>
 
-    <div class="section-label">IAP Review Briefing</div>
-    <div class="card">
-      <div class="hint" style="margin-bottom:12px;">Compile a date-filtered summary of her progress to bring to a review meeting.</div>
-      <button class="btn btn-primary" id="open-iap-briefing-btn">Generate IAP Review Briefing</button>
-    </div>
+    <!-- IAP Review Briefing button/card removed 2026-08-20 (v28) alongside the whole
+         IDP/IFA system — real Season Vision + IFA data confirmed against Lily's actual
+         Chelsea IDP document, but pulled from the app until her IAP meeting in early
+         October, when it'll actually be used. openIapBriefingModal() and everything it
+         calls (computeIapData, renderIapBriefing, generateIapBriefingPdf) are untouched
+         in the JS. To restore: re-add
+         <div class="section-label">IAP Review Briefing</div>
+         <div class="card">
+           <div class="hint" style="margin-bottom:12px;">Compile a date-filtered summary of her progress to bring to a review meeting.</div>
+           <button class="btn btn-primary" id="open-iap-briefing-btn">Generate IAP Review Briefing</button>
+         </div>
+         here, and re-add its wiring line (search this file for openIapBriefingModal to find where it was removed from). -->
 
-    <div class="section-label">Form Over Time</div>
-    <div class="chart-wrap">
-      <svg id="progress-chart" viewBox="0 0 380 140" style="width:100%; height:auto; display:block;"></svg>
-      <div class="chart-legend">
-        <span><span class="dot" style="background:var(--cyan)"></span>Training</span>
-        <span><span class="dot" style="background:var(--lime)"></span>Match</span>
-        <span><span class="dot" style="background:var(--violet)"></span>Analysis</span>
-      </div>
-    </div>
-
-    <div class="section-label">Standards — Average Rating</div>
-    <div class="card" id="attr-averages"></div>
-
-    <div class="section-label">By Theme</div>
-    <div class="card" id="theme-averages"></div>
+    <!-- Form Over Time chart, Standards averages, and By Theme sections removed
+         2026-08-20 (v27.2) — felt too clinical/score-heavy for now. The underlying
+         drawChart / renderAttrAverages / renderThemeAverages JS functions are still
+         intact and unchanged, but the #progress-chart / #attr-averages / #theme-averages
+         HTML containers and their calls in renderProgress() were removed along with
+         this block. To restore: re-add the three section-label + container divs here
+         (svg#progress-chart with the training/match/analysis legend, card#attr-averages,
+         card#theme-averages) and re-add the drawChart(...)/renderAttrAverages(refs)/
+         renderThemeAverages(refs) calls at the end of renderProgress(). -->
   </div>
 
   <!-- STANDARDS VIEW -->
   <div class="gk-view hidden" id="view-standards">
-    <div id="idp-wrap"></div>
+    <!-- Season Development Plan (IDP/IFA) section removed 2026-08-20 (v28) — see note
+         on the Progress tab above. renderIdpSection() and its data (GK_SYLLABUS-adjacent
+         IDP_IFAS, SEASON_VISION_GOALS_DEFAULT, getIdpState) are untouched in the JS.
+         To restore: re-add <div id="idp-wrap"></div> here, and re-add the
+         renderIdpSection() call in the standards view render dispatch. -->
     <div class="section-label" style="margin-top:0;">My Goals</div>
     <div id="goals-list"></div>
     <button class="btn btn-ghost" id="add-goal-btn" style="margin-bottom:6px;">+ Add Goal</button>
@@ -646,8 +651,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v27.1';
+  var APP_VERSION = 'v28';
   var CHANGELOG = [
+    { version:'v28', notes:'Removed the whole IDP/IFA system — Season Development Plan (Standards tab), IAP Review Briefing (Progress tab), and the Link to a Focus Area dropdown on reflections. Real IFA content confirmed accurate against Lily\'s actual Chelsea IDP document. All underlying code intact and dormant, ready to restore before her IAP meeting in early October.' },
+    { version:'v27.2', notes:'Removed Form Over Time, Standards averages, and By Theme from Progress — too score-heavy for now. Progress is just counts (entries, sessions, matches, clean sheets, goals conceded, felt at fault) plus the IAP briefing. Underlying code kept intact, commented out, ready to restore later.' },
     { version:'v27.1', notes:'Removed Average Rating from the Progress overview — felt too clinical as a standalone number.' },
     { version:'v27', notes:'Removed Gym/Analysis from the Progress overview. Added Goals Conceded to match reflections — for each goal, an honest self-check (no / maybe / yes) on whether she could have done something differently. Clean Sheets, Goals Conceded, and Felt At Fault now show on Progress.' },
     { version:'v26', notes:'Wording and visual pass for a 14-year-old: Evidence became What Actually Happened, section labels read as real questions not form fields, encouragement messages and the injury alert are less formal. Buttons are bigger, corners softer, spacing more generous, labels no longer shout in capitals.' },
@@ -2300,9 +2307,12 @@
       '<div class="stat-card"><div class="stat-num">' + totalConceded + '</div><div class="stat-label">Goals Conceded</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + feltAtFault + '</div><div class="stat-label">Felt At Fault</div></div>';
 
-    drawChart(refs.filter(function(r){ return typeof r.overall === 'number'; }));
-    renderAttrAverages(refs);
-    renderThemeAverages(refs);
+    // Form Over Time / Standards / By Theme removed 2026-08-20 (v27.2) — too score-heavy
+    // for now. The functions themselves are unchanged; uncomment these three lines
+    // (and restore their HTML containers above the STANDARDS VIEW comment) to bring back.
+    // drawChart(refs.filter(function(r){ return typeof r.overall === 'number'; }));
+    // renderAttrAverages(refs);
+    // renderThemeAverages(refs);
   }
 
   var MINDGYM_METHODS = ['VR Headset', 'Visual Training Games', 'Pattern Recognition Games', 'Scanning Games', 'Training Lights'];
@@ -2755,7 +2765,8 @@
     renderWeeklySummaryModal();
   });
 
-  document.getElementById('open-iap-briefing-btn').addEventListener('click', openIapBriefingModal);
+  // IAP Briefing button wiring removed 2026-08-20 (v28) — see restore note on the
+  // Progress tab HTML. openIapBriefingModal itself is untouched below.
 
   function renderWeeklySummaryModal(){
     var weekEnd = new Date(summaryWeekStart);
@@ -3263,11 +3274,6 @@
       '<div class="field"><textarea id="ref-action" placeholder="Just one thing — keep it small.">' + (existingReflection ? escapeHtml(existingReflection.action || '') : '') + '</textarea></div>' +
       '</div>' +
 
-      '<div class="field"><label>Link to a Focus Area (optional)</label><select id="ref-linked-ifa">' +
-        '<option value="">None</option>' +
-        IDP_IFAS.map(function(ifa){ return '<option value="' + ifa.key + '"' + (existingReflection && existingReflection.linkedIfa === ifa.key ? ' selected' : '') + '>' + escapeHtml(ifa.title) + '</option>'; }).join('') +
-      '</select><div class="hint">Builds evidence toward that IFA on the Standards tab.</div></div>' +
-
       '<div id="injury-alert" class="injury-alert" style="display:none;">🚨 <strong>Quick check:</strong> have you told Ben Cox (the physio) on Teamworks about this? Any injury — Chelsea or not — needs telling him straight away so he can sort a time to check it before your next session.</div>' +
 
       '<button class="btn btn-primary" id="save-reflection">' + (isEditingReflection ? 'Save Changes' : 'Save') + '</button>'
@@ -3585,7 +3591,7 @@
     if(currentView === 'schedule') renderSchedule();
     if(currentView === 'journal') renderJournal();
     if(currentView === 'progress') renderProgress();
-    if(currentView === 'standards'){ renderIdpSection(); renderGoals(); renderStandardsView(); }
+    if(currentView === 'standards'){ /* renderIdpSection(); — removed 2026-08-20, see restore note */ renderGoals(); renderStandardsView(); }
   }
 
   loadData();
