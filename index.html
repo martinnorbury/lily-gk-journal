@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v23 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v24 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -479,6 +479,13 @@
   }
   .mindgym-chip.done{color:var(--lime); border-color:rgba(223,192,126,0.35); background:rgba(223,192,126,0.08);}
 
+  .season-banner-card{
+    border-left:3px solid var(--violet); margin-bottom:16px;
+    background:linear-gradient(135deg, rgba(167,139,250,0.08), var(--surface) 65%);
+  }
+  .season-banner-title{font-family:'Oswald',sans-serif; font-weight:700; font-size:16px; color:var(--text); margin-bottom:6px;}
+  .season-banner-text{font-size:13px; color:var(--text-dim); line-height:1.55;}
+
   .warmup-card{margin-top:14px; border-left:3px solid var(--line);}
   .warmup-card.warmup-good{border-left-color:var(--cyan);}
   .warmup-card.warmup-neutral{border-left-color:var(--lime);}
@@ -631,8 +638,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v23';
+  var APP_VERSION = 'v24';
   var CHANGELOG = [
+    { version:'v24', notes:'Added an optional Box Moment field to match reflections — captures brave/hesitant box decisions independent of outcome, auto-linking to IFA 3. Collapsed Standards/P-D-E behind an optional expander to shorten the form. Added a one-time season-restart banner on Today.' },
     { version:'v23', notes:'Added the IAP Review Briefing Generator (Progress tab) — date-filtered stats, IFA evidence, Season Vision tracker, Hudl review candidates, and editable discussion points, exportable as a PDF. Recovery reported as non-scored completion rates, not a points system.' },
     { version:'v22', notes:'Added Season Development Plan (IDP) to the Standards tab — timeline stage, Season Vision goals checklist, and her 3 IFAs with status badges. Reflections can now link to an IFA to build evidence over time.' },
     { version:'v21.2', notes:'Fixed Today screen ordering — the MindGym chip and recovery check-in were showing above the Hi Lily greeting instead of below it.' },
@@ -669,7 +677,7 @@
     { version:'v1', notes:'Started version tracking — version number now shown in Backup & Restore.' }
   ];
   var STORAGE_KEY = 'gk-journal-data-v1';
-  var state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null, iapDiscussionPoints: ['','',''] };
+  var state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null, iapDiscussionPoints: ['','',''], seasonBannerDismissed: false };
   var currentView = 'today';
   var currentType = 'training'; // for reflection form
   var editingReflectionId = null;
@@ -1433,6 +1441,25 @@
     return list.slice().sort(function(a, b){ return timeSortValue(a) - timeSortValue(b); });
   }
 
+  function renderSeasonBannerHtml(){
+    if(state.seasonBannerDismissed) return '';
+    return '<div class="card season-banner-card">' +
+      '<div class="season-banner-title">New Season Starts Now</div>' +
+      '<div class="season-banner-text">Remember the U16 session — you asked if you could train up more. This is where that gets built: not by writing loads, just one honest note after the ones that matter. Whatever this becomes for you, it\'s yours.</div>' +
+      '<button type="button" class="btn btn-ghost" id="season-banner-dismiss" style="margin-top:10px;">Got it</button>' +
+    '</div>';
+  }
+
+  function wireSeasonBanner(){
+    var btn = document.getElementById('season-banner-dismiss');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      state.seasonBannerDismissed = true;
+      saveData();
+      renderAll();
+    });
+  }
+
   function getMindGymDoneThisWeek(){
     var weekStart = mondayOf(new Date());
     var weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
@@ -1537,16 +1564,19 @@
     var recoveryPrompt = getYesterdayRecoveryPrompt();
     var recoveryPromptHtml = recoveryPrompt ? renderRecoveryPromptHtml(recoveryPrompt) : '';
     var mindGymChipHtml = renderMindGymChipHtml();
+    var seasonBannerHtml = renderSeasonBannerHtml();
 
     if(todaysSessions.length === 0){
       if(adhocToday.length > 0){
-        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, mindGymChipHtml + recoveryPromptHtml);
+        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, seasonBannerHtml + mindGymChipHtml + recoveryPromptHtml);
+        wireSeasonBanner();
         wireMindGymChip();
         if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
         return;
       }
       el.innerHTML =
         '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + ' — no session scheduled today.</div></div>' +
+        seasonBannerHtml +
         mindGymChipHtml +
         recoveryPromptHtml +
         nudgeHtml +
@@ -1555,6 +1585,7 @@
       var gotoBtn = document.getElementById('today-goto-schedule');
       if(gotoBtn) gotoBtn.addEventListener('click', function(){ switchView('schedule'); });
       wireMindGymChip();
+      wireSeasonBanner();
       if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
       return;
     }
@@ -1589,6 +1620,7 @@
 
       el.innerHTML =
         '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + '</div></div>' +
+        seasonBannerHtml +
         mindGymChipHtml +
         recoveryPromptHtml +
         (todaysSessions.length > 1 ? '<div class="today-multi-note">' + todaysSessions.length + ' sessions today — tap either one to log it, whichever order suits.</div>' : '') +
@@ -1611,12 +1643,14 @@
 
       wireFuelingChecklist();
       wireMindGymChip();
+      wireSeasonBanner();
       if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
       return;
     }
 
     var doneEntry = todaysSessions.map(function(s){ return reflectionForSession[s.id]; }).filter(Boolean).pop();
-    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, mindGymChipHtml + recoveryPromptHtml);
+    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, seasonBannerHtml + mindGymChipHtml + recoveryPromptHtml);
+    wireSeasonBanner();
     wireMindGymChip();
     if(recoveryPrompt) wireRecoveryPrompt(recoveryPrompt);
   }
@@ -2974,7 +3008,7 @@
     document.getElementById('reset-all-btn').addEventListener('click', function(){
       if(!confirm('This permanently deletes every schedule entry and reflection. This cannot be undone. Continue?')) return;
       if(!confirm('Really sure? Type-free double check: this wipes everything for both phones.')) return;
-      state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null, iapDiscussionPoints: ['','',''] };
+      state = { schedule: [], reflections: [], goals: [], mindgymLogs: [], recoveryLogs: [], syllabusOverrides: {}, idp: null, iapDiscussionPoints: ['','',''], seasonBannerDismissed: false };
       saveData();
       closeModal();
       switchView('today');
@@ -3197,6 +3231,10 @@
           '<div class="hint">Assertive: expected to dominate. Balanced: competitive, fine margins. Challenge: mostly defending, about resilience. Judge the performance against the type of game it was.</div>' +
         '</div>' +
         '<div class="hint" style="margin-top:2px;">To add or change the Hudl link for this match, edit it from the Schedule tab (✎) — that\'s where it\'s stored, not here.</div>' +
+        '<div class="field" style="margin-top:14px;"><label>A Box Moment? (optional)</label>' +
+          '<textarea id="ref-box-moment" placeholder="Was there a moment in the box you keep thinking about — cross, corner, ball bobbing around? Whatever happened after doesn\'t matter here. What was going through your head right then?">' + (existingReflection ? escapeHtml(existingReflection.boxMoment || '') : '') + '</textarea>' +
+          '<div class="hint">This isn\'t about whether it worked out — a goal can go in on a good decision, and nothing can happen on a bad one. Just what you were actually thinking.</div>' +
+        '</div>' +
       '</div>' +
 
       '<div id="ref-analysis-fields" style="' + (currentType==='analysis' ? '' : 'display:none;') + '">' +
@@ -3230,34 +3268,37 @@
       '<div class="field"><label>What\'s the evidence for that rating?</label><textarea id="ref-evidence" placeholder="Be specific — not \'I felt bad\', but what actually happened that backs up the number.">' + (existingReflection ? escapeHtml(existingReflection.evidence || '') : '') + '</textarea>' +
         '<div class="hint">This is the key habit: a rating only counts if you can back it up with something you actually saw or did.</div></div>' +
 
-      '<div id="ref-pde-wrap" style="' + (currentType==='match' ? '' : 'display:none;') + '">' +
-        '<div class="pde-flip-outer">' +
-          '<div class="pde-flip-card" id="pde-flip-card">' +
-            '<div class="pde-flip-inner">' +
-              '<div class="pde-face pde-face-front">' +
-                '<div class="pde-front-icons">📍 🧠 ⚡</div>' +
-                '<div class="pde-front-title">P · D · E</div>' +
-                '<div class="pde-front-sub">Position · Decision · Execution</div>' +
-                '<div class="pde-front-tag">PDE Blueprint · Match Helper</div>' +
-              '</div>' +
-              '<div class="pde-face pde-face-back">' +
-                '<div class="pde-cols">' +
-                  PDE_CUES.map(function(c){
-                    return '<div class="pde-col"><div class="pde-col-head">' + c.icon + ' ' + c.title + ' <span class="pde-col-sub">(' + c.subtitle + ')</span></div>' +
-                      '<ul class="pde-list">' + c.cues.map(function(cue){ return '<li>' + escapeHtml(cue) + '</li>'; }).join('') + '</ul>' +
-                    '</div>';
-                  }).join('') +
+      '<details class="hudl-step" id="ref-detail-toggle" style="margin-top:14px; margin-bottom:14px;"' + ((existingReflection && ((existingReflection.attributes && Object.keys(existingReflection.attributes).length) || false)) ? ' open' : '') + '>' +
+        '<summary>Add More Detail (optional)</summary>' +
+        '<div id="ref-pde-wrap" style="' + (currentType==='match' ? '' : 'display:none;') + '">' +
+          '<div class="pde-flip-outer">' +
+            '<div class="pde-flip-card" id="pde-flip-card">' +
+              '<div class="pde-flip-inner">' +
+                '<div class="pde-face pde-face-front">' +
+                  '<div class="pde-front-icons">📍 🧠 ⚡</div>' +
+                  '<div class="pde-front-title">P · D · E</div>' +
+                  '<div class="pde-front-sub">Position · Decision · Execution</div>' +
+                  '<div class="pde-front-tag">PDE Blueprint · Match Helper</div>' +
                 '</div>' +
-                '<button type="button" class="btn btn-ghost" id="pde-insert-btn">Insert Layout into Evidence</button>' +
+                '<div class="pde-face pde-face-back">' +
+                  '<div class="pde-cols">' +
+                    PDE_CUES.map(function(c){
+                      return '<div class="pde-col"><div class="pde-col-head">' + c.icon + ' ' + c.title + ' <span class="pde-col-sub">(' + c.subtitle + ')</span></div>' +
+                        '<ul class="pde-list">' + c.cues.map(function(cue){ return '<li>' + escapeHtml(cue) + '</li>'; }).join('') + '</ul>' +
+                      '</div>';
+                    }).join('') +
+                  '</div>' +
+                  '<button type="button" class="btn btn-ghost" id="pde-insert-btn">Insert Layout into Evidence</button>' +
+                '</div>' +
               '</div>' +
             '</div>' +
+            '<div class="pde-flip-hint">Tap to Flip 🔄</div>' +
           '</div>' +
-          '<div class="pde-flip-hint">Tap to Flip 🔄</div>' +
         '</div>' +
-      '</div>' +
 
-      '<div class="section-label">' + (currentType === 'gym' ? 'Physical Standard' : currentType === 'analysis' ? 'Tactical & Psych' : 'Standards Check-In') + '</div>' +
-      '<div id="ref-attr-rows">' + attrRowsHtml + '</div>' +
+        '<div class="section-label" style="margin-top:4px;">' + (currentType === 'gym' ? 'Physical Standard' : currentType === 'analysis' ? 'Tactical & Psych' : 'Standards Check-In') + '</div>' +
+        '<div id="ref-attr-rows">' + attrRowsHtml + '</div>' +
+      '</details>' +
 
       '<div class="section-label">One Action for Next Session</div>' +
       '<div class="field"><textarea id="ref-action" placeholder="Keep it small and doable — one thing to focus on.">' + (existingReflection ? escapeHtml(existingReflection.action || '') : '') + '</textarea></div>' +
@@ -3339,7 +3380,7 @@
     function checkInjuryFlag(){
       var alertEl = document.getElementById('injury-alert');
       if(!alertEl) return;
-      var ids = ['ref-evidence','ref-action','ref-gym-focus'];
+      var ids = ['ref-evidence','ref-action','ref-gym-focus','ref-box-moment'];
       var textBlob = ids.map(function(id){
         var elx = document.getElementById(id);
         return elx ? elx.value : '';
@@ -3349,7 +3390,7 @@
       alertEl.style.display = (keywordHit || lowPhysical) ? '' : 'none';
     }
 
-    ['ref-evidence','ref-action','ref-gym-focus'].forEach(function(id){
+    ['ref-evidence','ref-action','ref-gym-focus','ref-box-moment'].forEach(function(id){
       var fieldEl = document.getElementById(id);
       if(fieldEl) fieldEl.addEventListener('input', checkInjuryFlag);
     });
@@ -3437,7 +3478,13 @@
           gymCompleted: currentType === 'gym' ? selectedGymCompleted : null,
           recovery: null,
           analysisMatchId: currentType === 'analysis' ? (document.getElementById('ref-analysis-match') ? document.getElementById('ref-analysis-match').value : '') : '',
-          linkedIfa: document.getElementById('ref-linked-ifa') ? document.getElementById('ref-linked-ifa').value : ''
+          boxMoment: currentType === 'match' ? (document.getElementById('ref-box-moment') ? document.getElementById('ref-box-moment').value.trim() : '') : '',
+          linkedIfa: (function(){
+            var chosen = document.getElementById('ref-linked-ifa') ? document.getElementById('ref-linked-ifa').value : '';
+            var boxMomentVal = currentType === 'match' && document.getElementById('ref-box-moment') ? document.getElementById('ref-box-moment').value.trim() : '';
+            if(!chosen && boxMomentVal) return 'ifa3';
+            return chosen;
+          })()
         };
 
         if(isEditingReflection){
@@ -3489,6 +3536,7 @@
       (hudlSession ? '<a href="' + escapeHtml(hudlSession.hudlLink) + '" target="_blank" rel="noopener" class="hudl-link" style="margin-bottom:16px;">▶ Watch on Hudl</a>' : '') +
       (r.theme ? '<div class="journal-detail-row"><div class="k">Theme</div><div class="v">' + escapeHtml(r.theme) + '</div></div>' : '') +
       (r.gymFocus ? '<div class="journal-detail-row"><div class="k">Focus</div><div class="v">' + escapeHtml(r.gymFocus) + '</div></div>' : '') +
+      (r.boxMoment ? '<div class="journal-detail-row"><div class="k">Box Moment</div><div class="v">' + escapeHtml(r.boxMoment) + '</div></div>' : '') +
       (r.opponent ? '<div class="journal-detail-row"><div class="k">Result</div><div class="v">vs ' + escapeHtml(r.opponent) + (r.score ? ' — ' + escapeHtml(r.score) : '') + (r.matchClass ? ' &nbsp;·&nbsp; ' + MATCH_CLASS.find(function(m){return m.key===r.matchClass;}).label : '') + '</div></div>' : '') +
       (r.evidence ? '<div class="journal-detail-row"><div class="k">Evidence for rating</div><div class="v">' + escapeHtml(r.evidence) + '</div></div>' : '') +
       (r.wentWell ? '<div class="journal-detail-row"><div class="k">What went well</div><div class="v">' + escapeHtml(r.wentWell) + '</div></div>' : '') +
