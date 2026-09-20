@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v26 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v27.1 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -405,6 +405,17 @@
     color:var(--text-dim); font-family:'Oswald',sans-serif; font-weight:600; font-size:11.5px; text-transform:uppercase; cursor:pointer;}
   .match-class-toggle button.selected{background:rgba(212,255,61,0.1); border-color:var(--lime); color:var(--lime);}
 
+  .conceded-goal-card{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:10px;
+  }
+  .conceded-goal-title{font-family:'Oswald',sans-serif; font-weight:600; font-size:14.5px; color:var(--text); margin-bottom:10px;}
+  .cg-fault-toggle{display:flex; flex-direction:column; gap:6px; margin-bottom:4px;}
+  .cg-fault-toggle button{
+    width:100%; padding:11px 10px; border-radius:10px; border:1.5px solid var(--line); background:var(--surface);
+    color:var(--text-dim); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; text-align:left;
+  }
+  .cg-fault-toggle button.selected{background:rgba(212,255,61,0.08); border-color:var(--lime); color:var(--lime);}
+
   .import-row{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px;}
   .import-row-head{margin-bottom:2px;}
   .import-row-summary{font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; color:var(--text); margin-bottom:4px;}
@@ -635,8 +646,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v26';
+  var APP_VERSION = 'v27.1';
   var CHANGELOG = [
+    { version:'v27.1', notes:'Removed Average Rating from the Progress overview — felt too clinical as a standalone number.' },
+    { version:'v27', notes:'Removed Gym/Analysis from the Progress overview. Added Goals Conceded to match reflections — for each goal, an honest self-check (no / maybe / yes) on whether she could have done something differently. Clean Sheets, Goals Conceded, and Felt At Fault now show on Progress.' },
     { version:'v26', notes:'Wording and visual pass for a 14-year-old: Evidence became What Actually Happened, section labels read as real questions not form fields, encouragement messages and the injury alert are less formal. Buttons are bigger, corners softer, spacing more generous, labels no longer shout in capitals.' },
     { version:'v25', notes:'Reflections now cover Training and Match only — removed Standards Check-In from the form entirely, and removed Gym/Analysis as reflectable types. Gym and Analysis stay fully in the Schedule (location, coach, edit), just with no reflection expected. Today only shows training/match sessions. Historical Standards and gym/analysis reflections are untouched and still viewable.' },
     { version:'v24.2', notes:'Removed the Parent/Carer edit mode from the Weekly Theme card — kept the passive theme/focus-skills display, cut the checkbox and edit dropdowns she had no reason to interact with.' },
@@ -2270,17 +2283,22 @@
     var refs = sortByDate(state.reflections);
     var statsEl = document.getElementById('progress-stats');
     var trainingCount = refs.filter(function(r){ return r.type === 'training'; }).length;
+    var matchRefsWithGoals = refs.filter(function(r){ return r.type === 'match' && typeof r.goalsConceded === 'number'; });
     var matchCount = refs.filter(function(r){ return r.type === 'match'; }).length;
-    var gymCount = refs.filter(function(r){ return r.type === 'gym'; }).length;
-    var analysisCount = refs.filter(function(r){ return r.type === 'analysis'; }).length;
+    var cleanSheets = matchRefsWithGoals.filter(function(r){ return r.goalsConceded === 0; }).length;
+    var totalConceded = matchRefsWithGoals.reduce(function(a, r){ return a + r.goalsConceded; }, 0);
+    var feltAtFault = refs.reduce(function(a, r){
+      if(!r.concededGoals) return a;
+      return a + r.concededGoals.filter(function(g){ return g.couldDoDifferently === 'yes'; }).length;
+    }, 0);
 
     statsEl.innerHTML =
       '<div class="stat-card"><div class="stat-num">' + refs.length + '</div><div class="stat-label">Total Entries</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + avgOverall(refs) + '</div><div class="stat-label">Average Rating</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + trainingCount + '</div><div class="stat-label">Training Sessions</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + matchCount + '</div><div class="stat-label">Matches</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + gymCount + '</div><div class="stat-label">Gym Sessions</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + analysisCount + '</div><div class="stat-label">Analysis Sessions</div></div>';
+      '<div class="stat-card"><div class="stat-num">' + cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + totalConceded + '</div><div class="stat-label">Goals Conceded</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + feltAtFault + '</div><div class="stat-label">Felt At Fault</div></div>';
 
     drawChart(refs.filter(function(r){ return typeof r.overall === 'number'; }));
     renderAttrAverages(refs);
@@ -3169,6 +3187,8 @@
           )
         ) +
         '<div class="field"><label>Final Score (optional)</label><input type="text" id="ref-score" value="' + (existingReflection ? escapeHtml(existingReflection.score || '') : '') + '" placeholder="e.g. 3-1 win"></div>' +
+        '<div class="field"><label>Goals Conceded</label><input type="number" id="ref-goals-conceded" min="0" max="15" value="' + (existingReflection && typeof existingReflection.goalsConceded === 'number' ? existingReflection.goalsConceded : 0) + '"></div>' +
+        '<div id="ref-conceded-goals-wrap"></div>' +
         '<div class="field"><label>Type of Match</label>' +
           '<div class="match-class-toggle" id="match-class-toggle">' +
             MATCH_CLASS.map(function(m){ return '<button type="button" class="' + (existingReflection && existingReflection.matchClass===m.key ? 'selected' : '') + '" data-val="' + m.key + '">' + m.label + '</button>'; }).join('') +
@@ -3278,6 +3298,58 @@
           matchClassToggle.querySelectorAll('button').forEach(function(x){ x.classList.remove('selected'); });
           b.classList.add('selected');
         });
+      });
+    }
+
+    var concededGoalsState = (existingReflection && existingReflection.concededGoals) ? JSON.parse(JSON.stringify(existingReflection.concededGoals)) : [];
+
+    function renderConcededGoalsBlocks(){
+      var wrap = document.getElementById('ref-conceded-goals-wrap');
+      if(!wrap) return;
+      wrap.innerHTML = concededGoalsState.map(function(g, i){
+        return '<div class="conceded-goal-card">' +
+          '<div class="conceded-goal-title">Goal ' + (i + 1) + '</div>' +
+          '<div class="field"><label>What happened?</label><input type="text" class="cg-what" data-idx="' + i + '" value="' + escapeHtml(g.whatHappened || '') + '" placeholder="e.g. Corner, headed in near post"></div>' +
+          '<div class="field"><label>Honestly — could you have done something differently?</label>' +
+            '<div class="cg-fault-toggle" data-idx="' + i + '">' +
+              '<button type="button" data-val="no" class="' + (g.couldDoDifferently==='no' ? 'selected' : '') + '">No — nothing I could\'ve done</button>' +
+              '<button type="button" data-val="maybe" class="' + (g.couldDoDifferently==='maybe' ? 'selected' : '') + '">Maybe — worth a look</button>' +
+              '<button type="button" data-val="yes" class="' + (g.couldDoDifferently==='yes' ? 'selected' : '') + '">Yes — I know what</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="field cg-differently-wrap" style="' + ((g.couldDoDifferently==='yes' || g.couldDoDifferently==='maybe') ? '' : 'display:none;') + '"><label>What could you do differently?</label><textarea class="cg-differently" data-idx="' + i + '" placeholder="Be specific — this is the useful bit.">' + escapeHtml(g.differently || '') + '</textarea></div>' +
+        '</div>';
+      }).join('');
+
+      wrap.querySelectorAll('.cg-what').forEach(function(inp){
+        inp.addEventListener('input', function(){
+          concededGoalsState[parseInt(inp.getAttribute('data-idx'), 10)].whatHappened = inp.value;
+        });
+      });
+      wrap.querySelectorAll('.cg-differently').forEach(function(ta){
+        ta.addEventListener('input', function(){
+          concededGoalsState[parseInt(ta.getAttribute('data-idx'), 10)].differently = ta.value;
+        });
+      });
+      wrap.querySelectorAll('.cg-fault-toggle').forEach(function(toggle){
+        var idx = parseInt(toggle.getAttribute('data-idx'), 10);
+        toggle.querySelectorAll('button').forEach(function(b){
+          b.addEventListener('click', function(){
+            concededGoalsState[idx].couldDoDifferently = b.getAttribute('data-val');
+            renderConcededGoalsBlocks();
+          });
+        });
+      });
+    }
+    renderConcededGoalsBlocks();
+
+    var goalsConcededInput = document.getElementById('ref-goals-conceded');
+    if(goalsConcededInput){
+      goalsConcededInput.addEventListener('input', function(){
+        var n = Math.max(0, Math.min(15, parseInt(goalsConcededInput.value, 10) || 0));
+        while(concededGoalsState.length < n) concededGoalsState.push({ whatHappened:'', couldDoDifferently:'', differently:'' });
+        while(concededGoalsState.length > n) concededGoalsState.pop();
+        renderConcededGoalsBlocks();
       });
     }
 
@@ -3401,6 +3473,8 @@
           opponent: currentType === 'match' ? ((scheduleItem && scheduleItem.opponent) ? scheduleItem.opponent : (document.getElementById('ref-opponent') ? document.getElementById('ref-opponent').value.trim() : '')) : '',
           score: currentType === 'match' ? (document.getElementById('ref-score') ? document.getElementById('ref-score').value.trim() : '') : '',
           matchClass: currentType === 'match' ? selectedMatchClass : null,
+          goalsConceded: currentType === 'match' ? (parseInt((document.getElementById('ref-goals-conceded') || {}).value, 10) || 0) : null,
+          concededGoals: currentType === 'match' ? concededGoalsState : [],
           gymFocus: currentType === 'gym' ? (document.getElementById('ref-gym-focus') ? document.getElementById('ref-gym-focus').value.trim() : '') : '',
           gymCompleted: currentType === 'gym' ? selectedGymCompleted : null,
           recovery: null,
@@ -3465,10 +3539,21 @@
       (r.gymFocus ? '<div class="journal-detail-row"><div class="k">Focus</div><div class="v">' + escapeHtml(r.gymFocus) + '</div></div>' : '') +
       (r.boxMoment ? '<div class="journal-detail-row"><div class="k">Box Moment</div><div class="v">' + escapeHtml(r.boxMoment) + '</div></div>' : '') +
       (r.opponent ? '<div class="journal-detail-row"><div class="k">Result</div><div class="v">vs ' + escapeHtml(r.opponent) + (r.score ? ' — ' + escapeHtml(r.score) : '') + (r.matchClass ? ' &nbsp;·&nbsp; ' + MATCH_CLASS.find(function(m){return m.key===r.matchClass;}).label : '') + '</div></div>' : '') +
+      (typeof r.goalsConceded === 'number' ? '<div class="journal-detail-row"><div class="k">Clean Sheet</div><div class="v">' + (r.goalsConceded === 0 ? 'Yes ✓' : 'No — ' + r.goalsConceded + ' conceded') + '</div></div>' : '') +
       (r.evidence ? '<div class="journal-detail-row"><div class="k">What Happened</div><div class="v">' + escapeHtml(r.evidence) + '</div></div>' : '') +
       (r.wentWell ? '<div class="journal-detail-row"><div class="k">What went well</div><div class="v">' + escapeHtml(r.wentWell) + '</div></div>' : '') +
       (r.evenBetterIf ? '<div class="journal-detail-row"><div class="k">Even better if</div><div class="v">' + escapeHtml(r.evenBetterIf) + '</div></div>' : '') +
       (r.action ? '<div class="journal-detail-row"><div class="k">To Work On</div><div class="v">' + escapeHtml(r.action) + '</div></div>' : '') +
+      (r.concededGoals && r.concededGoals.length ? '<div class="section-label">Goals Conceded — Honest Look</div>' +
+        r.concededGoals.map(function(g, i){
+          var faultLabel = g.couldDoDifferently === 'yes' ? 'Yes — I know what' : g.couldDoDifferently === 'maybe' ? 'Maybe — worth a look' : g.couldDoDifferently === 'no' ? 'No — nothing I could\'ve done' : '';
+          return '<div class="card" style="margin-top:8px;">' +
+            '<div class="conceded-goal-title">Goal ' + (i + 1) + '</div>' +
+            (g.whatHappened ? '<div class="journal-detail-row"><div class="k">What Happened</div><div class="v">' + escapeHtml(g.whatHappened) + '</div></div>' : '') +
+            (faultLabel ? '<div class="journal-detail-row"><div class="k">Could I Have Done Differently?</div><div class="v">' + escapeHtml(faultLabel) + '</div></div>' : '') +
+            (g.differently ? '<div class="journal-detail-row"><div class="k">What Differently</div><div class="v">' + escapeHtml(g.differently) + '</div></div>' : '') +
+          '</div>';
+        }).join('') : '') +
       (r.type !== 'gym' ? '<div class="section-label">Standards Check-In</div>' + attrHtml : '') +
       '<button class="btn btn-primary" id="edit-reflection" style="margin-top:18px;">Edit Reflection</button>' +
       '<button class="btn btn-ghost" id="delete-reflection" style="margin-top:10px; color:var(--red); border-color:rgba(255,107,107,0.3);">Delete Entry</button>'
