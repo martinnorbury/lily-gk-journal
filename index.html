@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v30 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v31 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -486,6 +486,18 @@
   }
   .schedule-day-card{margin-bottom:8px;}
   .schedule-day-card:last-child{margin-bottom:0;}
+
+  .schedule-timeline-card{padding:4px 18px;}
+  .schedule-timeline-item{display:flex; gap:14px; padding:15px 0; cursor:pointer;}
+  .schedule-timeline-item:not(:last-child){border-bottom:1px solid var(--line);}
+  .schedule-timeline-time-col{flex-shrink:0; width:46px; display:flex; flex-direction:column; align-items:center; padding-top:2px;}
+  .schedule-timeline-time{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); text-align:center;}
+  .schedule-timeline-dot{width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0;}
+  .schedule-timeline-dot.training{background:var(--cyan);}
+  .schedule-timeline-dot.match{background:var(--lime);}
+  .schedule-timeline-dot.gym{background:var(--amber);}
+  .schedule-timeline-dot.analysis{background:var(--violet);}
+  .schedule-timeline-body{flex:1; min-width:0;}
   .today-session-card{border-left:3px solid var(--lime);}
   .today-session-title{font-family:'Oswald',sans-serif; font-weight:600; font-size:18px; margin-top:10px; line-height:1.3;}
   .today-rest{font-size:13.5px; color:var(--text-dim); line-height:1.55; margin-top:4px;}
@@ -672,8 +684,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v30';
+  var APP_VERSION = 'v31';
   var CHANGELOG = [
+    { version:'v31', notes:'Schedule tab: a day with multiple activities (e.g. Classroom + Gym + Training) now shows as one card with a mini-timeline inside — time, coloured dot, and details per activity — instead of separate stacked cards. Days with one activity look exactly as before. Underlying data and PDF import unchanged, this is display-only.' },
     { version:'v30', notes:'Removed the legacy Standards Check-In section from every reflection detail page (Journal and gauge alike) — now just the score and the comments, as everywhere else. Temperature Check dots link through to the actual entry again via a View Entry link in the tap caption, now safe to do since the old page no longer shows it.' },
     { version:'v29.2', notes:'Temperature Check dots now show a reference on tap — date, session type, and rating — in a caption under the gauge, without navigating away. The old hover-only tooltip never worked on a phone in the first place.' },
     { version:'v29.1', notes:'Temperature Check dots are now purely passive, no tap-through — tapping was opening the full reflection page, which for older entries still shows legacy 5-pillar Standards data, making the gauge feel tied to that rather than the simple 1-5 rating it actually reflects.' },
@@ -1851,17 +1864,16 @@
       var dayHeader = '<div class="schedule-day-header">' + fmtDate(date) +
         (daySessions.length > 1 ? ' <span class="schedule-day-count">' + daySessions.length + ' sessions</span>' : '') +
       '</div>';
-      var cards = daySessions.map(function(s){
-        var hasReflection = state.reflections.some(function(r){ return r.sessionId === s.id; });
+
+      function itemBodyHtml(s, hasReflection, includeTimeInMeta){
         var metaBits = [];
-        if(s.time) metaBits.push(s.time);
+        if(includeTimeInMeta && s.time) metaBits.push(s.time);
         if(s.location) metaBits.push(s.location);
         if(s.coach) metaBits.push('Coach: ' + s.coach);
         var needsReflection = (s.type === 'training' || s.type === 'match');
         var statusText = needsReflection ? (hasReflection ? '✓ Logged' : 'Tap to log it →') : 'Tap to edit →';
         var statusColor = (needsReflection && hasReflection) ? 'var(--lime)' : 'var(--text-faint)';
-        return '<div class="card pressable schedule-day-card" data-schedule-id="' + s.id + '">' +
-          '<div class="card-top">' +
+        return '<div class="card-top">' +
             '<div>' +
               '<div class="card-title">' + escapeHtml(s.title) + (s.opponent ? ' vs ' + escapeHtml(s.opponent) : '') + '</div>' +
               (metaBits.length ? '<div class="card-meta">' + metaBits.map(escapeHtml).join(' · ') + '</div>' : '') +
@@ -1874,11 +1886,31 @@
           (s.focus ? '<div class="card-focus">' + escapeHtml(s.focus) + '</div>' : '') +
           (s.theme ? '<div class="theme-chip">' + escapeHtml(s.theme) + '</div>' : '') +
           (s.hudlLink ? '<a href="' + escapeHtml(s.hudlLink) + '" target="_blank" rel="noopener" class="hudl-link hudl-link-inline">▶ Watch on Hudl</a>' : '') +
-          '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + statusColor + ';">' +
-            statusText +
-          '</div>' +
-        '</div>';
-      }).join('');
+          '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + statusColor + ';">' + statusText + '</div>';
+      }
+
+      var cards;
+      if(daySessions.length > 1){
+        // One day, one card — each activity as a row on a shared timeline inside it.
+        var timelineItems = daySessions.map(function(s){
+          var hasReflection = state.reflections.some(function(r){ return r.sessionId === s.id; });
+          return '<div class="schedule-timeline-item pressable" data-schedule-id="' + s.id + '">' +
+            '<div class="schedule-timeline-time-col">' +
+              '<div class="schedule-timeline-time">' + escapeHtml(s.time || '') + '</div>' +
+              '<div class="schedule-timeline-dot ' + s.type + '"></div>' +
+            '</div>' +
+            '<div class="schedule-timeline-body">' + itemBodyHtml(s, hasReflection, false) + '</div>' +
+          '</div>';
+        }).join('');
+        cards = '<div class="card schedule-timeline-card">' + timelineItems + '</div>';
+      } else {
+        cards = daySessions.map(function(s){
+          var hasReflection = state.reflections.some(function(r){ return r.sessionId === s.id; });
+          return '<div class="card pressable schedule-day-card" data-schedule-id="' + s.id + '">' +
+            itemBodyHtml(s, hasReflection, true) +
+          '</div>';
+        }).join('');
+      }
       return '<div class="schedule-day-group">' + dayHeader + cards + '</div>';
     }).join('');
 
