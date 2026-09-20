@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v29 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v29.2 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -145,10 +145,10 @@
 
   .temp-gauge{display:flex; flex-wrap:wrap; gap:9px; padding:2px 0 4px;}
   .temp-dot{
-    width:24px; height:24px; border-radius:50%; cursor:pointer; flex-shrink:0;
-    border:1.5px solid rgba(255,255,255,0.1); transition:transform .1s;
+    width:24px; height:24px; border-radius:50%; flex-shrink:0; cursor:pointer;
+    border:1.5px solid rgba(255,255,255,0.1);
   }
-  .temp-dot:active{transform:scale(0.88);}
+  .temp-dot.active{border-color:var(--text); box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--text);}
   .temp-dot.r1{background:var(--red);}
   .temp-dot.r2{background:var(--amber);}
   .temp-dot.r3{background:var(--text-dim);}
@@ -158,6 +158,7 @@
     display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-faint);
     margin-top:10px; font-family:'JetBrains Mono',monospace; letter-spacing:0.02em;
   }
+  .temp-caption{margin-top:10px; text-align:center;}
 
   .empty-state{
     text-align:center; padding:36px 20px; color:var(--text-faint); font-size:13.5px; line-height:1.6;
@@ -670,8 +671,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v29';
+  var APP_VERSION = 'v29.2';
   var CHANGELOG = [
+    { version:'v29.2', notes:'Temperature Check dots now show a reference on tap — date, session type, and rating — in a caption under the gauge, without navigating away. The old hover-only tooltip never worked on a phone in the first place.' },
+    { version:'v29.1', notes:'Temperature Check dots are now purely passive, no tap-through — tapping was opening the full reflection page, which for older entries still shows legacy 5-pillar Standards data, making the gauge feel tied to that rather than the simple 1-5 rating it actually reflects.' },
     { version:'v29', notes:'Added Temperature Check to Progress — recent sessions as colour-coded dots (red to lime) instead of a number, tap any dot to open that reflection. Kept the single overall rating in the reflection form itself; only the 5-pillar Standards breakdown stays removed.' },
     { version:'v28.1', notes:'CRITICAL FIX: two listeners left over from the v27.2 Progress simplification were pointing at removed elements, crashing the entire app on load since v27.2 — nothing could load or render, in any browser. Both now safely guarded. No data was ever at risk; the crash happened before the app could load or save anything.' },
     { version:'v28', notes:'Removed the whole IDP/IFA system — Season Development Plan (Standards tab), IAP Review Briefing (Progress tab), and the Link to a Focus Area dropdown on reflections. Real IFA content confirmed accurate against Lily\'s actual Chelsea IDP document. All underlying code intact and dormant, ready to restore before her IAP meeting in early October.' },
@@ -2307,6 +2310,8 @@
   }
 
   // ---------- Render: Progress ----------
+  var RATING_WORDS = { 1:'Rubbish', 3:'Okay', 5:'Brilliant' };
+
   function renderTempGauge(refs){
     var wrap = document.getElementById('temp-gauge-wrap');
     if(!wrap) return;
@@ -2318,13 +2323,23 @@
     var recent = rated.slice(-20);
     wrap.innerHTML =
       '<div class="temp-gauge">' +
-        recent.map(function(r){
-          return '<div class="temp-dot r' + r.overall + '" data-drill-id="' + r.id + '" title="' + fmtDate(r.date) + '"></div>';
+        recent.map(function(r, i){
+          return '<div class="temp-dot r' + r.overall + '" data-idx="' + i + '"></div>';
         }).join('') +
       '</div>' +
-      '<div class="temp-legend"><span>Rubbish</span><span>Brilliant</span></div>';
+      '<div class="temp-legend"><span>Rubbish</span><span>Brilliant</span></div>' +
+      '<div class="temp-caption hint" id="temp-caption">Tap a dot to see what it was</div>';
+
     wrap.querySelectorAll('.temp-dot').forEach(function(dot){
-      dot.addEventListener('click', function(){ openReflectionDetail(dot.getAttribute('data-drill-id')); });
+      dot.addEventListener('click', function(){
+        wrap.querySelectorAll('.temp-dot').forEach(function(d){ d.classList.remove('active'); });
+        dot.classList.add('active');
+        var r = recent[parseInt(dot.getAttribute('data-idx'), 10)];
+        var typeLabel = r.type.charAt(0).toUpperCase() + r.type.slice(1);
+        var word = RATING_WORDS[r.overall];
+        document.getElementById('temp-caption').textContent =
+          fmtDate(r.date) + ' · ' + typeLabel + ' · ' + r.overall + '/5' + (word ? ' (' + word + ')' : '');
+      });
     });
   }
 
