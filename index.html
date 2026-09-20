@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v29.2 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v30 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -159,6 +159,7 @@
     margin-top:10px; font-family:'JetBrains Mono',monospace; letter-spacing:0.02em;
   }
   .temp-caption{margin-top:10px; text-align:center;}
+  .temp-caption-link{color:var(--lime); cursor:pointer; font-weight:600;}
 
   .empty-state{
     text-align:center; padding:36px 20px; color:var(--text-faint); font-size:13.5px; line-height:1.6;
@@ -671,8 +672,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v29.2';
+  var APP_VERSION = 'v30';
   var CHANGELOG = [
+    { version:'v30', notes:'Removed the legacy Standards Check-In section from every reflection detail page (Journal and gauge alike) — now just the score and the comments, as everywhere else. Temperature Check dots link through to the actual entry again via a View Entry link in the tap caption, now safe to do since the old page no longer shows it.' },
     { version:'v29.2', notes:'Temperature Check dots now show a reference on tap — date, session type, and rating — in a caption under the gauge, without navigating away. The old hover-only tooltip never worked on a phone in the first place.' },
     { version:'v29.1', notes:'Temperature Check dots are now purely passive, no tap-through — tapping was opening the full reflection page, which for older entries still shows legacy 5-pillar Standards data, making the gauge feel tied to that rather than the simple 1-5 rating it actually reflects.' },
     { version:'v29', notes:'Added Temperature Check to Progress — recent sessions as colour-coded dots (red to lime) instead of a number, tap any dot to open that reflection. Kept the single overall rating in the reflection form itself; only the 5-pillar Standards breakdown stays removed.' },
@@ -2337,8 +2339,12 @@
         var r = recent[parseInt(dot.getAttribute('data-idx'), 10)];
         var typeLabel = r.type.charAt(0).toUpperCase() + r.type.slice(1);
         var word = RATING_WORDS[r.overall];
-        document.getElementById('temp-caption').textContent =
-          fmtDate(r.date) + ' · ' + typeLabel + ' · ' + r.overall + '/5' + (word ? ' (' + word + ')' : '');
+        var caption = document.getElementById('temp-caption');
+        caption.innerHTML = escapeHtml(fmtDate(r.date) + ' · ' + typeLabel + ' · ' + r.overall + '/5' + (word ? ' (' + word + ')' : '')) +
+          ' &nbsp;<span class="temp-caption-link" id="temp-caption-link">View entry →</span>';
+        document.getElementById('temp-caption-link').addEventListener('click', function(){
+          openReflectionDetail(r.id);
+        });
       });
     });
   }
@@ -3628,7 +3634,7 @@
             (g.differently ? '<div class="journal-detail-row"><div class="k">What Differently</div><div class="v">' + escapeHtml(g.differently) + '</div></div>' : '') +
           '</div>';
         }).join('') : '') +
-      (r.type !== 'gym' ? '<div class="section-label">Standards Check-In</div>' + attrHtml : '') +
+      (r.type !== 'gym' ? '' /* Standards Check-In section removed 2026-08-20 (v30) — attrHtml is still computed above (harmless if unused) in case this needs restoring; historical data itself was never deleted, just no longer shown here */ : '') +
       '<button class="btn btn-primary" id="edit-reflection" style="margin-top:18px;">Edit Reflection</button>' +
       '<button class="btn btn-ghost" id="delete-reflection" style="margin-top:10px; color:var(--red); border-color:rgba(255,107,107,0.3);">Delete Entry</button>'
     );
