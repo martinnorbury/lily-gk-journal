@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v28 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v28.1 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -651,8 +651,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v28';
+  var APP_VERSION = 'v28.1';
   var CHANGELOG = [
+    { version:'v28.1', notes:'CRITICAL FIX: two listeners left over from the v27.2 Progress simplification were pointing at removed elements, crashing the entire app on load since v27.2 — nothing could load or render, in any browser. Both now safely guarded. No data was ever at risk; the crash happened before the app could load or save anything.' },
     { version:'v28', notes:'Removed the whole IDP/IFA system — Season Development Plan (Standards tab), IAP Review Briefing (Progress tab), and the Link to a Focus Area dropdown on reflections. Real IFA content confirmed accurate against Lily\'s actual Chelsea IDP document. All underlying code intact and dormant, ready to restore before her IAP meeting in early October.' },
     { version:'v27.2', notes:'Removed Form Over Time, Standards averages, and By Theme from Progress — too score-heavy for now. Progress is just counts (entries, sessions, matches, clean sheets, goals conceded, felt at fault) plus the IAP briefing. Underlying code kept intact, commented out, ready to restore later.' },
     { version:'v27.1', notes:'Removed Average Rating from the Progress overview — felt too clinical as a standalone number.' },
@@ -2419,26 +2420,31 @@
   }
 
   // one-time delegated listener so Progress tab tooltips and drilldowns work across re-renders
-  document.getElementById('attr-averages').addEventListener('click', function(e){
-    var icon = e.target.closest('.info-icon');
-    if(icon){
-      e.stopPropagation();
-      var key = icon.getAttribute('data-info-key');
-      var tooltip = this.querySelector('.info-tooltip[data-tooltip-key="' + key + '"]');
-      var wasVisible = tooltip && tooltip.classList.contains('visible');
-      this.querySelectorAll('.info-tooltip').forEach(function(t){ t.classList.remove('visible'); });
-      this.querySelectorAll('.info-icon').forEach(function(ic){ ic.classList.remove('active'); });
-      if(tooltip && !wasVisible){
-        tooltip.classList.add('visible');
-        icon.classList.add('active');
+  // (guarded: #attr-averages was removed from the HTML in v27.2 when Standards averages
+  // was pulled from Progress — this must stay guarded or it crashes the whole app on load)
+  var attrAveragesEl = document.getElementById('attr-averages');
+  if(attrAveragesEl){
+    attrAveragesEl.addEventListener('click', function(e){
+      var icon = e.target.closest('.info-icon');
+      if(icon){
+        e.stopPropagation();
+        var key = icon.getAttribute('data-info-key');
+        var tooltip = this.querySelector('.info-tooltip[data-tooltip-key="' + key + '"]');
+        var wasVisible = tooltip && tooltip.classList.contains('visible');
+        this.querySelectorAll('.info-tooltip').forEach(function(t){ t.classList.remove('visible'); });
+        this.querySelectorAll('.info-icon').forEach(function(ic){ ic.classList.remove('active'); });
+        if(tooltip && !wasVisible){
+          tooltip.classList.add('visible');
+          icon.classList.add('active');
+        }
+        return;
       }
-      return;
-    }
-    var row = e.target.closest('.drill-row');
-    if(row && row.getAttribute('data-key')){
-      openStandardDrilldown(row.getAttribute('data-key'));
-    }
-  });
+      var row = e.target.closest('.drill-row');
+      if(row && row.getAttribute('data-key')){
+        openStandardDrilldown(row.getAttribute('data-key'));
+      }
+    });
+  }
 
   function renderThemeAverages(refs){
     var el = document.getElementById('theme-averages');
@@ -2460,12 +2466,16 @@
   }
 
   // one-time delegated listener for theme drilldowns
-  document.getElementById('theme-averages').addEventListener('click', function(e){
-    var row = e.target.closest('.drill-row');
-    if(row && row.getAttribute('data-theme')){
-      openThemeDrilldown(row.getAttribute('data-theme'));
-    }
-  });
+  // (guarded: #theme-averages was removed from the HTML in v27.2 alongside By Theme)
+  var themeAveragesEl = document.getElementById('theme-averages');
+  if(themeAveragesEl){
+    themeAveragesEl.addEventListener('click', function(e){
+      var row = e.target.closest('.drill-row');
+      if(row && row.getAttribute('data-theme')){
+        openThemeDrilldown(row.getAttribute('data-theme'));
+      }
+    });
+  }
 
   function renderDrillList(entries, valueFn){
     if(entries.length === 0) return '<div class="empty-state">No reflections here yet.</div>';
