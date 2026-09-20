@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v28.1 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v29 — 20 Aug 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -142,6 +142,22 @@
   .r3{color:var(--text-dim); border-color:var(--line);}
   .r4{color:var(--cyan); border-color:rgba(76,201,240,0.4);}
   .r5{color:var(--lime); border-color:rgba(212,255,61,0.4);}
+
+  .temp-gauge{display:flex; flex-wrap:wrap; gap:9px; padding:2px 0 4px;}
+  .temp-dot{
+    width:24px; height:24px; border-radius:50%; cursor:pointer; flex-shrink:0;
+    border:1.5px solid rgba(255,255,255,0.1); transition:transform .1s;
+  }
+  .temp-dot:active{transform:scale(0.88);}
+  .temp-dot.r1{background:var(--red);}
+  .temp-dot.r2{background:var(--amber);}
+  .temp-dot.r3{background:var(--text-dim);}
+  .temp-dot.r4{background:var(--cyan);}
+  .temp-dot.r5{background:var(--lime);}
+  .temp-legend{
+    display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-faint);
+    margin-top:10px; font-family:'JetBrains Mono',monospace; letter-spacing:0.02em;
+  }
 
   .empty-state{
     text-align:center; padding:36px 20px; color:var(--text-faint); font-size:13.5px; line-height:1.6;
@@ -572,6 +588,9 @@
     <div class="section-label">Overview</div>
     <div class="stat-grid" id="progress-stats"></div>
 
+    <div class="section-label">Temperature Check</div>
+    <div class="card" id="temp-gauge-wrap"></div>
+
     <!-- IAP Review Briefing button/card removed 2026-08-20 (v28) alongside the whole
          IDP/IFA system — real Season Vision + IFA data confirmed against Lily's actual
          Chelsea IDP document, but pulled from the app until her IAP meeting in early
@@ -651,8 +670,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v28.1';
+  var APP_VERSION = 'v29';
   var CHANGELOG = [
+    { version:'v29', notes:'Added Temperature Check to Progress — recent sessions as colour-coded dots (red to lime) instead of a number, tap any dot to open that reflection. Kept the single overall rating in the reflection form itself; only the 5-pillar Standards breakdown stays removed.' },
     { version:'v28.1', notes:'CRITICAL FIX: two listeners left over from the v27.2 Progress simplification were pointing at removed elements, crashing the entire app on load since v27.2 — nothing could load or render, in any browser. Both now safely guarded. No data was ever at risk; the crash happened before the app could load or save anything.' },
     { version:'v28', notes:'Removed the whole IDP/IFA system — Season Development Plan (Standards tab), IAP Review Briefing (Progress tab), and the Link to a Focus Area dropdown on reflections. Real IFA content confirmed accurate against Lily\'s actual Chelsea IDP document. All underlying code intact and dormant, ready to restore before her IAP meeting in early October.' },
     { version:'v27.2', notes:'Removed Form Over Time, Standards averages, and By Theme from Progress — too score-heavy for now. Progress is just counts (entries, sessions, matches, clean sheets, goals conceded, felt at fault) plus the IAP briefing. Underlying code kept intact, commented out, ready to restore later.' },
@@ -2287,6 +2307,27 @@
   }
 
   // ---------- Render: Progress ----------
+  function renderTempGauge(refs){
+    var wrap = document.getElementById('temp-gauge-wrap');
+    if(!wrap) return;
+    var rated = refs.filter(function(r){ return typeof r.overall === 'number'; });
+    if(rated.length === 0){
+      wrap.innerHTML = '<div class="hint">Nothing logged yet — this fills in as she goes.</div>';
+      return;
+    }
+    var recent = rated.slice(-20);
+    wrap.innerHTML =
+      '<div class="temp-gauge">' +
+        recent.map(function(r){
+          return '<div class="temp-dot r' + r.overall + '" data-drill-id="' + r.id + '" title="' + fmtDate(r.date) + '"></div>';
+        }).join('') +
+      '</div>' +
+      '<div class="temp-legend"><span>Rubbish</span><span>Brilliant</span></div>';
+    wrap.querySelectorAll('.temp-dot').forEach(function(dot){
+      dot.addEventListener('click', function(){ openReflectionDetail(dot.getAttribute('data-drill-id')); });
+    });
+  }
+
   function renderProgress(){
     var refs = sortByDate(state.reflections);
     var statsEl = document.getElementById('progress-stats');
@@ -2307,6 +2348,8 @@
       '<div class="stat-card"><div class="stat-num">' + cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + totalConceded + '</div><div class="stat-label">Goals Conceded</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + feltAtFault + '</div><div class="stat-label">Felt At Fault</div></div>';
+
+    renderTempGauge(refs);
 
     // Form Over Time / Standards / By Theme removed 2026-08-20 (v27.2) — too score-heavy
     // for now. The functions themselves are unchanged; uncomment these three lines
