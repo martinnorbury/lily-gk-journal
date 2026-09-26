@@ -698,8 +698,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v32';
+  var APP_VERSION = 'v32.1';
   var CHANGELOG = [
+    { version:'v32.1', notes:'A photo attached to a session now shows up in the Journal too, not just Schedule — on the linked reflection card and inside its detail page if there is one, or as its own "photo added" entry if there isn\'t (e.g. Gym or Classroom). Tap any photo anywhere to view it full-size.' },
     { version:'v32', notes:'Added an optional photo attachment to any schedule entry — Training, Match, Gym, or Analysis/Classroom. Tap Edit on a session to add a photo (e.g. written classroom work or notes); it shows as a small "Photo attached" chip on the card, tap to view full-size. Photos are compressed before saving to keep things fast.' },
     { version:'v31', notes:'Schedule tab: a day with multiple activities (e.g. Classroom + Gym + Training) now shows as one card with a mini-timeline inside — time, coloured dot, and details per activity — instead of separate stacked cards. Days with one activity look exactly as before. Underlying data and PDF import unchanged, this is display-only.' },
     { version:'v30', notes:'Removed the legacy Standards Check-In section from every reflection detail page (Journal and gauge alike) — now just the score and the comments, as everywhere else. Temperature Check dots link through to the actual entry again via a View Entry link in the tap caption, now safe to do since the old page no longer shows it.' },
@@ -2351,13 +2352,41 @@
   // ---------- Render: Journal ----------
   function renderJournal(){
     var list = document.getElementById('journal-list');
-    var items = sortByDate(state.reflections).reverse();
-    if(items.length === 0){
+
+    // Reflections build most of the journal. Sessions with a photo attached but no
+    // reflection (Gym, Analysis/Classroom) get their own lightweight card too, so
+    // a photo she's added is always recorded in the journal even without writing anything.
+    var reflectedSessionIds = {};
+    state.reflections.forEach(function(r){ if(r.sessionId) reflectedSessionIds[r.sessionId] = true; });
+    var photoOnlySessions = state.schedule.filter(function(s){ return s.photo && !reflectedSessionIds[s.id]; });
+
+    var combined = state.reflections.map(function(r){ return { date: r.date, kind: 'reflection', ref: r }; })
+      .concat(photoOnlySessions.map(function(s){ return { date: s.date, kind: 'photo', ref: s }; }));
+
+    if(combined.length === 0){
       list.innerHTML = '<div class="empty-state"><span class="disp">No entries yet</span>Reflections you save will build into a journal here — tap + to add one.</div>';
       return;
     }
-    list.innerHTML = items.map(function(r){
+
+    var items = combined.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).reverse();
+
+    list.innerHTML = items.map(function(entry){
+      if(entry.kind === 'photo'){
+        var s = entry.ref;
+        return '<div class="card pressable" data-photo-journal-id="' + s.id + '">' +
+          '<div class="card-top">' +
+            '<div>' +
+              '<div class="card-title">' + escapeHtml(s.title) + '</div>' +
+              '<div class="card-meta">' + fmtDate(s.date) + '</div>' +
+            '</div>' +
+            '<span class="tag ' + s.type + '">' + s.type + '</span>' +
+          '</div>' +
+          '<div class="card-photo-chip" style="margin-top:10px;"><img src="' + s.photo + '" alt=""> Photo added — no reflection written</div>' +
+        '</div>';
+      }
+      var r = entry.ref;
       var displayTitle = reflectionDisplayTitle(r);
+      var linkedSession = r.sessionId ? state.schedule.find(function(s){ return s.id === r.sessionId; }) : null;
       var pillHtml = r.type === 'gym'
         ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
         : '<div class="rating-pill ' + ratingClass(r.overall) + '">' + r.overall + '</div>';
@@ -2375,12 +2404,19 @@
         '</div>' +
         '<div class="card-focus">' + escapeHtml(truncate(previewText, 90)) + '</div>' +
         (r.theme ? '<div class="theme-chip">' + escapeHtml(r.theme) + '</div>' : '') +
+        (linkedSession && linkedSession.photo ? '<div class="card-photo-chip" style="margin-top:10px;"><img src="' + linkedSession.photo + '" alt=""> Photo attached</div>' : '') +
       '</div>';
     }).join('');
 
     list.querySelectorAll('[data-reflection-id]').forEach(function(card){
       card.addEventListener('click', function(){
         openReflectionDetail(card.getAttribute('data-reflection-id'));
+      });
+    });
+    list.querySelectorAll('[data-photo-journal-id]').forEach(function(card){
+      card.addEventListener('click', function(){
+        var s = state.schedule.find(function(x){ return x.id === card.getAttribute('data-photo-journal-id'); });
+        if(s && s.photo) openPhotoLightbox(s.photo);
       });
     });
   }
@@ -3763,10 +3799,17 @@
           '</div>';
         }).join('') : '') +
       (r.type !== 'gym' ? '' /* Standards Check-In section removed 2026-08-20 (v30) — attrHtml is still computed above (harmless if unused) in case this needs restoring; historical data itself was never deleted, just no longer shown here */ : '') +
+      (linkedSession && linkedSession.photo ? '<div class="section-label">Photo</div><div class="card-photo-chip" id="detail-photo-chip" style="margin-top:6px;"><img src="' + linkedSession.photo + '" alt=""> Tap to view</div>' : '') +
       '<button class="btn btn-primary" id="edit-reflection" style="margin-top:18px;">Edit Reflection</button>' +
       '<button class="btn btn-ghost" id="delete-reflection" style="margin-top:10px; color:var(--red); border-color:rgba(255,107,107,0.3);">Delete Entry</button>'
     );
     document.getElementById('close-modal').addEventListener('click', closeModal);
+    var detailPhotoChip = document.getElementById('detail-photo-chip');
+    if(detailPhotoChip){
+      detailPhotoChip.addEventListener('click', function(){
+        if(linkedSession && linkedSession.photo) openPhotoLightbox(linkedSession.photo);
+      });
+    }
     document.getElementById('edit-reflection').addEventListener('click', function(){
       openReflectionForm(null, r);
     });
