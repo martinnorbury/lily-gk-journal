@@ -707,8 +707,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v34.1';
+  var APP_VERSION = 'v34.2';
   var CHANGELOG = [
+    { version:'v34.2', notes:'Fixed a real bug: a reflection could only ever be linked to ONE Focus Area, when a session can genuinely touch more than one. The reflection form\'s Focus Area chips, Review & Tag, and My Story\'s "Tag it" buttons all now allow linking several. Old entries that already had one IFA linked are unaffected — nothing was lost in the switch.' },
     { version:'v34.1', notes:'Added Review & Tag Past Entries (Standards tab and My Story) — walks through every Training/Match/Analysis entry since 9 Sept (when the IDP arrived, editable) that has no Focus Area yet, one card at a time, with a one-tap choice of the 3 IFAs or "doesn\'t link to any of them". Makes retroactively tagging weeks of past entries a few taps each instead of reopening and editing every one.' },
     { version:'v34', notes:'The 3 IFAs are now the spine of the app, not a buried extra. Standards tab: restored "My Focus Areas" at the top — the 3 IFAs with what/how/who and a status you can set, each showing linked evidence. Reflection form: linking to a Focus Area moved up next to What Actually Happened and changed from a hidden dropdown to a tap-to-select chip, with a stronger prompt to link something every time. No weighting between the 3 — all equally key, so none is marked as more important. Season Development Plan timeline and Season Vision checklist stay dormant for now — IFAs are what matters for this IAP.' },
     { version:'v33.1', notes:'My Story So Far now shows Evidence For My Focus Areas — her 3 real IFAs, each with any reflections explicitly linked to it plus possible matches found in what she already wrote (tap "Tag it" to confirm), and a clear GAP flag if nothing\'s logged for one. Brought back the optional "Link to a Focus Area" dropdown on the reflection form (removed in v28) so new entries can be tagged going forward. The old auto-link (a Box Moment silently tagging IFA 3) still works as a fallback when nothing\'s chosen.' },
@@ -870,6 +871,16 @@
       who:'Lily (GK) · GK Coach · PPC (Physical Performance Coach)'
     }
   ];
+
+  // A session can genuinely touch more than one Focus Area (e.g. a training session
+  // that's both about calling for crosses AND claiming them), so entries store an
+  // array (linkedIfas). Older entries only ever stored one as a plain string
+  // (linkedIfa) — this reads either shape so nothing already tagged gets lost.
+  function getLinkedIfas(r){
+    if(Array.isArray(r.linkedIfas)) return r.linkedIfas;
+    if(r.linkedIfa) return [r.linkedIfa];
+    return [];
+  }
 
   var IFA_STATUS_OPTIONS = [
     { key:'on_track', label:'On Track' },
@@ -1214,7 +1225,7 @@
     // }).join('');
 
     var ifaCardsHtml = IDP_IFAS.map(function(ifa){
-      var linkedCount = state.reflections.filter(function(r){ return r.linkedIfa === ifa.key; }).length;
+      var linkedCount = state.reflections.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; }).length;
       var status = idp.ifaStatuses[ifa.key] || 'on_track';
       return '<div class="card idp-ifa-card">' +
         '<div class="idp-ifa-tag">' + escapeHtml(ifa.tag) + '</div>' +
@@ -1263,7 +1274,7 @@
 
   function openIfaEvidence(ifaKey){
     var ifa = IDP_IFAS.find(function(i){ return i.key === ifaKey; });
-    var linked = sortByDate(state.reflections.filter(function(r){ return r.linkedIfa === ifaKey; })).reverse();
+    var linked = sortByDate(state.reflections.filter(function(r){ return getLinkedIfas(r).indexOf(ifaKey) > -1; })).reverse();
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Evidence</h2><button class="modal-close" id="close-modal">×</button></div>' +
@@ -1286,7 +1297,7 @@
 
   function buildIfaReviewQueue(cutoffDate){
     return sortByDate(state.reflections.filter(function(r){
-      return r.date >= cutoffDate && r.type !== 'gym' && !r.linkedIfa && !r.ifaReviewed;
+      return r.date >= cutoffDate && r.type !== 'gym' && getLinkedIfas(r).length === 0 && !r.ifaReviewed;
     }));
   }
 
@@ -1305,9 +1316,13 @@
               '<span class="tag ' + r.type + '">' + r.type + '</span>' +
             '</div>' +
             (quote ? '<div style="margin-top:6px; font-size:13px; color:var(--text-dim); line-height:1.5;">' + escapeHtml(truncate(quote, 140)) + '</div>' : '') +
-            '<div class="ifa-chip-toggle" style="margin-top:10px;">' +
-              IDP_IFAS.map(function(ifa){ return '<button type="button" class="ifa-review-tag-btn" data-ref-id="' + r.id + '" data-ifa-key="' + ifa.key + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
-              '<button type="button" class="ifa-review-skip-btn" data-ref-id="' + r.id + '" style="padding:9px 4px; border-radius:10px; border:1.5px dashed var(--line); background:transparent; color:var(--text-faint); font-family:\'Oswald\',sans-serif; font-weight:600; font-size:12.5px; cursor:pointer;">Doesn\'t link to any of them</button>' +
+            '<div class="hint" style="margin-top:10px; margin-bottom:0;">Tap any that fit — it can be more than one.</div>' +
+            '<div class="ifa-chip-toggle" style="margin-top:6px;">' +
+              IDP_IFAS.map(function(ifa){ return '<button type="button" class="ifa-review-tag-btn" data-ifa-key="' + ifa.key + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
+            '</div>' +
+            '<div style="display:flex; gap:8px; margin-top:8px;">' +
+              '<button type="button" class="btn btn-primary ifa-review-save-btn" data-ref-id="' + r.id + '" style="flex:1; padding:10px;">Save &amp; Next</button>' +
+              '<button type="button" class="ifa-review-skip-btn" data-ref-id="' + r.id + '" style="flex:1; padding:9px 4px; border-radius:10px; border:1.5px dashed var(--line); background:transparent; color:var(--text-faint); font-family:\'Oswald\',sans-serif; font-weight:600; font-size:12px; cursor:pointer;">Doesn\'t link to any</button>' +
             '</div>' +
           '</div>';
         }).join('');
@@ -1316,7 +1331,7 @@
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Review &amp; Tag</h2><button class="modal-close" id="close-modal">×</button></div>' +
       '<div class="field"><label>Review everything from</label><input type="date" id="ifa-review-cutoff" value="' + cutoffDate + '"></div>' +
-      '<div class="hint" style="margin-bottom:14px;">' + queue.length + ' entr' + (queue.length === 1 ? 'y' : 'ies') + ' with no Focus Area yet. Tap one of the three on each, or say it doesn\'t link to any — it won\'t ask about that entry again.</div>' +
+      '<div class="hint" style="margin-bottom:14px;">' + queue.length + ' entr' + (queue.length === 1 ? 'y' : 'ies') + ' with no Focus Area yet. A session can count for more than one — tap all that fit, then Save &amp; Next.</div>' +
       '<div id="ifa-review-list">' + listHtml + '</div>'
     );
     document.getElementById('close-modal').addEventListener('click', closeModal);
@@ -1324,12 +1339,17 @@
       openIfaReviewModal(e.target.value);
     });
     document.querySelectorAll('.ifa-review-tag-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ btn.classList.toggle('selected'); });
+    });
+    document.querySelectorAll('.ifa-review-save-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         var ref = state.reflections.find(function(r){ return r.id === btn.getAttribute('data-ref-id'); });
         if(ref){
-          ref.linkedIfa = btn.getAttribute('data-ifa-key');
-          saveData();
           var card = document.querySelector('[data-review-id="' + ref.id + '"]');
+          var chosen = card ? Array.prototype.map.call(card.querySelectorAll('.ifa-review-tag-btn.selected'), function(b){ return b.getAttribute('data-ifa-key'); }) : [];
+          if(chosen.length === 0){ alert('Tap at least one Focus Area, or use "Doesn\'t link to any" instead.'); return; }
+          ref.linkedIfas = chosen;
+          saveData();
           if(card) card.remove();
         }
       });
@@ -2617,7 +2637,7 @@
 
   function buildIfaEvidence(refs){
     return IDP_IFAS.map(function(ifa){
-      var linked = sortByDate(refs.filter(function(r){ return r.linkedIfa === ifa.key; })).reverse();
+      var linked = sortByDate(refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; })).reverse();
       var linkedIds = {};
       linked.forEach(function(r){ linkedIds[r.id] = true; });
       var keywords = IFA_KEYWORDS[ifa.key] || [];
@@ -2779,7 +2799,10 @@
       btn.addEventListener('click', function(){
         var ref = state.reflections.find(function(r){ return r.id === btn.getAttribute('data-ref-id'); });
         if(ref){
-          ref.linkedIfa = btn.getAttribute('data-ifa-key');
+          var key = btn.getAttribute('data-ifa-key');
+          var current = getLinkedIfas(ref);
+          if(current.indexOf(key) === -1) current = current.concat([key]);
+          ref.linkedIfas = current;
           saveData();
           openMyStoryModal();
         }
@@ -3874,11 +3897,11 @@
       '<div class="field"><label>What actually happened?</label><textarea id="ref-evidence" placeholder="Not \'I felt bad\' — what really happened that made you pick that number?">' + (existingReflection ? escapeHtml(existingReflection.evidence || '') : '') + '</textarea>' +
         '<div class="hint">This bit\'s the important one — a number on its own doesn\'t mean much without something real behind it.</div></div>' +
 
-      '<div class="field"><label>Which Focus Area does this relate to?</label>' +
+      '<div class="field"><label>Which Focus Area(s) does this relate to?</label>' +
         '<div class="ifa-chip-toggle" id="ref-ifa-toggle">' +
-          IDP_IFAS.map(function(ifa){ return '<button type="button" data-val="' + ifa.key + '" class="' + (existingReflection && existingReflection.linkedIfa === ifa.key ? 'selected' : '') + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
+          IDP_IFAS.map(function(ifa){ return '<button type="button" data-val="' + ifa.key + '" class="' + (existingReflection && getLinkedIfas(existingReflection).indexOf(ifa.key) > -1 ? 'selected' : '') + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
         '</div>' +
-        '<div class="hint">Chelsea track your progress through these three — link one where you can, even a training session. Tap again to clear it.</div>' +
+        '<div class="hint">Chelsea track your progress through these three — link whichever fit, even more than one. Tap again to clear.</div>' +
       '</div>' +
 
       '<div id="ref-pde-wrap" style="' + (currentType==='match' ? 'margin-bottom:14px;' : 'display:none;') + '">' +
@@ -3944,15 +3967,15 @@
       });
     }
 
-    var selectedLinkedIfa = existingReflection ? (existingReflection.linkedIfa || null) : null;
+    var selectedLinkedIfas = existingReflection ? getLinkedIfas(existingReflection).slice() : [];
     var ifaToggle = document.getElementById('ref-ifa-toggle');
     if(ifaToggle){
       ifaToggle.querySelectorAll('button').forEach(function(b){
         b.addEventListener('click', function(){
           var val = b.getAttribute('data-val');
-          selectedLinkedIfa = (selectedLinkedIfa === val) ? null : val;
-          ifaToggle.querySelectorAll('button').forEach(function(x){ x.classList.remove('selected'); });
-          if(selectedLinkedIfa) b.classList.add('selected');
+          var idx = selectedLinkedIfas.indexOf(val);
+          if(idx > -1){ selectedLinkedIfas.splice(idx, 1); b.classList.remove('selected'); }
+          else { selectedLinkedIfas.push(val); b.classList.add('selected'); }
         });
       });
     }
@@ -4136,11 +4159,11 @@
           recovery: null,
           analysisMatchId: currentType === 'analysis' ? (document.getElementById('ref-analysis-match') ? document.getElementById('ref-analysis-match').value : '') : '',
           boxMoment: currentType === 'match' ? (document.getElementById('ref-box-moment') ? document.getElementById('ref-box-moment').value.trim() : '') : '',
-          linkedIfa: (function(){
-            if(selectedLinkedIfa) return selectedLinkedIfa;
+          linkedIfas: (function(){
+            if(selectedLinkedIfas.length) return selectedLinkedIfas.slice();
             var boxMomentVal = currentType === 'match' && document.getElementById('ref-box-moment') ? document.getElementById('ref-box-moment').value.trim() : '';
-            if(boxMomentVal) return 'ifa3';
-            return '';
+            if(boxMomentVal) return ['ifa3'];
+            return [];
           })()
         };
 
