@@ -619,6 +619,12 @@
     <div class="section-label">Temperature Check</div>
     <div class="card" id="temp-gauge-wrap"></div>
 
+    <div class="section-label">My Story So Far</div>
+    <div class="card">
+      <div class="hint" style="margin-bottom:12px;">Pull everything you've logged into one place — in your own words — so you've got it to hand at your IAP.</div>
+      <button class="btn btn-primary" id="open-my-story-btn">Build My Story</button>
+    </div>
+
     <!-- IAP Review Briefing button/card removed 2026-08-20 (v28) alongside the whole
          IDP/IFA system — real Season Vision + IFA data confirmed against Lily's actual
          Chelsea IDP document, but pulled from the app until her IAP meeting in early
@@ -698,8 +704,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v32.1';
+  var APP_VERSION = 'v33';
   var CHANGELOG = [
+    { version:'v33', notes:'Added "My Story So Far" to Progress — pulls everything logged into one player-led view for IAP prep: the numbers, honest goals-conceded moments, attached photos, a start-to-finish journal timeline in her own words, and 3 talking points she can jot down — plus a PDF export to bring to the meeting. Left out the old clinical 5-Standards/Recovery data on purpose.' },
     { version:'v32.1', notes:'A photo attached to a session now shows up in the Journal too, not just Schedule — on the linked reflection card and inside its detail page if there is one, or as its own "photo added" entry if there isn\'t (e.g. Gym or Classroom). Tap any photo anywhere to view it full-size.' },
     { version:'v32', notes:'Added an optional photo attachment to any schedule entry — Training, Match, Gym, or Analysis/Classroom. Tap Edit on a session to add a photo (e.g. written classroom work or notes); it shows as a small "Photo attached" chip on the card, tap to view full-size. Photos are compressed before saving to keep things fast.' },
     { version:'v31', notes:'Schedule tab: a day with multiple activities (e.g. Classroom + Gym + Training) now shows as one card with a mini-timeline inside — time, coloured dot, and details per activity — instead of separate stacked cards. Days with one activity look exactly as before. Underlying data and PDF import unchanged, this is display-only.' },
@@ -2504,6 +2511,215 @@
     // renderThemeAverages(refs);
   }
 
+  // ---------- My Story So Far (player-led IAP prep) ----------
+  // Pulls together everything Lily has actually logged — in her own words, her own
+  // 1-5 ratings — into one readable, chronological story she can read from or show
+  // the coaches. Deliberately leaves out the old clinical 5-Standards/Recovery/IFA
+  // data (removed app-wide for being too score-heavy) — this is her story, not a stats sheet.
+  function buildMyStoryData(){
+    var refs = sortByDate(state.reflections);
+    var trainingCount = refs.filter(function(r){ return r.type === 'training'; }).length;
+    var matchRefs = refs.filter(function(r){ return r.type === 'match'; });
+    var matchRefsWithGoals = matchRefs.filter(function(r){ return typeof r.goalsConceded === 'number'; });
+    var cleanSheets = matchRefsWithGoals.filter(function(r){ return r.goalsConceded === 0; }).length;
+    var rated = refs.filter(function(r){ return typeof r.overall === 'number'; });
+    var goodCount = rated.filter(function(r){ return r.overall >= 4; }).length;
+
+    var honestMoments = [];
+    refs.forEach(function(r){
+      (r.concededGoals || []).forEach(function(g, i){
+        if(g.couldDoDifferently === 'yes' || g.couldDoDifferently === 'maybe'){
+          honestMoments.push({ date:r.date, opponent:r.opponent, goalNum:i+1, fault:g.couldDoDifferently, whatHappened:g.whatHappened, differently:g.differently });
+        }
+      });
+    });
+
+    var photos = state.schedule.filter(function(s){ return s.photo; })
+      .map(function(s){ return { date:s.date, title:s.title, photo:s.photo }; })
+      .sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
+
+    return {
+      refs: refs, trainingCount: trainingCount, matchCount: matchRefs.length, cleanSheets: cleanSheets,
+      goodCount: goodCount, ratedCount: rated.length,
+      firstDate: refs.length ? refs[0].date : null, lastDate: refs.length ? refs[refs.length-1].date : null,
+      honestMoments: honestMoments, photos: photos
+    };
+  }
+
+  function openMyStoryModal(){
+    var data = buildMyStoryData();
+    var talkingPoints = state.iapDiscussionPoints || ['', '', ''];
+
+    var rangeLine = data.firstDate ? ('From ' + fmtDate(data.firstDate) + ' to ' + fmtDate(data.lastDate)) : 'Nothing logged yet';
+
+    var timelineHtml = data.refs.length === 0
+      ? '<div class="hint">No reflections logged yet — once you start, they\'ll build into your story here.</div>'
+      : data.refs.map(function(r){
+          var title = reflectionDisplayTitle(r);
+          var pillHtml = r.type === 'gym'
+            ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
+            : (typeof r.overall === 'number' ? '<div class="rating-pill ' + ratingClass(r.overall) + '">' + r.overall + '</div>' : '');
+          var bodyBits = [];
+          if(r.evidence) bodyBits.push(r.evidence);
+          if(r.wentWell) bodyBits.push(r.wentWell);
+          if(r.boxMoment) bodyBits.push('Box moment: ' + r.boxMoment);
+          if(r.action) bodyBits.push('Working on: ' + r.action);
+          if(r.gymFocus) bodyBits.push(r.gymFocus);
+          var bodyHtml = bodyBits.map(function(b){ return '<div style="margin-top:6px; font-size:13px; color:var(--text-dim); line-height:1.5;">' + escapeHtml(b) + '</div>'; }).join('');
+          return '<div class="card" style="margin-top:8px;">' +
+            '<div class="card-top">' +
+              '<div><div class="card-title" style="font-size:14.5px;">' + escapeHtml(title) + '</div><div class="card-meta">' + fmtDate(r.date) + '</div></div>' +
+              '<div style="display:flex; align-items:center; gap:8px;"><span class="tag ' + r.type + '">' + r.type + '</span>' + pillHtml + '</div>' +
+            '</div>' +
+            bodyHtml +
+          '</div>';
+        }).join('');
+
+    var honestHtml = data.honestMoments.length === 0
+      ? '<div class="hint">Nothing flagged here yet.</div>'
+      : data.honestMoments.map(function(h){
+          var faultLabel = h.fault === 'yes' ? 'Yes — I know what' : 'Maybe — worth a look';
+          return '<div class="card" style="margin-top:8px;">' +
+            '<div class="card-meta">' + fmtDate(h.date) + (h.opponent ? ' vs ' + escapeHtml(h.opponent) : '') + ' — Goal ' + h.goalNum + '</div>' +
+            (h.whatHappened ? '<div style="margin-top:6px; font-size:13px; color:var(--text-dim);">' + escapeHtml(h.whatHappened) + '</div>' : '') +
+            '<div style="margin-top:6px; font-size:12.5px; color:var(--text-faint);">Could I have done it differently? ' + faultLabel + '</div>' +
+            (h.differently ? '<div style="margin-top:4px; font-size:13px; color:var(--text-dim);">' + escapeHtml(h.differently) + '</div>' : '') +
+          '</div>';
+        }).join('');
+
+    var photosHtml = data.photos.length === 0
+      ? ''
+      : '<div class="section-label">Photos</div>' +
+        '<div style="display:flex; flex-wrap:wrap; gap:10px;">' +
+        data.photos.map(function(p, i){
+          return '<div class="photo-field-preview my-story-photo" data-photo-idx="' + i + '" style="width:92px; cursor:pointer;"><img src="' + p.photo + '" style="width:92px; height:92px; object-fit:cover; border-radius:8px; border:1px solid var(--line); display:block;"></div>';
+        }).join('') +
+        '</div>';
+
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>My Story So Far</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="hint" style="margin-bottom:16px;">' + escapeHtml(rangeLine) + '</div>' +
+      '<div class="stat-grid" style="margin-bottom:18px;">' +
+        '<div class="stat-card"><div class="stat-num">' + data.trainingCount + '</div><div class="stat-label">Training Logged</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + data.matchCount + '</div><div class="stat-label">Matches</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + data.cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + data.goodCount + ' / ' + data.ratedCount + '</div><div class="stat-label">Felt Good or Great</div></div>' +
+      '</div>' +
+      '<div class="section-label" style="margin-top:0;">Being Honest With Myself</div>' +
+      '<div class="hint" style="margin-bottom:0;">Moments where I thought about what I could\'ve done differently.</div>' +
+      honestHtml +
+      photosHtml +
+      '<div class="section-label">What I Want To Tell Them</div>' +
+      [0,1,2].map(function(i){
+        return '<div class="field"><input type="text" class="my-story-point-input" data-idx="' + i + '" value="' + escapeHtml(talkingPoints[i] || '') + '" placeholder="Talking point ' + (i+1) + '"></div>';
+      }).join('') +
+      '<button type="button" class="btn btn-primary" id="my-story-export-btn" style="margin-top:6px;">Export as PDF</button>' +
+      '<div class="section-label">My Journal, Start to Finish</div>' +
+      timelineHtml
+    );
+
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.querySelectorAll('.my-story-point-input').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        state.iapDiscussionPoints = state.iapDiscussionPoints || ['', '', ''];
+        state.iapDiscussionPoints[parseInt(inp.getAttribute('data-idx'), 10)] = inp.value;
+        saveData();
+      });
+    });
+    document.querySelectorAll('.my-story-photo').forEach(function(el){
+      el.addEventListener('click', function(){
+        var p = data.photos[parseInt(el.getAttribute('data-photo-idx'), 10)];
+        if(p) openPhotoLightbox(p.photo);
+      });
+    });
+    document.getElementById('my-story-export-btn').addEventListener('click', function(){
+      generateMyStoryPdf(data);
+    });
+  }
+
+  function generateMyStoryPdf(data){
+    var talkingPoints = (state.iapDiscussionPoints || ['', '', '']).filter(function(p){ return p && p.trim(); });
+    var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
+    var pageW = doc.internal.pageSize.getWidth();
+    var pageH = doc.internal.pageSize.getHeight();
+    var marginX = 18, marginTop = 20, marginBottom = 18;
+    var maxWidth = pageW - marginX * 2;
+    var y = marginTop;
+
+    function checkPageBreak(extra){
+      if(y + (extra || 8) > pageH - marginBottom){ doc.addPage(); y = marginTop; }
+    }
+    function heading(text, size){
+      checkPageBreak((size || 13) * 0.6);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(size || 13); doc.setTextColor(15, 25, 50);
+      doc.text(text, marginX, y); y += (size || 13) * 0.5 + 3;
+    }
+    function subheading(text){
+      checkPageBreak(7);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(30, 55, 100);
+      var lines = doc.splitTextToSize(text, maxWidth);
+      lines.forEach(function(line){ checkPageBreak(6); doc.text(line, marginX, y); y += 5.5; });
+      y += 0.5;
+    }
+    function bodyText(text, opts){
+      opts = opts || {};
+      doc.setFont('helvetica', opts.bold ? 'bold' : 'normal'); doc.setFontSize(opts.size || 9.5);
+      var c = opts.color || [60,70,90]; doc.setTextColor(c[0], c[1], c[2]);
+      var lines = doc.splitTextToSize(text, maxWidth - (opts.indent || 0));
+      lines.forEach(function(line){ checkPageBreak(5); doc.text(line, marginX + (opts.indent || 0), y); y += 5; });
+    }
+    function spacer(h){ y += (h || 4); }
+    function divider(){
+      checkPageBreak(4); doc.setDrawColor(215,215,215); doc.line(marginX, y, pageW - marginX, y); y += 6;
+    }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(10,24,48);
+    doc.text('My Story So Far', marginX, y); y += 8;
+    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(100,100,100);
+    doc.text('Lily Norbury' + (data.firstDate ? ' — ' + fmtDate(data.firstDate) + ' to ' + fmtDate(data.lastDate) : ''), marginX, y); y += 10;
+    divider();
+
+    heading('The Numbers', 12);
+    bodyText('Training sessions logged: ' + data.trainingCount);
+    bodyText('Matches: ' + data.matchCount + '    Clean sheets: ' + data.cleanSheets);
+    bodyText('Felt good or great: ' + data.goodCount + ' out of ' + data.ratedCount + ' rated sessions');
+    spacer(3); divider();
+
+    if(talkingPoints.length){
+      heading('What I Want To Tell Them', 12);
+      talkingPoints.forEach(function(p){ bodyText('• ' + p, { indent:2 }); });
+      spacer(3); divider();
+    }
+
+    if(data.honestMoments.length){
+      heading('Being Honest With Myself', 12);
+      data.honestMoments.forEach(function(h){
+        var faultLabel = h.fault === 'yes' ? 'Yes — I know what' : 'Maybe — worth a look';
+        subheading(fmtDate(h.date) + (h.opponent ? ' vs ' + h.opponent : '') + ' — Goal ' + h.goalNum);
+        if(h.whatHappened) bodyText(h.whatHappened, { indent:2 });
+        bodyText('Could I have done it differently? ' + faultLabel, { indent:2, color:[140,140,140] });
+        if(h.differently) bodyText(h.differently, { indent:2 });
+      });
+      spacer(3); divider();
+    }
+
+    heading('My Journal, Start to Finish', 12);
+    data.refs.forEach(function(r){
+      var title = reflectionDisplayTitle(r);
+      var ratingText = r.type === 'gym' ? (r.gymCompleted === false ? 'Not completed' : 'Completed') : (typeof r.overall === 'number' ? r.overall + '/5' : '');
+      subheading(fmtDate(r.date) + ' — ' + title + (ratingText ? '  (' + ratingText + ')' : ''));
+      if(r.evidence) bodyText(r.evidence, { indent:2 });
+      if(r.wentWell) bodyText(r.wentWell, { indent:2 });
+      if(r.boxMoment) bodyText('Box moment: ' + r.boxMoment, { indent:2 });
+      if(r.action) bodyText('Working on: ' + r.action, { indent:2 });
+      if(r.gymFocus) bodyText(r.gymFocus, { indent:2 });
+      spacer(2);
+    });
+
+    doc.save('Lily-My-Story-So-Far-' + todayIso() + '.pdf');
+  }
+
   var MINDGYM_METHODS = ['VR Headset', 'Visual Training Games', 'Pattern Recognition Games', 'Scanning Games', 'Training Lights'];
 
   function renderMindGym(){
@@ -3165,6 +3381,7 @@
   }
 
   document.getElementById('backup-btn').addEventListener('click', openBackupModal);
+  document.getElementById('open-my-story-btn').addEventListener('click', openMyStoryModal);
 
   function openBackupModal(){
     var json = JSON.stringify(state, null, 2);
