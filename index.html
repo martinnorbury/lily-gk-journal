@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v31 — 20 Aug 2026 -->
+<!-- Lily GK Journal — v37 — 01 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -160,6 +160,7 @@
   }
   .temp-caption{margin-top:10px; text-align:center;}
   .temp-caption-link{color:var(--lime); cursor:pointer; font-weight:600;}
+  .btn-link{background:none; border:none; padding:0; color:var(--lime); cursor:pointer; font-weight:600; font-size:inherit; font-family:inherit; text-decoration:underline;}
 
   .empty-state{
     text-align:center; padding:36px 20px; color:var(--text-faint); font-size:13.5px; line-height:1.6;
@@ -626,6 +627,10 @@
     <div class="section-label">Temperature Check</div>
     <div class="card" id="temp-gauge-wrap"></div>
 
+    <div class="section-label">Linked To My Focus Areas</div>
+    <div class="hint" style="margin-bottom:0;">How many entries relate to each IFA so far — tap one to see them.</div>
+    <div id="progress-ifa-links"></div>
+
     <div class="section-label">My Story So Far</div>
     <div class="card">
       <div class="hint" style="margin-bottom:12px;">Pull everything you've logged into one place — in your own words — so you've got it to hand at your IAP.</div>
@@ -707,8 +712,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v35.1';
+  var APP_VERSION = 'v37';
   var CHANGELOG = [
+    { version:'v37', notes:'Added "Run Rate" to Progress — the honest average of every "How\'d It Go, Honestly?" score (total of all scores / total scored), not just a headcount. Temperature Check now has a "Show all" toggle so you can see every dot, not just the most recent 20, plus a plain-language Pattern line comparing earlier sessions\' average to more recent ones (climbing / dipping / holding steady).' },
+    { version:'v36', notes:'Progress tab overhaul: Training/Matches now show "logged / scheduled so far" instead of a bare count that looked like real detail but was only reflections written — 18 meant 18 logged, not 18 days. Added a non-clinical "Felt Good or Great" fraction alongside the counts. Temperature Check now says plainly when it\'s showing the most recent 20 of more rated sessions, and why its total differs from Total Entries (Gym/Analysis aren\'t rated 1-5). Added "Linked To My Focus Areas" — the 3 IFAs with a running count each, tap through to the same evidence drill-down as Standards.' },
     { version:'v35.1', notes:'A blank Gym or Classroom entry sitting next to a logged Training session on the same day no longer reads as an unfinished "Tap to edit" — it now says "Covered in today\'s training note", since that\'s where the write-up for those has gone since v25. Nothing was deleted or merged in the data — this is Schedule telling the truth about what\'s actually expected, same as My Focus Areas Catch Up already excludes Gym/Classroom from the list of things needing a log.' },
     { version:'v35', notes:'Today now shows two always-on reminders beneath whatever else is there: Catch Up, listing any past Training/Match sessions with nothing logged yet (tap to log it straight from there), and My Focus Areas, the 3 IFAs as a constant reminder, tap through to Standards. Both only appear where relevant — Catch Up disappears once nothing\'s outstanding.' },
     { version:'v34.2', notes:'Fixed a real bug: a reflection could only ever be linked to ONE Focus Area, when a session can genuinely touch more than one. The reflection form\'s Focus Area chips, Review & Tag, and My Story\'s "Tag it" buttons all now allow linking several. Old entries that already had one IFA linked are unaffected — nothing was lost in the switch.' },
@@ -2621,6 +2628,22 @@
 
   // ---------- Render: Progress ----------
   var RATING_WORDS = { 1:'Rubbish', 3:'Okay', 5:'Brilliant' };
+  var tempGaugeShowAll = false;
+
+  // Simple earlier-half vs later-half comparison across ALL rated entries (not just the
+  // visible dots) so the trend line means the same thing whether you're looking at 20 or 200.
+  function describeTrend(rated){
+    if(rated.length < 6) return null; // too few to say anything meaningful
+    var mid = Math.floor(rated.length / 2);
+    var earlier = rated.slice(0, mid);
+    var later = rated.slice(mid);
+    var avg = function(list){ return list.reduce(function(a, r){ return a + r.overall; }, 0) / list.length; };
+    var earlyAvg = avg(earlier);
+    var lateAvg = avg(later);
+    var diff = lateAvg - earlyAvg;
+    var verb = diff >= 0.4 ? 'climbing' : (diff <= -0.4 ? 'dipping' : 'holding steady');
+    return 'Pattern: ' + verb + ' — earlier sessions averaged ' + earlyAvg.toFixed(1) + '/5, more recent ones ' + lateAvg.toFixed(1) + '/5.';
+  }
 
   function renderTempGauge(refs){
     var wrap = document.getElementById('temp-gauge-wrap');
@@ -2630,21 +2653,43 @@
       wrap.innerHTML = '<div class="hint">Nothing logged yet — this fills in as she goes.</div>';
       return;
     }
-    var recent = rated.slice(-20);
+    var visible = tempGaugeShowAll ? rated : rated.slice(-20);
+    // Only Training/Match carry a 1-5 rating (Gym is Yes/No, Analysis has none), so this
+    // is naturally fewer than Total Entries. Capped at the most recent 20 dots by default
+    // so the gauge stays readable, with a toggle to see every dot and spot patterns.
+    var scopeNote = tempGaugeShowAll
+      ? 'All ' + rated.length + ' rated session' + (rated.length === 1 ? '' : 's') + ' (Training/Match only — Gym and Analysis aren\'t rated 1-5).'
+      : (rated.length > 20
+          ? 'Showing the most recent 20 of ' + rated.length + ' rated sessions (Training/Match only — Gym and Analysis aren\'t rated 1-5).'
+          : 'All ' + rated.length + ' rated session' + (rated.length === 1 ? '' : 's') + ' so far (Training/Match only — Gym and Analysis aren\'t rated 1-5).');
+    var toggleBtn = rated.length > 20
+      ? '<button type="button" class="btn-link" id="temp-gauge-toggle" style="margin-left:8px;">' + (tempGaugeShowAll ? 'Show recent 20' : 'Show all ' + rated.length) + '</button>'
+      : '';
+    var trendNote = describeTrend(rated);
     wrap.innerHTML =
+      '<div class="hint" style="margin-bottom:10px;">' + scopeNote + toggleBtn + '</div>' +
       '<div class="temp-gauge">' +
-        recent.map(function(r, i){
+        visible.map(function(r, i){
           return '<div class="temp-dot r' + r.overall + '" data-idx="' + i + '"></div>';
         }).join('') +
       '</div>' +
       '<div class="temp-legend"><span>Rubbish</span><span>Brilliant</span></div>' +
+      (trendNote ? '<div class="hint" style="margin-top:8px;">' + escapeHtml(trendNote) + '</div>' : '') +
       '<div class="temp-caption hint" id="temp-caption">Tap a dot to see what it was</div>';
+
+    var toggleEl = document.getElementById('temp-gauge-toggle');
+    if(toggleEl){
+      toggleEl.addEventListener('click', function(){
+        tempGaugeShowAll = !tempGaugeShowAll;
+        renderTempGauge(refs);
+      });
+    }
 
     wrap.querySelectorAll('.temp-dot').forEach(function(dot){
       dot.addEventListener('click', function(){
         wrap.querySelectorAll('.temp-dot').forEach(function(d){ d.classList.remove('active'); });
         dot.classList.add('active');
-        var r = recent[parseInt(dot.getAttribute('data-idx'), 10)];
+        var r = visible[parseInt(dot.getAttribute('data-idx'), 10)];
         var typeLabel = r.type.charAt(0).toUpperCase() + r.type.slice(1);
         var word = RATING_WORDS[r.overall];
         var caption = document.getElementById('temp-caption');
@@ -2660,25 +2705,45 @@
   function renderProgress(){
     var refs = sortByDate(state.reflections);
     var statsEl = document.getElementById('progress-stats');
+    var todayStr = todayIso();
+
     var trainingCount = refs.filter(function(r){ return r.type === 'training'; }).length;
+    var trainingScheduled = state.schedule.filter(function(s){ return s.type === 'training' && s.date <= todayStr; }).length;
     var matchRefsWithGoals = refs.filter(function(r){ return r.type === 'match' && typeof r.goalsConceded === 'number'; });
     var matchCount = refs.filter(function(r){ return r.type === 'match'; }).length;
+    var matchScheduled = state.schedule.filter(function(s){ return s.type === 'match' && s.date <= todayStr; }).length;
     var cleanSheets = matchRefsWithGoals.filter(function(r){ return r.goalsConceded === 0; }).length;
     var totalConceded = matchRefsWithGoals.reduce(function(a, r){ return a + r.goalsConceded; }, 0);
     var feltAtFault = refs.reduce(function(a, r){
       if(!r.concededGoals) return a;
       return a + r.concededGoals.filter(function(g){ return g.couldDoDifferently === 'yes'; }).length;
     }, 0);
+    var rated = refs.filter(function(r){ return typeof r.overall === 'number'; });
+    var goodCount = rated.filter(function(r){ return r.overall >= 4; }).length;
+    // Run Rate: total of every "How'd It Go, Honestly?" score / total of those entries —
+    // the honest average, not just a headcount of sessions logged.
+    var runRate = rated.length > 0
+      ? (rated.reduce(function(a, r){ return a + r.overall; }, 0) / rated.length).toFixed(1)
+      : '—';
+
+    // Training/Matches show "logged / scheduled so far" rather than a bare count — a
+    // raw "18" reads as 18 real sessions' worth of detail when it might really be
+    // 18 out of 30 training days that actually got a reflection written.
+    var trainingStatNum = trainingScheduled > 0 ? (trainingCount + ' / ' + trainingScheduled) : String(trainingCount);
+    var matchStatNum = matchScheduled > 0 ? (matchCount + ' / ' + matchScheduled) : String(matchCount);
 
     statsEl.innerHTML =
       '<div class="stat-card"><div class="stat-num">' + refs.length + '</div><div class="stat-label">Total Entries</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + trainingCount + '</div><div class="stat-label">Training Sessions</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + matchCount + '</div><div class="stat-label">Matches</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + runRate + (rated.length > 0 ? '<span style="font-size:0.5em;">/5</span>' : '') + '</div><div class="stat-label">Run Rate (' + rated.length + ' scored)</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + trainingStatNum + '</div><div class="stat-label">Training Logged</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + matchStatNum + '</div><div class="stat-label">Matches Logged</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + goodCount + ' / ' + rated.length + '</div><div class="stat-label">Felt Good or Great</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + totalConceded + '</div><div class="stat-label">Goals Conceded</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + feltAtFault + '</div><div class="stat-label">Felt At Fault</div></div>';
 
     renderTempGauge(refs);
+    renderProgressIfaLinks();
 
     // Form Over Time / Standards / By Theme removed 2026-08-20 (v27.2) — too score-heavy
     // for now. The functions themselves are unchanged; uncomment these three lines
@@ -2686,6 +2751,24 @@
     // drawChart(refs.filter(function(r){ return typeof r.overall === 'number'; }));
     // renderAttrAverages(refs);
     // renderThemeAverages(refs);
+  }
+
+  // Progress-tab view of the same Focus Area linkage shown on Standards — so the
+  // "how is she actually doing against what Chelsea want" question can be answered
+  // from the stats screen itself, with a tap-through to the actual evidence.
+  function renderProgressIfaLinks(){
+    var wrap = document.getElementById('progress-ifa-links');
+    if(!wrap) return;
+    wrap.innerHTML = IDP_IFAS.map(function(ifa){
+      var count = state.reflections.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; }).length;
+      return '<div class="card pressable" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;" data-progress-ifa="' + ifa.key + '">' +
+        '<div style="font-family:\'Oswald\',sans-serif; font-weight:600; font-size:13.5px; color:var(--text);">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</div>' +
+        '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;"><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--lime);">' + count + '</span><span style="font-size:11px; color:var(--text-faint);">linked →</span></div>' +
+      '</div>';
+    }).join('');
+    wrap.querySelectorAll('[data-progress-ifa]').forEach(function(card){
+      card.addEventListener('click', function(){ openIfaEvidence(card.getAttribute('data-progress-ifa')); });
+    });
   }
 
   // ---------- My Story So Far (player-led IAP prep) ----------
