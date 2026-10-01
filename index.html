@@ -707,8 +707,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v34.2';
+  var APP_VERSION = 'v35';
   var CHANGELOG = [
+    { version:'v35', notes:'Today now shows two always-on reminders beneath whatever else is there: Catch Up, listing any past Training/Match sessions with nothing logged yet (tap to log it straight from there), and My Focus Areas, the 3 IFAs as a constant reminder, tap through to Standards. Both only appear where relevant — Catch Up disappears once nothing\'s outstanding.' },
     { version:'v34.2', notes:'Fixed a real bug: a reflection could only ever be linked to ONE Focus Area, when a session can genuinely touch more than one. The reflection form\'s Focus Area chips, Review & Tag, and My Story\'s "Tag it" buttons all now allow linking several. Old entries that already had one IFA linked are unaffected — nothing was lost in the switch.' },
     { version:'v34.1', notes:'Added Review & Tag Past Entries (Standards tab and My Story) — walks through every Training/Match/Analysis entry since 9 Sept (when the IDP arrived, editable) that has no Focus Area yet, one card at a time, with a one-tap choice of the 3 IFAs or "doesn\'t link to any of them". Makes retroactively tagging weeks of past entries a few taps each instead of reopening and editing every one.' },
     { version:'v34', notes:'The 3 IFAs are now the spine of the app, not a buried extra. Standards tab: restored "My Focus Areas" at the top — the 3 IFAs with what/how/who and a status you can set, each showing linked evidence. Reflection form: linking to a Focus Area moved up next to What Actually Happened and changed from a hidden dropdown to a tap-to-select chip, with a stronger prompt to link something every time. No weighting between the 3 — all equally key, so none is marked as more important. Season Development Plan timeline and Season Vision checklist stay dormant for now — IFAs are what matters for this IAP.' },
@@ -1649,6 +1650,65 @@
     });
   }
 
+  // Past Training/Match sessions with nothing logged against them yet — a running
+  // "catch up" check so gaps show up on Today instead of only being visible by
+  // scrolling back through Schedule and spotting "Tap to log it" one at a time.
+  function buildMissingLogsHtml(){
+    var todayStr = todayIso();
+    var reflectedSessionIds = {};
+    state.reflections.forEach(function(r){ if(r.sessionId) reflectedSessionIds[r.sessionId] = true; });
+    var missing = sortByDate(state.schedule.filter(function(s){
+      return (s.type === 'training' || s.type === 'match') && s.date < todayStr && !reflectedSessionIds[s.id];
+    }));
+    if(missing.length === 0) return '';
+
+    var shown = missing.slice(0, 5);
+    var itemsHtml = shown.map(function(s){
+      var titleText = s.type === 'match' ? (s.title + (s.opponent ? ' vs ' + s.opponent : '')) : s.title;
+      return '<div class="card pressable" style="margin-top:8px;" data-missing-log-id="' + s.id + '">' +
+        '<div class="card-top">' +
+          '<div><div class="card-title" style="font-size:14px;">' + escapeHtml(titleText) + '</div><div class="card-meta">' + fmtDate(s.date) + '</div></div>' +
+          '<span class="tag ' + s.type + '">' + s.type + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    var moreNote = missing.length > shown.length
+      ? '<div class="hint" style="margin-top:8px;">+' + (missing.length - shown.length) + ' more further back — see Schedule.</div>'
+      : '';
+
+    return '<div class="section-label" style="margin-top:18px;">Catch Up</div>' +
+      '<div class="hint" style="margin-bottom:0;">' + missing.length + ' past session' + (missing.length === 1 ? '' : 's') + ' with nothing logged yet.</div>' +
+      itemsHtml + moreNote;
+  }
+
+  function wireMissingLogs(){
+    document.querySelectorAll('[data-missing-log-id]').forEach(function(card){
+      card.addEventListener('click', function(){
+        var sess = state.schedule.find(function(s){ return s.id === card.getAttribute('data-missing-log-id'); });
+        if(!sess) return;
+        if(sess.type === 'match'){ openMatchPrepModal(sess); }
+        else { openReflectionForm(sess); }
+      });
+    });
+  }
+
+  // A constant, low-key reminder of the 3 IFAs on Today — not nagging, just always
+  // in view, since Martin wants "all roads" in the app to keep pointing back to them.
+  function buildIfaReminderHtml(){
+    return '<div class="section-label" style="margin-top:18px;">My Focus Areas</div>' +
+      '<div class="card pressable" id="today-ifa-reminder">' +
+        IDP_IFAS.map(function(ifa, i){
+          return (i > 0 ? '<div style="border-top:1px solid var(--line); margin:8px 0;"></div>' : '') +
+            '<div style="font-family:\'Oswald\',sans-serif; font-weight:600; font-size:13.5px; color:var(--text-dim);">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</div>';
+        }).join('') +
+      '</div>';
+  }
+
+  function wireIfaReminder(){
+    var el = document.getElementById('today-ifa-reminder');
+    if(el) el.addEventListener('click', function(){ switchView('standards'); });
+  }
+
   function getMindGymDoneThisWeek(){
     var weekStart = mondayOf(new Date());
     var weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
@@ -1751,11 +1811,13 @@
     var adhocToday = state.reflections.filter(function(r){ return r.date === dateStr && !r.sessionId; });
 
     var seasonBannerHtml = renderSeasonBannerHtml();
+    var missingLogsHtml = buildMissingLogsHtml();
+    var ifaReminderHtml = buildIfaReminderHtml();
 
     if(todaysSessions.length === 0){
       if(adhocToday.length > 0){
-        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, seasonBannerHtml);
-        wireSeasonBanner();
+        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, seasonBannerHtml) + missingLogsHtml + ifaReminderHtml;
+        wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
         return;
       }
       el.innerHTML =
@@ -1763,10 +1825,11 @@
         seasonBannerHtml +
         nudgeHtml +
         '<div class="today-rest">Rest day — nothing to log. If that\'s changed, add it in Schedule.</div>' +
-        '<button class="btn btn-ghost" id="today-goto-schedule" style="margin-top:16px;">View Schedule</button>';
+        '<button class="btn btn-ghost" id="today-goto-schedule" style="margin-top:16px;">View Schedule</button>' +
+        missingLogsHtml + ifaReminderHtml;
       var gotoBtn = document.getElementById('today-goto-schedule');
       if(gotoBtn) gotoBtn.addEventListener('click', function(){ switchView('schedule'); });
-      wireSeasonBanner();
+      wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
       return;
     }
 
@@ -1803,7 +1866,8 @@
         seasonBannerHtml +
         (todaysSessions.length > 1 ? '<div class="today-multi-note">' + todaysSessions.length + ' sessions today — tap either one to log it, whichever order suits.</div>' : '') +
         sessionCards +
-        nudgeHtml;
+        nudgeHtml +
+        missingLogsHtml + ifaReminderHtml;
 
       document.querySelectorAll('[data-today-session-id]').forEach(function(card){
         card.addEventListener('click', function(){
@@ -1820,13 +1884,13 @@
       });
 
       wireFuelingChecklist();
-      wireSeasonBanner();
+      wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
       return;
     }
 
     var doneEntry = todaysSessions.map(function(s){ return reflectionForSession[s.id]; }).filter(Boolean).pop();
-    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, seasonBannerHtml);
-    wireSeasonBanner();
+    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, seasonBannerHtml) + missingLogsHtml + ifaReminderHtml;
+    wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
   }
 
   var GK_COACH_NAMES = ['josh', 'seb', 'ella', 'kane'];
