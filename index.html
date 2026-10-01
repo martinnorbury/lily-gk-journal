@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v37 — 01 Oct 2026 -->
+<!-- Lily GK Journal — v37.1 — 01 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -712,8 +712,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v37';
+  var APP_VERSION = 'v37.1';
   var CHANGELOG = [
+    { version:'v37.1', notes:'My Story So Far — each Focus Area card (and the exported PDF) now shows its "How" and "Who" straight under the "What", not just the what. Makes clear to the coaches that it\'s not just a topic Lily\'s circling, but the specific actions and people from her IDP.' },
     { version:'v37', notes:'Added "Run Rate" to Progress — the honest average of every "How\'d It Go, Honestly?" score (total of all scores / total scored), not just a headcount. Temperature Check now has a "Show all" toggle so you can see every dot, not just the most recent 20, plus a plain-language Pattern line comparing earlier sessions\' average to more recent ones (climbing / dipping / holding steady).' },
     { version:'v36', notes:'Progress tab overhaul: Training/Matches now show "logged / scheduled so far" instead of a bare count that looked like real detail but was only reflections written — 18 meant 18 logged, not 18 days. Added a non-clinical "Felt Good or Great" fraction alongside the counts. Temperature Check now says plainly when it\'s showing the most recent 20 of more rated sessions, and why its total differs from Total Entries (Gym/Analysis aren\'t rated 1-5). Added "Linked To My Focus Areas" — the 3 IFAs with a running count each, tap through to the same evidence drill-down as Standards.' },
     { version:'v35.1', notes:'A blank Gym or Classroom entry sitting next to a logged Training session on the same day no longer reads as an unfinished "Tap to edit" — it now says "Covered in today\'s training note", since that\'s where the write-up for those has gone since v25. Nothing was deleted or merged in the data — this is Schedule telling the truth about what\'s actually expected, same as My Focus Areas Catch Up already excludes Gym/Classroom from the list of things needing a log.' },
@@ -2897,8 +2898,11 @@
       }).join('');
       return '<div class="card" style="margin-top:8px;">' +
         '<div class="card-title" style="font-size:14px;">' + escapeHtml(shortTitle) + gapBadge + '</div>' +
-        '<div class="hint" style="margin-bottom:0;">' + escapeHtml(group.ifa.what) + '</div>' +
+        '<div class="hint" style="margin-bottom:10px;">' + escapeHtml(group.ifa.what) + '</div>' +
+        '<div class="journal-detail-row"><div class="k">How</div><div class="v">' + escapeHtml(group.ifa.how) + '</div></div>' +
+        '<div class="journal-detail-row"><div class="k">Who</div><div class="v">' + escapeHtml(group.ifa.who) + '</div></div>' +
         (group.isGap ? '<div class="hint" style="margin-top:8px;">Nothing logged yet — worth having an answer ready for why, or picking something from memory to mention tonight.</div>' : '') +
+        (!group.isGap ? '<div class="hint" style="margin-top:10px; margin-bottom:0;">Evidence:</div>' : '') +
         linkedHtml + possibleHtml +
       '</div>';
     }).join('');
@@ -3032,6 +3036,8 @@
     (data.ifaEvidence || []).forEach(function(group){
       subheading(group.ifa.title.replace(/^IFA \d — /, ''));
       bodyText(group.ifa.what, { indent:2, color:[140,140,140] });
+      bodyText('How: ' + group.ifa.how, { indent:2, color:[140,140,140] });
+      bodyText('Who: ' + group.ifa.who, { indent:2, color:[140,140,140] });
       if(group.isGap){
         bodyText('Nothing logged yet for this one.', { indent:2, color:[180,100,100] });
       } else {
