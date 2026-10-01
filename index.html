@@ -423,6 +423,13 @@
     color:var(--text-dim); font-family:'Oswald',sans-serif; font-weight:600; font-size:11.5px; text-transform:uppercase; cursor:pointer;}
   .match-class-toggle button.selected{background:rgba(212,255,61,0.1); border-color:var(--lime); color:var(--lime);}
 
+  .ifa-chip-toggle{display:flex; flex-direction:column; gap:6px; margin-bottom:6px;}
+  .ifa-chip-toggle button{
+    padding:11px 14px; border-radius:10px; border:1.5px solid var(--line); background:var(--surface-2);
+    color:var(--text-dim); font-family:'Oswald',sans-serif; font-weight:600; font-size:13.5px; text-align:left; cursor:pointer;
+  }
+  .ifa-chip-toggle button.selected{background:rgba(212,255,61,0.1); border-color:var(--lime); color:var(--lime);}
+
   .conceded-goal-card{
     background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:10px;
   }
@@ -651,12 +658,8 @@
 
   <!-- STANDARDS VIEW -->
   <div class="gk-view hidden" id="view-standards">
-    <!-- Season Development Plan (IDP/IFA) section removed 2026-08-20 (v28) — see note
-         on the Progress tab above. renderIdpSection() and its data (GK_SYLLABUS-adjacent
-         IDP_IFAS, SEASON_VISION_GOALS_DEFAULT, getIdpState) are untouched in the JS.
-         To restore: re-add <div id="idp-wrap"></div> here, and re-add the
-         renderIdpSection() call in the standards view render dispatch. -->
-    <div class="section-label" style="margin-top:0;">My Goals</div>
+    <div id="idp-wrap"></div>
+    <div class="section-label">My Goals</div>
     <div id="goals-list"></div>
     <button class="btn btn-ghost" id="add-goal-btn" style="margin-bottom:6px;">+ Add Goal</button>
     <button class="btn btn-ghost" id="import-goals-btn" style="margin-bottom:6px;">Import Goals from Notes</button>
@@ -704,8 +707,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v33';
+  var APP_VERSION = 'v34';
   var CHANGELOG = [
+    { version:'v34', notes:'The 3 IFAs are now the spine of the app, not a buried extra. Standards tab: restored "My Focus Areas" at the top — the 3 IFAs with what/how/who and a status you can set, each showing linked evidence. Reflection form: linking to a Focus Area moved up next to What Actually Happened and changed from a hidden dropdown to a tap-to-select chip, with a stronger prompt to link something every time. No weighting between the 3 — all equally key, so none is marked as more important. Season Development Plan timeline and Season Vision checklist stay dormant for now — IFAs are what matters for this IAP.' },
+    { version:'v33.1', notes:'My Story So Far now shows Evidence For My Focus Areas — her 3 real IFAs, each with any reflections explicitly linked to it plus possible matches found in what she already wrote (tap "Tag it" to confirm), and a clear GAP flag if nothing\'s logged for one. Brought back the optional "Link to a Focus Area" dropdown on the reflection form (removed in v28) so new entries can be tagged going forward. The old auto-link (a Box Moment silently tagging IFA 3) still works as a fallback when nothing\'s chosen.' },
     { version:'v33', notes:'Added "My Story So Far" to Progress — pulls everything logged into one player-led view for IAP prep: the numbers, honest goals-conceded moments, attached photos, a start-to-finish journal timeline in her own words, and 3 talking points she can jot down — plus a PDF export to bring to the meeting. Left out the old clinical 5-Standards/Recovery data on purpose.' },
     { version:'v32.1', notes:'A photo attached to a session now shows up in the Journal too, not just Schedule — on the linked reflection card and inside its detail page if there is one, or as its own "photo added" entry if there isn\'t (e.g. Gym or Classroom). Tap any photo anywhere to view it full-size.' },
     { version:'v32', notes:'Added an optional photo attachment to any schedule entry — Training, Match, Gym, or Analysis/Classroom. Tap Edit on a session to add a photo (e.g. written classroom work or notes); it shows as a small "Photo attached" chip on the card, tap to view full-size. Photos are compressed before saving to keep things fast.' },
@@ -1192,16 +1197,20 @@
     var wrap = document.getElementById('idp-wrap');
     if(!wrap) return;
     var idp = getIdpState();
-    var activeStage = getIdpTimelineStage();
 
-    var timelineHtml = '<div class="idp-timeline">' + IDP_TIMELINE.map(function(stage){
-      var isActive = activeStage && activeStage.key === stage.key;
-      return '<div class="idp-stage' + (isActive ? ' active' : '') + '">' + escapeHtml(stage.label) + '</div>';
-    }).join('') + '</div>';
-
-    var goalsHtml = idp.seasonVisionGoals.map(function(g, i){
-      return '<label class="check-row" style="margin-top:8px;"><input type="checkbox" class="idp-goal-check" data-idx="' + i + '" ' + (g.achieved ? 'checked' : '') + '><span' + (g.achieved ? ' style="text-decoration:line-through; color:var(--text-faint);"' : '') + '>' + escapeHtml(g.text) + '</span></label>';
-    }).join('');
+    // Season Development Plan timeline and Season Vision Goals checklist stay dormant
+    // (restored 2026-10-01, v34, alongside the IFA cards below) — Martin confirmed the
+    // 3 IFAs are what matters for IAP prep, no weighting between them, and the rest
+    // was overkill for now. getIdpTimelineStage() and the timeline/vision markup are
+    // still intact below in case that changes later.
+    // var activeStage = getIdpTimelineStage();
+    // var timelineHtml = '<div class="idp-timeline">' + IDP_TIMELINE.map(function(stage){
+    //   var isActive = activeStage && activeStage.key === stage.key;
+    //   return '<div class="idp-stage' + (isActive ? ' active' : '') + '">' + escapeHtml(stage.label) + '</div>';
+    // }).join('') + '</div>';
+    // var goalsHtml = idp.seasonVisionGoals.map(function(g, i){
+    //   return '<label class="check-row" style="margin-top:8px;"><input type="checkbox" class="idp-goal-check" data-idx="' + i + '" ' + (g.achieved ? 'checked' : '') + '><span' + (g.achieved ? ' style="text-decoration:line-through; color:var(--text-faint);"' : '') + '>' + escapeHtml(g.text) + '</span></label>';
+    // }).join('');
 
     var ifaCardsHtml = IDP_IFAS.map(function(ifa){
       var linkedCount = state.reflections.filter(function(r){ return r.linkedIfa === ifa.key; }).length;
@@ -1223,19 +1232,10 @@
     }).join('');
 
     wrap.innerHTML =
-      '<div class="section-label" style="margin-top:0;">Season Development Plan</div>' +
-      timelineHtml +
-      '<div class="card" style="margin-top:12px;"><div class="section-label" style="margin-top:0;">Season Vision Goals</div>' + goalsHtml + '</div>' +
-      '<div class="section-label">Individual Focus Areas</div>' +
+      '<div class="section-label" style="margin-top:0;">My Focus Areas</div>' +
+      '<div class="hint" style="margin-bottom:10px;">The three things Chelsea want to see me improve this season. Everything I log should relate back to one of these where it can.</div>' +
       ifaCardsHtml;
 
-    wrap.querySelectorAll('.idp-goal-check').forEach(function(cb){
-      cb.addEventListener('change', function(){
-        idp.seasonVisionGoals[parseInt(cb.getAttribute('data-idx'),10)].achieved = cb.checked;
-        saveData();
-        renderIdpSection();
-      });
-    });
     wrap.querySelectorAll('.idp-status-select').forEach(function(sel){
       sel.addEventListener('change', function(){
         idp.ifaStatuses[sel.getAttribute('data-ifa')] = sel.value;
@@ -2514,8 +2514,40 @@
   // ---------- My Story So Far (player-led IAP prep) ----------
   // Pulls together everything Lily has actually logged — in her own words, her own
   // 1-5 ratings — into one readable, chronological story she can read from or show
-  // the coaches. Deliberately leaves out the old clinical 5-Standards/Recovery/IFA
-  // data (removed app-wide for being too score-heavy) — this is her story, not a stats sheet.
+  // the coaches. Deliberately leaves out the old clinical 5-Standards/Recovery data
+  // (removed app-wide for being too score-heavy) — this is her story, not a stats sheet.
+  // The one exception: her 3 real IFAs ARE brought back in here, because showing
+  // evidence of working on them is the actual point of an IAP review.
+
+  // Plain-English keyword sets, used only to SUGGEST a possible match for an entry
+  // that was never explicitly tagged (the "Link to a Focus Area" dropdown on the
+  // reflection form is optional, and most entries predate it). Never auto-tags —
+  // just surfaces a "might be relevant, want to tag it?" candidate for a quick tap.
+  var IFA_KEYWORDS = {
+    ifa1: ['communicat','call','calling','shout','voice','talk','organis','organiz','connection','teammate','team-mate','team mate'],
+    ifa2: ['distribut','pass','passing','kick','throw','footwork','driven','lofted','curled','goal kick','play out','feet'],
+    ifa3: ['cross','aerial','claim','catch','punch','near post','far post','box','dominate the area','corner']
+  };
+
+  function reflectionTextBlob(r){
+    return [r.evidence, r.wentWell, r.action, r.boxMoment, r.gymFocus].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function buildIfaEvidence(refs){
+    return IDP_IFAS.map(function(ifa){
+      var linked = sortByDate(refs.filter(function(r){ return r.linkedIfa === ifa.key; })).reverse();
+      var linkedIds = {};
+      linked.forEach(function(r){ linkedIds[r.id] = true; });
+      var keywords = IFA_KEYWORDS[ifa.key] || [];
+      var possible = sortByDate(refs.filter(function(r){
+        if(linkedIds[r.id]) return false;
+        var blob = reflectionTextBlob(r);
+        return keywords.some(function(kw){ return blob.indexOf(kw) > -1; });
+      })).reverse();
+      return { ifa: ifa, linked: linked, possible: possible, isGap: (linked.length + possible.length) === 0 };
+    });
+  }
+
   function buildMyStoryData(){
     var refs = sortByDate(state.reflections);
     var trainingCount = refs.filter(function(r){ return r.type === 'training'; }).length;
@@ -2542,7 +2574,7 @@
       refs: refs, trainingCount: trainingCount, matchCount: matchRefs.length, cleanSheets: cleanSheets,
       goodCount: goodCount, ratedCount: rated.length,
       firstDate: refs.length ? refs[0].date : null, lastDate: refs.length ? refs[refs.length-1].date : null,
-      honestMoments: honestMoments, photos: photos
+      honestMoments: honestMoments, photos: photos, ifaEvidence: buildIfaEvidence(refs)
     };
   }
 
@@ -2587,6 +2619,30 @@
           '</div>';
         }).join('');
 
+    var ifaHtml = data.ifaEvidence.map(function(group){
+      var shortTitle = group.ifa.title.replace(/^IFA \d — /, '');
+      var gapBadge = group.isGap ? '<span style="font-family:\'JetBrains Mono\',monospace; font-size:10.5px; color:var(--red,#ff6b6b); margin-left:8px;">GAP — nothing yet</span>' : '';
+      var linkedHtml = group.linked.map(function(r){
+        var quote = r.evidence || r.wentWell || r.action || r.boxMoment || r.gymFocus || '';
+        return '<div style="display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--line);">' +
+          '<div style="flex:1; font-size:13px; color:var(--text-dim); line-height:1.5;"><span style="color:var(--text-faint); font-family:\'JetBrains Mono\',monospace; font-size:10.5px;">' + fmtDate(r.date) + '</span><br>' + escapeHtml(truncate(quote, 120)) + '</div>' +
+        '</div>';
+      }).join('');
+      var possibleHtml = group.possible.map(function(r){
+        var quote = r.evidence || r.wentWell || r.action || r.boxMoment || r.gymFocus || '';
+        return '<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line);">' +
+          '<div style="flex:1; font-size:13px; color:var(--text-dim); line-height:1.5;"><span style="color:var(--text-faint); font-family:\'JetBrains Mono\',monospace; font-size:10.5px;">' + fmtDate(r.date) + '</span> <span style="color:var(--text-faint); font-size:11px;">· might count, not tagged</span><br>' + escapeHtml(truncate(quote, 100)) + '</div>' +
+          '<button type="button" class="btn btn-ghost my-story-tag-btn" data-ref-id="' + r.id + '" data-ifa-key="' + group.ifa.key + '" style="font-size:10.5px; padding:6px 10px; flex-shrink:0;">Tag it</button>' +
+        '</div>';
+      }).join('');
+      return '<div class="card" style="margin-top:8px;">' +
+        '<div class="card-title" style="font-size:14px;">' + escapeHtml(shortTitle) + gapBadge + '</div>' +
+        '<div class="hint" style="margin-bottom:0;">' + escapeHtml(group.ifa.what) + '</div>' +
+        (group.isGap ? '<div class="hint" style="margin-top:8px;">Nothing logged yet — worth having an answer ready for why, or picking something from memory to mention tonight.</div>' : '') +
+        linkedHtml + possibleHtml +
+      '</div>';
+    }).join('');
+
     var photosHtml = data.photos.length === 0
       ? ''
       : '<div class="section-label">Photos</div>' +
@@ -2606,7 +2662,10 @@
         '<div class="stat-card"><div class="stat-num">' + data.cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + data.goodCount + ' / ' + data.ratedCount + '</div><div class="stat-label">Felt Good or Great</div></div>' +
       '</div>' +
-      '<div class="section-label" style="margin-top:0;">Being Honest With Myself</div>' +
+      '<div class="section-label" style="margin-top:0;">Evidence For My Focus Areas</div>' +
+      '<div class="hint" style="margin-bottom:0;">What I\'ve actually logged that shows I\'m working on each of my 3 IFAs.</div>' +
+      ifaHtml +
+      '<div class="section-label">Being Honest With Myself</div>' +
       '<div class="hint" style="margin-bottom:0;">Moments where I thought about what I could\'ve done differently.</div>' +
       honestHtml +
       photosHtml +
@@ -2631,6 +2690,16 @@
       el.addEventListener('click', function(){
         var p = data.photos[parseInt(el.getAttribute('data-photo-idx'), 10)];
         if(p) openPhotoLightbox(p.photo);
+      });
+    });
+    document.querySelectorAll('.my-story-tag-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ref = state.reflections.find(function(r){ return r.id === btn.getAttribute('data-ref-id'); });
+        if(ref){
+          ref.linkedIfa = btn.getAttribute('data-ifa-key');
+          saveData();
+          openMyStoryModal();
+        }
       });
     });
     document.getElementById('my-story-export-btn').addEventListener('click', function(){
@@ -2691,6 +2760,26 @@
       talkingPoints.forEach(function(p){ bodyText('• ' + p, { indent:2 }); });
       spacer(3); divider();
     }
+
+    heading('Evidence For My Focus Areas', 12);
+    (data.ifaEvidence || []).forEach(function(group){
+      subheading(group.ifa.title.replace(/^IFA \d — /, ''));
+      bodyText(group.ifa.what, { indent:2, color:[140,140,140] });
+      if(group.isGap){
+        bodyText('Nothing logged yet for this one.', { indent:2, color:[180,100,100] });
+      } else {
+        group.linked.forEach(function(r){
+          var quote = r.evidence || r.wentWell || r.action || r.boxMoment || r.gymFocus || '';
+          bodyText(fmtDate(r.date) + ' — ' + quote, { indent:2 });
+        });
+        group.possible.forEach(function(r){
+          var quote = r.evidence || r.wentWell || r.action || r.boxMoment || r.gymFocus || '';
+          bodyText(fmtDate(r.date) + ' — ' + quote + ' (not tagged)', { indent:2, color:[150,150,150] });
+        });
+      }
+      spacer(2);
+    });
+    spacer(3); divider();
 
     if(data.honestMoments.length){
       heading('Being Honest With Myself', 12);
@@ -3699,6 +3788,13 @@
       '<div class="field"><label>What actually happened?</label><textarea id="ref-evidence" placeholder="Not \'I felt bad\' — what really happened that made you pick that number?">' + (existingReflection ? escapeHtml(existingReflection.evidence || '') : '') + '</textarea>' +
         '<div class="hint">This bit\'s the important one — a number on its own doesn\'t mean much without something real behind it.</div></div>' +
 
+      '<div class="field"><label>Which Focus Area does this relate to?</label>' +
+        '<div class="ifa-chip-toggle" id="ref-ifa-toggle">' +
+          IDP_IFAS.map(function(ifa){ return '<button type="button" data-val="' + ifa.key + '" class="' + (existingReflection && existingReflection.linkedIfa === ifa.key ? 'selected' : '') + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
+        '</div>' +
+        '<div class="hint">Chelsea track your progress through these three — link one where you can, even a training session. Tap again to clear it.</div>' +
+      '</div>' +
+
       '<div id="ref-pde-wrap" style="' + (currentType==='match' ? 'margin-bottom:14px;' : 'display:none;') + '">' +
         '<div class="pde-flip-outer">' +
           '<div class="pde-flip-card" id="pde-flip-card">' +
@@ -3758,6 +3854,19 @@
           selectedMatchClass = b.getAttribute('data-val');
           matchClassToggle.querySelectorAll('button').forEach(function(x){ x.classList.remove('selected'); });
           b.classList.add('selected');
+        });
+      });
+    }
+
+    var selectedLinkedIfa = existingReflection ? (existingReflection.linkedIfa || null) : null;
+    var ifaToggle = document.getElementById('ref-ifa-toggle');
+    if(ifaToggle){
+      ifaToggle.querySelectorAll('button').forEach(function(b){
+        b.addEventListener('click', function(){
+          var val = b.getAttribute('data-val');
+          selectedLinkedIfa = (selectedLinkedIfa === val) ? null : val;
+          ifaToggle.querySelectorAll('button').forEach(function(x){ x.classList.remove('selected'); });
+          if(selectedLinkedIfa) b.classList.add('selected');
         });
       });
     }
@@ -3942,10 +4051,10 @@
           analysisMatchId: currentType === 'analysis' ? (document.getElementById('ref-analysis-match') ? document.getElementById('ref-analysis-match').value : '') : '',
           boxMoment: currentType === 'match' ? (document.getElementById('ref-box-moment') ? document.getElementById('ref-box-moment').value.trim() : '') : '',
           linkedIfa: (function(){
-            var chosen = document.getElementById('ref-linked-ifa') ? document.getElementById('ref-linked-ifa').value : '';
+            if(selectedLinkedIfa) return selectedLinkedIfa;
             var boxMomentVal = currentType === 'match' && document.getElementById('ref-box-moment') ? document.getElementById('ref-box-moment').value.trim() : '';
-            if(!chosen && boxMomentVal) return 'ifa3';
-            return chosen;
+            if(boxMomentVal) return 'ifa3';
+            return '';
           })()
         };
 
@@ -4053,7 +4162,7 @@
     if(currentView === 'schedule') renderSchedule();
     if(currentView === 'journal') renderJournal();
     if(currentView === 'progress') renderProgress();
-    if(currentView === 'standards'){ /* renderIdpSection(); — removed 2026-08-20, see restore note */ renderGoals(); renderStandardsView(); }
+    if(currentView === 'standards'){ renderIdpSection(); renderGoals(); renderStandardsView(); }
   }
 
   loadData();
