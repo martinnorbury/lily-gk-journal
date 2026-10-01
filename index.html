@@ -707,8 +707,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v34';
+  var APP_VERSION = 'v34.1';
   var CHANGELOG = [
+    { version:'v34.1', notes:'Added Review & Tag Past Entries (Standards tab and My Story) — walks through every Training/Match/Analysis entry since 9 Sept (when the IDP arrived, editable) that has no Focus Area yet, one card at a time, with a one-tap choice of the 3 IFAs or "doesn\'t link to any of them". Makes retroactively tagging weeks of past entries a few taps each instead of reopening and editing every one.' },
     { version:'v34', notes:'The 3 IFAs are now the spine of the app, not a buried extra. Standards tab: restored "My Focus Areas" at the top — the 3 IFAs with what/how/who and a status you can set, each showing linked evidence. Reflection form: linking to a Focus Area moved up next to What Actually Happened and changed from a hidden dropdown to a tap-to-select chip, with a stronger prompt to link something every time. No weighting between the 3 — all equally key, so none is marked as more important. Season Development Plan timeline and Season Vision checklist stay dormant for now — IFAs are what matters for this IAP.' },
     { version:'v33.1', notes:'My Story So Far now shows Evidence For My Focus Areas — her 3 real IFAs, each with any reflections explicitly linked to it plus possible matches found in what she already wrote (tap "Tag it" to confirm), and a clear GAP flag if nothing\'s logged for one. Brought back the optional "Link to a Focus Area" dropdown on the reflection form (removed in v28) so new entries can be tagged going forward. The old auto-link (a Box Moment silently tagging IFA 3) still works as a fallback when nothing\'s chosen.' },
     { version:'v33', notes:'Added "My Story So Far" to Progress — pulls everything logged into one player-led view for IAP prep: the numbers, honest goals-conceded moments, attached photos, a start-to-finish journal timeline in her own words, and 3 talking points she can jot down — plus a PDF export to bring to the meeting. Left out the old clinical 5-Standards/Recovery data on purpose.' },
@@ -1231,10 +1232,17 @@
       '</div>';
     }).join('');
 
+    var reviewQueueCount = buildIfaReviewQueue(IFA_REVIEW_DEFAULT_CUTOFF).length;
+
     wrap.innerHTML =
       '<div class="section-label" style="margin-top:0;">My Focus Areas</div>' +
       '<div class="hint" style="margin-bottom:10px;">The three things Chelsea want to see me improve this season. Everything I log should relate back to one of these where it can.</div>' +
-      ifaCardsHtml;
+      ifaCardsHtml +
+      (reviewQueueCount > 0
+        ? '<div class="card" style="margin-top:4px;"><div class="card-title" style="font-size:14px;">Catch up on older entries</div>' +
+          '<div class="hint" style="margin-bottom:10px;">' + reviewQueueCount + ' entr' + (reviewQueueCount===1?'y':'ies') + ' since my IDP arrived ha' + (reviewQueueCount===1?'s':'ve') + ' no Focus Area linked yet.</div>' +
+          '<button type="button" class="btn btn-ghost" id="open-ifa-review-btn">Review &amp; Tag Past Entries</button></div>'
+        : '');
 
     wrap.querySelectorAll('.idp-status-select').forEach(function(sel){
       sel.addEventListener('change', function(){
@@ -1247,6 +1255,10 @@
         openIfaEvidence(btn.getAttribute('data-ifa'));
       });
     });
+    var reviewBtn = document.getElementById('open-ifa-review-btn');
+    if(reviewBtn){
+      reviewBtn.addEventListener('click', function(){ openIfaReviewModal(); });
+    }
   }
 
   function openIfaEvidence(ifaKey){
@@ -1264,6 +1276,76 @@
     });
   }
 
+
+  // ---------- Review & Tag Past Entries (retrospective IFA linking) ----------
+  // For entries logged before the IFAs existed (or before Lily had the dropdown/chips
+  // to link one), this walks through everything from a cutoff date — default the date
+  // her IDP arrived — that still has no Focus Area, one at a time, so tagging weeks of
+  // back entries is a few taps each rather than reopening every reflection to edit it.
+  var IFA_REVIEW_DEFAULT_CUTOFF = '2026-09-09';
+
+  function buildIfaReviewQueue(cutoffDate){
+    return sortByDate(state.reflections.filter(function(r){
+      return r.date >= cutoffDate && r.type !== 'gym' && !r.linkedIfa && !r.ifaReviewed;
+    }));
+  }
+
+  function openIfaReviewModal(cutoffDate){
+    cutoffDate = cutoffDate || IFA_REVIEW_DEFAULT_CUTOFF;
+    var queue = buildIfaReviewQueue(cutoffDate);
+
+    var listHtml = queue.length === 0
+      ? '<div class="empty-state"><span class="disp">All caught up</span>Nothing left to review since ' + fmtDate(cutoffDate) + '.</div>'
+      : queue.map(function(r){
+          var title = reflectionDisplayTitle(r);
+          var quote = r.evidence || r.wentWell || r.action || r.boxMoment || r.gymFocus || '';
+          return '<div class="card" style="margin-top:8px;" data-review-id="' + r.id + '">' +
+            '<div class="card-top">' +
+              '<div><div class="card-title" style="font-size:14px;">' + escapeHtml(title) + '</div><div class="card-meta">' + fmtDate(r.date) + '</div></div>' +
+              '<span class="tag ' + r.type + '">' + r.type + '</span>' +
+            '</div>' +
+            (quote ? '<div style="margin-top:6px; font-size:13px; color:var(--text-dim); line-height:1.5;">' + escapeHtml(truncate(quote, 140)) + '</div>' : '') +
+            '<div class="ifa-chip-toggle" style="margin-top:10px;">' +
+              IDP_IFAS.map(function(ifa){ return '<button type="button" class="ifa-review-tag-btn" data-ref-id="' + r.id + '" data-ifa-key="' + ifa.key + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
+              '<button type="button" class="ifa-review-skip-btn" data-ref-id="' + r.id + '" style="padding:9px 4px; border-radius:10px; border:1.5px dashed var(--line); background:transparent; color:var(--text-faint); font-family:\'Oswald\',sans-serif; font-weight:600; font-size:12.5px; cursor:pointer;">Doesn\'t link to any of them</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>Review &amp; Tag</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="field"><label>Review everything from</label><input type="date" id="ifa-review-cutoff" value="' + cutoffDate + '"></div>' +
+      '<div class="hint" style="margin-bottom:14px;">' + queue.length + ' entr' + (queue.length === 1 ? 'y' : 'ies') + ' with no Focus Area yet. Tap one of the three on each, or say it doesn\'t link to any — it won\'t ask about that entry again.</div>' +
+      '<div id="ifa-review-list">' + listHtml + '</div>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.getElementById('ifa-review-cutoff').addEventListener('change', function(e){
+      openIfaReviewModal(e.target.value);
+    });
+    document.querySelectorAll('.ifa-review-tag-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ref = state.reflections.find(function(r){ return r.id === btn.getAttribute('data-ref-id'); });
+        if(ref){
+          ref.linkedIfa = btn.getAttribute('data-ifa-key');
+          saveData();
+          var card = document.querySelector('[data-review-id="' + ref.id + '"]');
+          if(card) card.remove();
+        }
+      });
+    });
+    document.querySelectorAll('.ifa-review-skip-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ref = state.reflections.find(function(r){ return r.id === btn.getAttribute('data-ref-id'); });
+        if(ref){
+          ref.ifaReviewed = true;
+          saveData();
+          var card = document.querySelector('[data-review-id="' + ref.id + '"]');
+          if(card) card.remove();
+        }
+      });
+    });
+  }
 
   function getSyllabusForWeek(weekStartIso){
     var override = (state.syllabusOverrides || {})[weekStartIso];
@@ -2663,7 +2745,8 @@
         '<div class="stat-card"><div class="stat-num">' + data.goodCount + ' / ' + data.ratedCount + '</div><div class="stat-label">Felt Good or Great</div></div>' +
       '</div>' +
       '<div class="section-label" style="margin-top:0;">Evidence For My Focus Areas</div>' +
-      '<div class="hint" style="margin-bottom:0;">What I\'ve actually logged that shows I\'m working on each of my 3 IFAs.</div>' +
+      '<div class="hint" style="margin-bottom:10px;">What I\'ve actually logged that shows I\'m working on each of my 3 IFAs.</div>' +
+      '<button type="button" class="btn btn-ghost" id="my-story-review-btn" style="margin-bottom:10px;">Review &amp; Tag Past Entries</button>' +
       ifaHtml +
       '<div class="section-label">Being Honest With Myself</div>' +
       '<div class="hint" style="margin-bottom:0;">Moments where I thought about what I could\'ve done differently.</div>' +
@@ -2704,6 +2787,9 @@
     });
     document.getElementById('my-story-export-btn').addEventListener('click', function(){
       generateMyStoryPdf(data);
+    });
+    document.getElementById('my-story-review-btn').addEventListener('click', function(){
+      openIfaReviewModal();
     });
   }
 
