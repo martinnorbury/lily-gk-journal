@@ -707,8 +707,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v35';
+  var APP_VERSION = 'v35.1';
   var CHANGELOG = [
+    { version:'v35.1', notes:'A blank Gym or Classroom entry sitting next to a logged Training session on the same day no longer reads as an unfinished "Tap to edit" — it now says "Covered in today\'s training note", since that\'s where the write-up for those has gone since v25. Nothing was deleted or merged in the data — this is Schedule telling the truth about what\'s actually expected, same as My Focus Areas Catch Up already excludes Gym/Classroom from the list of things needing a log.' },
     { version:'v35', notes:'Today now shows two always-on reminders beneath whatever else is there: Catch Up, listing any past Training/Match sessions with nothing logged yet (tap to log it straight from there), and My Focus Areas, the 3 IFAs as a constant reminder, tap through to Standards. Both only appear where relevant — Catch Up disappears once nothing\'s outstanding.' },
     { version:'v34.2', notes:'Fixed a real bug: a reflection could only ever be linked to ONE Focus Area, when a session can genuinely touch more than one. The reflection form\'s Focus Area chips, Review & Tag, and My Story\'s "Tag it" buttons all now allow linking several. Old entries that already had one IFA linked are unaffected — nothing was lost in the switch.' },
     { version:'v34.1', notes:'Added Review & Tag Past Entries (Standards tab and My Story) — walks through every Training/Match/Analysis entry since 9 Sept (when the IDP arrived, editable) that has no Focus Area yet, one card at a time, with a one-tap choice of the 3 IFAs or "doesn\'t link to any of them". Makes retroactively tagging weeks of past entries a few taps each instead of reopening and editing every one.' },
@@ -2092,8 +2093,18 @@
         if(s.location) metaBits.push(s.location);
         if(s.coach) metaBits.push('Coach: ' + s.coach);
         var needsReflection = (s.type === 'training' || s.type === 'match');
-        var statusText = needsReflection ? (hasReflection ? '✓ Logged' : 'Tap to log it →') : 'Tap to edit →';
-        var statusColor = (needsReflection && hasReflection) ? 'var(--lime)' : 'var(--text-faint)';
+        // Gym/Classroom were dropped as reflectable types back in v25 — the write-up for
+        // those usually lives in that day's Training reflection instead. A blank Gym/
+        // Classroom entry sitting next to a logged Training session isn't a gap, so say
+        // that plainly instead of showing the same "Tap to edit" a genuinely empty one gets.
+        var coveredBySibling = !needsReflection && !s.focus && daySessions.some(function(sib){
+          return sib.id !== s.id && (sib.type === 'training' || sib.type === 'match') &&
+            state.reflections.some(function(r){ return r.sessionId === sib.id; });
+        });
+        var statusText = needsReflection
+          ? (hasReflection ? '✓ Logged' : 'Tap to log it →')
+          : (coveredBySibling ? 'Covered in today\'s training note' : 'Tap to edit →');
+        var statusColor = (needsReflection && hasReflection) ? 'var(--lime)' : (coveredBySibling ? 'var(--text-dim)' : 'var(--text-faint)');
         return '<div class="card-top">' +
             '<div>' +
               '<div class="card-title">' + escapeHtml(s.title) + (s.opponent ? ' vs ' + escapeHtml(s.opponent) : '') + '</div>' +
