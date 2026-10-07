@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v37.1 — 01 Oct 2026 -->
+<!-- Lily GK Journal — v38 — 07 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -712,8 +712,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v37.1';
+  var APP_VERSION = 'v38';
   var CHANGELOG = [
+    { version:'v38', notes:'Catch Up on Today: each un-logged session now has a Skip button, plus "skip all" for the old backlog. Skipped sessions drop off Catch Up but stay in Schedule and can still be logged any time.' },
+    { version:'v37.2', notes:'Updated the Advisory Contacts directory — Fliss Gibbons is now listed as Player Care Lead, replacing Nancy Nicholas.' },
     { version:'v37.1', notes:'My Story So Far — each Focus Area card (and the exported PDF) now shows its "How" and "Who" straight under the "What", not just the what. Makes clear to the coaches that it\'s not just a topic Lily\'s circling, but the specific actions and people from her IDP.' },
     { version:'v37', notes:'Added "Run Rate" to Progress — the honest average of every "How\'d It Go, Honestly?" score (total of all scores / total scored), not just a headcount. Temperature Check now has a "Show all" toggle so you can see every dot, not just the most recent 20, plus a plain-language Pattern line comparing earlier sessions\' average to more recent ones (climbing / dipping / holding steady).' },
     { version:'v36', notes:'Progress tab overhaul: Training/Matches now show "logged / scheduled so far" instead of a bare count that looked like real detail but was only reflections written — 18 meant 18 logged, not 18 days. Added a non-clinical "Felt Good or Great" fraction alongside the counts. Temperature Check now says plainly when it\'s showing the most recent 20 of more rated sessions, and why its total differs from Total Entries (Gym/Analysis aren\'t rated 1-5). Added "Linked To My Focus Areas" — the 3 IFAs with a running count each, tap through to the same evidence drill-down as Standards.' },
@@ -837,7 +839,7 @@
   ];
 
   var ADVISORY_CONTACTS = [
-    { name:'Nancy Nicholas', role:'Player Care Lead', purpose:'Anything affecting her football journey, 1:1 welfare support, or help with a transition.' },
+    { name:'Fliss Gibbons', role:'Player Care Lead', purpose:'Anything affecting her football journey, 1:1 welfare support, or help with a transition.' },
     { name:'Lauren Humphreys', role:'Safeguarding Advisor', purpose:'Any concern about risk or harm to physical or emotional wellbeing — inside or outside football.' },
     { name:'Sarah Lipscombe', role:'Education Lead', purpose:'School absences, day release, tournament coordination, or target grades.' },
     { name:'Ben Cox', role:'Physiotherapist (U12–U16)', purpose:'Main medical contact — log any injury or illness here first.' },
@@ -1667,7 +1669,7 @@
     var reflectedSessionIds = {};
     state.reflections.forEach(function(r){ if(r.sessionId) reflectedSessionIds[r.sessionId] = true; });
     var missing = sortByDate(state.schedule.filter(function(s){
-      return (s.type === 'training' || s.type === 'match') && s.date < todayStr && !reflectedSessionIds[s.id];
+      return (s.type === 'training' || s.type === 'match') && s.date < todayStr && !reflectedSessionIds[s.id] && !s.catchUpSkipped;
     }));
     if(missing.length === 0) return '';
 
@@ -1677,13 +1679,15 @@
       return '<div class="card pressable" style="margin-top:8px;" data-missing-log-id="' + s.id + '">' +
         '<div class="card-top">' +
           '<div><div class="card-title" style="font-size:14px;">' + escapeHtml(titleText) + '</div><div class="card-meta">' + fmtDate(s.date) + '</div></div>' +
-          '<span class="tag ' + s.type + '">' + s.type + '</span>' +
+          '<div style="display:flex; align-items:center; gap:8px;"><span class="tag ' + s.type + '">' + s.type + '</span>' +
+          '<button type="button" class="btn-link" data-skip-log-id="' + s.id + '" style="font-size:12px;">Skip</button></div>' +
         '</div>' +
       '</div>';
     }).join('');
     var moreNote = missing.length > shown.length
       ? '<div class="hint" style="margin-top:8px;">+' + (missing.length - shown.length) + ' more further back — see Schedule.</div>'
       : '';
+    moreNote += '<div class="hint" style="margin-top:8px;">Too old to be worth writing up? Tap Skip, or <button type="button" class="btn-link" id="skip-all-missing-logs" style="font-size:inherit;">skip all ' + missing.length + '</button>. They stay in Schedule and can still be logged any time.</div>';
 
     return '<div class="section-label" style="margin-top:18px;">Catch Up</div>' +
       '<div class="hint" style="margin-bottom:0;">' + missing.length + ' past session' + (missing.length === 1 ? '' : 's') + ' with nothing logged yet.</div>' +
@@ -1691,6 +1695,30 @@
   }
 
   function wireMissingLogs(){
+    document.querySelectorAll('[data-skip-log-id]').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var sess = state.schedule.find(function(s){ return s.id === btn.getAttribute('data-skip-log-id'); });
+        if(!sess) return;
+        sess.catchUpSkipped = true;
+        saveData();
+        renderAll();
+      });
+    });
+    var skipAll = document.getElementById('skip-all-missing-logs');
+    if(skipAll){
+      skipAll.addEventListener('click', function(){
+        if(!confirm('Remove all of these from Catch Up? They stay in Schedule and can still be logged any time.')) return;
+        var todayStr = todayIso();
+        var done = {};
+        state.reflections.forEach(function(r){ if(r.sessionId) done[r.sessionId] = true; });
+        state.schedule.forEach(function(s){
+          if((s.type === 'training' || s.type === 'match') && s.date < todayStr && !done[s.id]) s.catchUpSkipped = true;
+        });
+        saveData();
+        renderAll();
+      });
+    }
     document.querySelectorAll('[data-missing-log-id]').forEach(function(card){
       card.addEventListener('click', function(){
         var sess = state.schedule.find(function(s){ return s.id === card.getAttribute('data-missing-log-id'); });
