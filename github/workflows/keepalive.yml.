@@ -1,0 +1,18 @@
+name: Keep Supabase awake
+
+# Pings the journal database every 3 days so the free-tier project
+# never hits Supabase's "7 days without activity" auto-pause.
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read one row from gk_journal
+        run: |
+          curl --fail -sS "https://wacectosiofpotbqdech.supabase.co/rest/v1/gk_journal?id=eq.lily&select=id" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhY2VjdG9zaW9mcG90YnFkZWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODM0NDMsImV4cCI6MjEwMTI1OTQ0M30.Z7_7ho__COZDlTdXW4gCtjX_bH0YvXp43njbSI17lz4" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhY2VjdG9zaW9mcG90YnFkZWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODM0NDMsImV4cCI6MjEwMTI1OTQ0M30.Z7_7ho__COZDlTdXW4gCtjX_bH0YvXp43njbSI17lz4"
