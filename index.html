@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v38 — 07 Oct 2026 -->
+<!-- Lily GK Journal — v39 — 08 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -431,6 +431,9 @@
   }
   .ifa-chip-toggle button.selected{background:rgba(212,255,61,0.1); border-color:var(--lime); color:var(--lime);}
 
+  .eng-badge{font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--text-faint); white-space:nowrap;}
+  .eng-badge.official{color:var(--lime); border-color:var(--lime);}
+  .eng-char{padding:9px 0; border-top:1px solid var(--line); font-size:13px; color:var(--text-dim); line-height:1.5;}
   .conceded-goal-card{
     background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:10px;
   }
@@ -664,6 +667,7 @@
   <!-- STANDARDS VIEW -->
   <div class="gk-view hidden" id="view-standards">
     <div id="idp-wrap"></div>
+    <div id="england-wrap"></div>
     <div class="section-label">My Goals</div>
     <div id="goals-list"></div>
     <button class="btn btn-ghost" id="add-goal-btn" style="margin-bottom:6px;">+ Add Goal</button>
@@ -712,8 +716,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v38';
+  var APP_VERSION = 'v39';
   var CHANGELOG = [
+    { version:'v39', notes:'Two things. (1) Passcode: the journal now asks for a household passcode once on each device and remembers it, ready for the database to be locked to it. (2) England GK Reference on the Standards tab (tap Show): the FA\'s Future Lioness goalkeeper characteristics in their exact published wording, an editable "how it connects to my Focus Areas" list (our interpretation, Chelsea Focus Areas stay first), Lily\'s two England events, and clearly-labelled reported comments from Harry Watson. Reference only — nothing to score or fill in, and none of it appears in My Story or its PDF.' },
     { version:'v38', notes:'Catch Up on Today: each un-logged session now has a Skip button, plus "skip all" for the old backlog. Skipped sessions drop off Catch Up but stay in Schedule and can still be logged any time.' },
     { version:'v37.2', notes:'Updated the Advisory Contacts directory — Fliss Gibbons is now listed as Player Care Lead, replacing Nancy Nicholas.' },
     { version:'v37.1', notes:'My Story So Far — each Focus Area card (and the exported PDF) now shows its "How" and "Who" straight under the "What", not just the what. Makes clear to the coaches that it\'s not just a topic Lily\'s circling, but the specific actions and people from her IDP.' },
@@ -1217,6 +1222,179 @@
     return null;
   }
 
+  // ---------- England GK Reference (Phase 1 — reference only, no scoring) ----------
+  // Official wording is copied exactly from the FA's "Future Lioness Characteristics 2025"
+  // (goalkeeper page). Links to Chelsea IFAs are OUR interpretation and are editable.
+  var ENGLAND_SOURCE = {
+    title: 'Future Lioness Characteristics 2025',
+    by: 'The FA — Discover My Talent',
+    url: 'https://cdn.englandfootball.com/-/media/EnglandFootball/Files/england/youth/womens-talent-pathway/Future-Lioness-Characteristics-2025.pdf?rev=47d7de789fff4c548e42fe2826e0984b'
+  };
+  var ENGLAND_GK_CHARS = [
+    { id:'tin1',  group:'Technical (in possession)',     short:'Play forward with quality',                text:'Goalkeepers who can PLAY FORWARD WITH QUALITY using their hands and feet.' },
+    { id:'tin2',  group:'Technical (in possession)',     short:'Keep possession under pressure',           text:'Goalkeepers who have the TECHNICAL ABILITY to keep possession for their team UNDER PRESSURE.' },
+    { id:'tout1', group:'Technical (out of possession)', short:'Defend the goal — bravery, big saves',     text:'Goalkeepers who DEFEND THE GOAL with BRAVERY and make BIG SAVES.' },
+    { id:'tout2', group:'Technical (out of possession)', short:'Defend the space — positioning, positive actions', text:'Goalkeepers who DEFEND THE SPACE in front of them through GOOD POSITIONING and POSITIVE ACTIONS.' },
+    { id:'phys1', group:'Physical',                      short:'Fast and agile',                           text:'Players who are FAST and AGILE.' },
+    { id:'phys2', group:'Physical',                      short:'Physical capability',                      text:'Players who can impact games with their PHYSICAL CAPABILITY.' },
+    { id:'psy1',  group:'Psychosocial',                  short:'Adaptable — find a way',                   text:'Players who are ADAPTABLE and FIND A WAY when things don’t go to plan.' },
+    { id:'psy2',  group:'Psychosocial',                  short:'Love football, determination to improve',  text:'Players who LOVE FOOTBALL and have DETERMINATION TO IMPROVE.' },
+    { id:'psy3',  group:'Psychosocial',                  short:'Want to win',                              text:'Players who want to WIN.' }
+  ];
+  var ENGLAND_DEFAULT_LINKS = {
+    ifa1: ['tout2', 'psy1'],
+    ifa2: ['tin1', 'tin2'],
+    ifa3: ['tout1', 'tout2', 'phys2']
+  };
+  var ENGLAND_IFA_NOTES = {
+    ifa1: 'The FA list has no characteristic that is directly about communication — these are the closest.'
+  };
+  var ENGLAND_MILESTONES = [
+    { date:'2026-04-09', title:'England WU15–U17 Goalkeeping Development Event', venue:'St George’s Park', note:'Attended.' },
+    { date:'2026-08-27', title:'FA Finding Our Finishers goalkeeper event',      venue:'St George’s Park', note:'Attended. Worked with Harry Watson (FA Women’s Goalkeeping Talent Coach).' }
+  ];
+  var ENGLAND_WATSON = [
+    { quote:'We’re looking for players who show bravery, adaptability, technical ability under pressure, and a love for the game.', maps:['tout1','psy1','tin2','psy2'] },
+    { quote:'Goalkeepers who want to win.', maps:['psy3'] }
+  ];
+  var ENGLAND_WATSON_SOURCE = {
+    label: 'Women’s Football Hub — “Goalkeeping Talent ID” (podcast write-up), 6 Nov 2025',
+    url: 'https://womensfootballhub.com/2025/11/06/goalkeeping-talent-id/',
+    caveat: 'Reported comment. The page says it was created with ChatGPT support, so the wording has not been checked against the original audio.'
+  };
+
+  var englandOpen = false;
+  var englandEditingIfa = null;
+
+  function getEnglandLinks(ifaKey){
+    var saved = state.englandGk && state.englandGk.links && state.englandGk.links[ifaKey];
+    return Array.isArray(saved) ? saved : (ENGLAND_DEFAULT_LINKS[ifaKey] || []);
+  }
+
+  function englandCharById(id){
+    return ENGLAND_GK_CHARS.find(function(c){ return c.id === id; });
+  }
+
+  function renderEnglandSection(){
+    var wrap = document.getElementById('england-wrap');
+    if(!wrap) return;
+
+    var headerHtml =
+      '<div class="section-label">England GK Reference</div>' +
+      '<div class="card">' +
+        '<div class="hint" style="margin-bottom:10px;">What England look for in goalkeepers, how it connects to my 3 Focus Areas, and my England events. Just a reference — nothing to fill in or score.</div>' +
+        '<button type="button" class="btn btn-ghost" id="england-toggle-btn">' + (englandOpen ? 'Hide' : 'Show') + '</button>' +
+      '</div>';
+
+    if(!englandOpen){
+      wrap.innerHTML = headerHtml;
+      document.getElementById('england-toggle-btn').addEventListener('click', function(){ englandOpen = true; renderEnglandSection(); });
+      return;
+    }
+
+    // 1. Official characteristics, grouped
+    var groups = [];
+    ENGLAND_GK_CHARS.forEach(function(c){ if(groups.indexOf(c.group) === -1) groups.push(c.group); });
+    var charsHtml = groups.map(function(g){
+      return '<div style="margin-top:12px;"><div class="card-title" style="font-size:13.5px;">' + escapeHtml(g) + '</div>' +
+        ENGLAND_GK_CHARS.filter(function(c){ return c.group === g; }).map(function(c){
+          return '<div class="eng-char">' + escapeHtml(c.text) + '</div>';
+        }).join('') + '</div>';
+    }).join('');
+
+    var officialHtml =
+      '<div class="card">' +
+        '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="card-title" style="font-size:15px;">What England look for</span><span class="eng-badge official">Official FA</span></div>' +
+        '<div class="hint" style="margin-top:6px; margin-bottom:0;">Goalkeeper page of <a href="' + ENGLAND_SOURCE.url + '" target="_blank" rel="noopener" style="color:var(--lime);">' + escapeHtml(ENGLAND_SOURCE.title) + '</a> — ' + escapeHtml(ENGLAND_SOURCE.by) + '. Wording is exactly as published.</div>' +
+        charsHtml +
+      '</div>';
+
+    // 2. Links to Chelsea IFAs (our interpretation, editable)
+    var linksHtml = IDP_IFAS.map(function(ifa){
+      var linked = getEnglandLinks(ifa.key);
+      var editing = englandEditingIfa === ifa.key;
+      var body;
+      if(editing){
+        body = '<div class="ifa-chip-toggle" style="margin-top:8px;">' +
+          ENGLAND_GK_CHARS.map(function(c){
+            return '<button type="button" class="england-link-chip' + (linked.indexOf(c.id) > -1 ? ' selected' : '') + '" data-ifa="' + ifa.key + '" data-char="' + c.id + '">' + escapeHtml(c.short) + '</button>';
+          }).join('') +
+        '</div>' +
+        '<button type="button" class="btn btn-primary england-edit-done" style="margin-top:6px;">Done</button>';
+      } else {
+        body = (linked.length === 0
+          ? '<div class="hint" style="margin-top:8px; margin-bottom:0;">Nothing linked.</div>'
+          : linked.map(function(id){
+              var c = englandCharById(id);
+              return c ? '<div class="eng-char">' + escapeHtml(c.short) + ' <span style="color:var(--text-faint); font-size:11px;">· ' + escapeHtml(c.group) + '</span></div>' : '';
+            }).join('')) +
+          (ENGLAND_IFA_NOTES[ifa.key] ? '<div class="hint" style="margin-top:8px; margin-bottom:0;">' + escapeHtml(ENGLAND_IFA_NOTES[ifa.key]) + '</div>' : '') +
+          '<button type="button" class="btn btn-ghost england-edit-btn" data-ifa="' + ifa.key + '" style="margin-top:10px;">Edit links</button>';
+      }
+      return '<div style="margin-top:12px;"><div class="card-title" style="font-size:13.5px;">' + escapeHtml(ifa.title) + '</div>' + body + '</div>';
+    }).join('');
+
+    var mappingHtml =
+      '<div class="card">' +
+        '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="card-title" style="font-size:15px;">How it connects to my Focus Areas</span><span class="eng-badge">Our interpretation</span></div>' +
+        '<div class="hint" style="margin-top:6px; margin-bottom:0;">My Chelsea Focus Areas come first. These links are our own reading of where the England list overlaps — change them any time.</div>' +
+        linksHtml +
+      '</div>';
+
+    // 3. Milestones
+    var milestonesHtml =
+      '<div class="card">' +
+        '<div class="card-title" style="font-size:15px;">My England events</div>' +
+        ENGLAND_MILESTONES.map(function(m){
+          return '<div class="eng-char"><div style="color:var(--text); font-weight:600;">' + escapeHtml(m.title) + '</div>' +
+            '<div style="font-size:12px; color:var(--text-faint);">' + escapeHtml(fmtDate(m.date)) + ' ' + m.date.slice(0,4) + ' · ' + escapeHtml(m.venue) + '</div>' +
+            '<div>' + escapeHtml(m.note) + '</div></div>';
+        }).join('') +
+        '<div class="hint" style="margin-top:8px; margin-bottom:0;">No personal notes or feedback recorded yet.</div>' +
+      '</div>';
+
+    // 4. Harry Watson — reported comments
+    var watsonHtml =
+      '<div class="card">' +
+        '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="card-title" style="font-size:15px;">Harry Watson — reported comments</span><span class="eng-badge">Reported</span></div>' +
+        '<div class="hint" style="margin-top:6px; margin-bottom:0;">' + escapeHtml(ENGLAND_WATSON_SOURCE.caveat) + '</div>' +
+        ENGLAND_WATSON.map(function(w){
+          return '<div class="eng-char"><div>“' + escapeHtml(w.quote) + '”</div>' +
+            '<div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">Relates to (our interpretation): ' +
+            w.maps.map(function(id){ var c = englandCharById(id); return c ? escapeHtml(c.short) : ''; }).join(' · ') + '</div></div>';
+        }).join('') +
+        '<div class="hint" style="margin-top:8px; margin-bottom:0;">Source: <a href="' + ENGLAND_WATSON_SOURCE.url + '" target="_blank" rel="noopener" style="color:var(--lime);">' + escapeHtml(ENGLAND_WATSON_SOURCE.label) + '</a>. This is not feedback about Lily.</div>' +
+      '</div>';
+
+    wrap.innerHTML = headerHtml +
+      '<div style="margin-top:10px;">' + officialHtml + '</div>' +
+      '<div style="margin-top:10px;">' + mappingHtml + '</div>' +
+      '<div style="margin-top:10px;">' + milestonesHtml + '</div>' +
+      '<div style="margin-top:10px;">' + watsonHtml + '</div>';
+
+    document.getElementById('england-toggle-btn').addEventListener('click', function(){ englandOpen = false; englandEditingIfa = null; renderEnglandSection(); });
+    wrap.querySelectorAll('.england-edit-btn').forEach(function(b){
+      b.addEventListener('click', function(){ englandEditingIfa = b.getAttribute('data-ifa'); renderEnglandSection(); });
+    });
+    wrap.querySelectorAll('.england-edit-done').forEach(function(b){
+      b.addEventListener('click', function(){ englandEditingIfa = null; renderEnglandSection(); });
+    });
+    wrap.querySelectorAll('.england-link-chip').forEach(function(chip){
+      chip.addEventListener('click', function(){
+        var ifaKey = chip.getAttribute('data-ifa');
+        var charId = chip.getAttribute('data-char');
+        var current = getEnglandLinks(ifaKey).slice();
+        var idx = current.indexOf(charId);
+        if(idx > -1) current.splice(idx, 1); else current.push(charId);
+        state.englandGk = state.englandGk || {};
+        state.englandGk.links = state.englandGk.links || {};
+        state.englandGk.links[ifaKey] = current;
+        saveData();
+        renderEnglandSection();
+      });
+    });
+  }
+
   function renderIdpSection(){
     var wrap = document.getElementById('idp-wrap');
     if(!wrap) return;
@@ -1436,8 +1614,43 @@
       'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
       'Content-Type': 'application/json'
     };
+    var pc = getPasscode();
+    if(pc){ h['x-client-info'] = pc; }
     if(extra){ for(var k in extra){ h[k] = extra[k]; } }
     return h;
+  }
+
+  // ---------- Passcode (household access code, asked for once per device) ----------
+  var PASSCODE_KEY = 'gk_journal_passcode';
+  function getPasscode(){ try{ return localStorage.getItem(PASSCODE_KEY) || ''; }catch(e){ return ''; } }
+  function setPasscode(v){ try{ localStorage.setItem(PASSCODE_KEY, v); }catch(e){} }
+  function clearPasscode(){ try{ localStorage.removeItem(PASSCODE_KEY); }catch(e){} }
+
+  function showPasscodeGate(message){
+    var old = document.querySelector('.passcode-gate-el');
+    if(old && old.parentNode){ old.parentNode.removeChild(old); }
+    var gate = document.createElement('div');
+    gate.className = 'passcode-gate-el';
+    gate.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px;';
+    gate.innerHTML =
+      '<div style="max-width:360px; width:100%;">' +
+        '<div style="font-family:\'Oswald\',sans-serif; text-transform:uppercase; letter-spacing:0.02em; font-size:22px; color:var(--text); margin-bottom:8px;">Enter passcode</div>' +
+        '<div class="hint" style="margin-bottom:14px;">' + escapeHtml(message || 'This journal is private. Enter the passcode once on this device and it will be remembered.') + '</div>' +
+        '<div class="field"><input type="text" id="passcode-input" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="passcode"></div>' +
+        '<button type="button" class="btn btn-primary" id="passcode-submit" style="margin-top:6px;">Unlock</button>' +
+      '</div>';
+    (document.getElementById('gk-root') || document.body).appendChild(gate);
+    var input = document.getElementById('passcode-input');
+    function submit(){
+      var v = (input.value || '').trim().toLowerCase();
+      if(!v) return;
+      setPasscode(v);
+      gate.parentNode.removeChild(gate);
+      loadData();
+    }
+    document.getElementById('passcode-submit').addEventListener('click', submit);
+    input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ submit(); } });
+    setTimeout(function(){ try{ input.focus(); }catch(e){} }, 50);
   }
 
   function cacheLocally(){
@@ -1455,12 +1668,16 @@
   }
 
   function loadData(){
+    if(!getPasscode()){ showPasscodeGate(); return; }
     fetch(SUPABASE_URL + '/rest/v1/gk_journal?id=eq.' + RECORD_ID + '&select=data', {
       headers: supabaseHeaders()
     }).then(function(res){
+      if(res.status === 401 || res.status === 403){ throw { auth:true }; }
       if(!res.ok) throw new Error('Load failed: ' + res.status);
       return res.json();
     }).then(function(rows){
+      // A protected journal answers a wrong/missing passcode with an empty list, not an error.
+      if(!rows || !rows.length || !rows[0] || !rows[0].data){ throw { auth:true }; }
       if(rows && rows.length && rows[0] && rows[0].data){
         state = rows[0].data;
         state.goals = state.goals || [];
@@ -1471,6 +1688,13 @@
       }
       renderAll();
     }).catch(function(err){
+      if(err && err.auth){
+        // Keep whatever is already saved on this device untouched, and ask again.
+        clearPasscode();
+        loadFromLocalCache();
+        showPasscodeGate('That passcode wasn\'t recognised. Please try again.');
+        return;
+      }
       console.error('Supabase load failed, using local cache', err);
       loadFromLocalCache();
     });
@@ -1483,6 +1707,12 @@
       headers: supabaseHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
       body: JSON.stringify({ id: RECORD_ID, data: state, updated_at: new Date().toISOString() })
     }).then(function(res){
+      if(res.status === 401 || res.status === 403){
+        console.error('Supabase save refused: ' + res.status);
+        clearPasscode();
+        showPasscodeGate('Your latest changes are kept on this device, but the passcode wasn\'t accepted. Please enter it again.');
+        return;
+      }
       if(!res.ok) console.error('Supabase save failed: ' + res.status);
     }).catch(function(err){
       console.error('Supabase save failed', err);
@@ -3794,11 +4024,19 @@
       '<div class="hint" style="margin-bottom:10px;">Paste in previously backed-up text below. This replaces everything currently in the app, so only use it to recover lost data.</div>' +
       '<textarea id="restore-json" placeholder="Paste backup text here..." style="width:100%; min-height:90px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:\'JetBrains Mono\',monospace; font-size:10.5px; padding:10px; margin-bottom:12px;"></textarea>' +
       '<button class="btn btn-ghost" id="restore-btn" style="color:var(--red); border-color:rgba(255,128,128,0.3);">Restore This Backup</button>' +
+      '<div class="section-label">This Device</div>' +
+      '<div class="hint" style="margin-bottom:10px;">The passcode is remembered on this phone or computer. Tap below to forget it — you\'ll be asked for it again next time.</div>' +
+      '<button class="btn btn-ghost" id="lock-device-btn" style="margin-bottom:6px;">Forget Passcode On This Device</button>' +
       '<div class="section-label">Start Fresh</div>' +
       '<div class="hint" style="margin-bottom:10px;">Wipes every schedule entry and reflection for good — useful at the start of a new season. Download a backup first if there\'s anything worth keeping.</div>' +
       '<button class="btn btn-ghost" id="reset-all-btn" style="color:var(--red); border-color:rgba(255,128,128,0.3);">Reset All Data</button>'
     );
     document.getElementById('close-modal').addEventListener('click', closeModal);
+
+    document.getElementById('lock-device-btn').addEventListener('click', function(){
+      clearPasscode();
+      location.reload();
+    });
 
     document.getElementById('reset-all-btn').addEventListener('click', function(){
       if(!confirm('This permanently deletes every schedule entry and reflection. This cannot be undone. Continue?')) return;
@@ -4463,7 +4701,7 @@
     if(currentView === 'schedule') renderSchedule();
     if(currentView === 'journal') renderJournal();
     if(currentView === 'progress') renderProgress();
-    if(currentView === 'standards'){ renderIdpSection(); renderGoals(); renderStandardsView(); }
+    if(currentView === 'standards'){ renderIdpSection(); renderEnglandSection(); renderGoals(); renderStandardsView(); }
   }
 
   loadData();
