@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v41.2 — 11 Oct 2026 -->
+<!-- Lily GK Journal — v43 — 11 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -457,6 +457,14 @@
   .trk-ev .t{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); min-width:54px;}
   .trk-ev .d{font-family:'JetBrains Mono',monospace; font-size:12px; white-space:nowrap; text-align:right;}
   .trk-marker{padding:8px 0; border-top:1px dashed var(--text-faint); font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); letter-spacing:0.08em; text-transform:uppercase;}
+  .ql-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .ql-chip{padding:11px 14px; border-radius:14px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--text); font-size:14px; line-height:1.25; text-align:left; cursor:pointer; font-family:inherit;}
+  .ql-chip.on-good{background:rgba(76,194,122,0.16); border-color:#4CC27A;}
+  .ql-chip.on-work{background:rgba(255,180,84,0.16); border-color:var(--amber);}
+  .ql-chip.on-eng{background:rgba(110,168,254,0.16); border-color:#6EA8FE;}
+  .ql-no1{margin:0 0 14px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,0.03); font-size:13px; line-height:1.4; color:var(--text-dim);}
+  .ql-yn{display:flex; gap:8px; margin-bottom:12px;}
+  .ql-yn .ql-chip{flex:1; text-align:center; padding:16px 10px;}
   .eng-badge{font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--text-faint); white-space:nowrap;}
   .eng-badge.official{color:var(--lime); border-color:var(--lime);}
   .eng-char{padding:9px 0; border-top:1px solid var(--line); font-size:13px; color:var(--text-dim); line-height:1.5;}
@@ -751,8 +759,12 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v41.2';
+  var APP_VERSION = 'v43';
   var CHANGELOG = [
+    { version:'v43', notes:'Think like a No.1. Quick Log now opens with a one-line reminder of what Chelsea and England both want from that session, and has an optional "How did I show England qualities?" row of taps (brave, big save, play forward, keep the ball, find a way, want to win and so on) in the FA\'s own wording. What she picks is added to the England tally. Private to us — never in My Story or the Chelsea PDF.' },
+    { version:'v42.2', notes:'Quick Log now quietly tags each session with the England goalkeeper characteristics it relates to (using your editable Focus Area links), and the England reference on Standards shows how many logged sessions touch each one. Private to us — never in My Story or the Chelsea PDF.' },
+    { version:'v42.1', notes:'Quick Log options now use the Chelsea GK Induction 26/27 wording: the Dominate the Goal / Area / Space / Ball syllabus (1v1s, shot ranges, crosses, set plays, through balls, play around / through / over) and the BLUE behaviours. If a session has no theme, it uses that week\'s syllabus theme and focus skills.' },
+    { version:'v42', notes:'Quick Log: tapping a training or gym session now opens a one-screen log. Tap how it went, tap what went well and one thing to work on from options built from the session and the three Focus Areas, and Save. It writes the full journal entry in sentences, so there is no typing. The full form is still one tap away.' },
     { version:'v41.2', notes:'Match Tracker: you can now discard a tracker that is running, delete any tracker, and say how much Lily played (whole match, first half, second half, part) when you end it. The end button is now Final Whistle / Lily Off for early finishes.' },
     { version:'v41.1', notes:'Match Tracker: the review now shows the rating at half time and splits the game into first half and second half.' },
     { version:'v41', notes:'Match Tracker moved out of Today into its own Tracker tab so it never distracts Lily. Start it at kick-off with one tap; at the Final Whistle you lock in all the moments and the clock, and link the game to a match from the Schedule (or leave it unlinked for a test). Times line up with the Hudl video.' },
@@ -1337,7 +1349,8 @@
     var charsHtml = groups.map(function(g){
       return '<div style="margin-top:12px;"><div class="card-title" style="font-size:13.5px;">' + escapeHtml(g) + '</div>' +
         ENGLAND_GK_CHARS.filter(function(c){ return c.group === g; }).map(function(c){
-          return '<div class="eng-char">' + escapeHtml(c.text) + '</div>';
+          var n = state.reflections.filter(function(r){ return englandCharsForReflection(r).indexOf(c.id) > -1; }).length;
+          return '<div class="eng-char">' + escapeHtml(c.text) + (n ? ' <span style="color:var(--text-faint); font-size:11px;">· in ' + n + ' logged session' + (n === 1 ? '' : 's') + '</span>' : '') + '</div>';
         }).join('') + '</div>';
     }).join('');
 
@@ -1993,6 +2006,7 @@
         var sess = state.schedule.find(function(s){ return s.id === card.getAttribute('data-missing-log-id'); });
         if(!sess) return;
         if(sess.type === 'match'){ openMatchPrepModal(sess); }
+        else if(sess.type === 'training' || sess.type === 'gym'){ openQuickLog(sess); }
         else { openReflectionForm(sess); }
       });
     });
@@ -2661,6 +2675,8 @@
             openReflectionDetail(reflectionForSession[id].id);
           } else if(sess.type === 'match'){
             openMatchPrepModal(sess);
+          } else if(sess.type === 'training' || sess.type === 'gym'){
+            openQuickLog(sess);
           } else {
             openReflectionForm(sess);
           }
@@ -2957,9 +2973,399 @@
         var existing = state.reflections.find(function(r){ return r.sessionId === id; });
         if(existing){ openReflectionDetail(existing.id); }
         else if(sess.type === 'match'){ openMatchPrepModal(sess); }
-        else if(sess.type === 'training'){ openReflectionForm(sess); }
+        else if(sess.type === 'training' || sess.type === 'gym'){ openQuickLog(sess); }
         else{ openScheduleForm(sess); }
       });
+    });
+  }
+
+  // ---------- Quick Log (v42): a few taps straight after training ----------
+  // Options are built from the session's theme/title/focus and from the three Focus Areas (IFAs):
+  // the "How" lines for each IFA are in here as things she can tap, so the evidence builds itself.
+  var QL_KINDS = {
+    area: { ifa:'ifa3', label:'Dominate the Area',
+      good:[
+        'I claimed crosses through bodies',
+        'I decided early — come or stay — and committed',
+        'I did my 6 extra crosses at the end of the session',
+        'I dealt well with deep and wide crosses',
+        'I dealt well with narrow and cut-back crosses',
+        'I was strong on corners and free kicks',
+        'I attacked the ball at its highest point',
+        'I called "Keeper!" loudly before the ball arrived'
+      ],
+      work:[
+        ['I hesitated on whether to come','Decide early — come or stay — then commit fully.'],
+        ['I got caught in no-man\'s land','Pick my lane early: claim it or stay on my line.'],
+        ['I didn\'t win it through the traffic','Attack the ball through bodies and be braver in the crowd.'],
+        ['My first step was slow','Sharper first step — drive off one leg and attack the ball.'],
+        ['My starting position wasn\'t right for the cross','Adjust my position as the ball travels, so I\'m set for where it lands.'],
+        ['I struggled with set plays (corners / free kicks)','Work on my starting position and organisation for corners and free kicks.'],
+        ['I didn\'t get my extra crosses done','Add the 6 extra crosses at the end of the session.']
+      ]},
+    ball: { ifa:'ifa2', label:'Dominate the Ball',
+      good:[
+        'I played around the opposition (to the centre backs and full backs)',
+        'I played through the opposition (to pivots, pockets or the front line)',
+        'I played over the opposition (into or onto full backs, wingers or the front line)',
+        'I played in behind the front line',
+        'I used different pass types (driven, lofted or curled)',
+        'I picked the right pass early',
+        'My first touch set up the pass well',
+        'I worked on a new ball-striking technique with the GK coach'
+      ],
+      work:[
+        ['My longer passes weren\'t far or accurate enough','Work on striking technique and follow-through with the GK coach.'],
+        ['I stuck to one pass type','Use a different pass type (driven, lofted or curled) each session.'],
+        ['I took too long to decide','Scan early and decide before the ball arrives.'],
+        ['I struggled to play over or in behind the press','Work on range — playing into, onto and in behind the front line.'],
+        ['My first touch let me down','Take a cleaner first touch so the pass is easier.'],
+        ['I rushed my pass under pressure','Take a breath and pick the pass before the pressure arrives.']
+      ]},
+    goal: { ifa:null, label:'Dominate the Goal',
+      good:[
+        'I won my 1v1s (central and angled)',
+        'I stayed big and stayed on my feet in 1v1s',
+        'I made close-range saves (0–12 yards)',
+        'I dealt well with mid-range shots (12–22 yards)',
+        'I dealt well with long-range shots (22+ yards)',
+        'My set position was good for the shot',
+        'My handling was strong',
+        'I saved well from free kicks or penalties'
+      ],
+      work:[
+        ['I parried when I should have held it','Get my hands and body behind the ball and hold it.'],
+        ['I went to ground too early in 1v1s','Stay on my feet longer and make the attacker commit first.'],
+        ['My angles weren\'t tight enough','Close the angle early and narrow the goal.'],
+        ['I wasn\'t set in time for the shot','Be set before the strike — small steps, ready on the shot.'],
+        ['I struggled with close-range shots','Work on reactions and set position for close-range shots.'],
+        ['I struggled with long-range shots','Work on position and footwork for shots from distance.']
+      ]},
+    space: { ifa:null, label:'Dominate the Space',
+      good:[
+        'I read the through balls and got there first',
+        'I dealt well with balls in behind (central and angled)',
+        'My starting position was high enough to sweep',
+        'I covered the space behind the defence',
+        'I was proactive and connected with my back line, not just reacting'
+      ],
+      work:[
+        ['I was too deep','Step up and stay connected to the back line.'],
+        ['I was late to the through ball','Read it earlier and start my run sooner.'],
+        ['I got caught out of position','Read the ball and recover my position quicker.'],
+        ['I switched off when the ball was far away','Keep adjusting and stay switched on even when the ball is far from me.']
+      ]},
+    comms: { ifa:'ifa1', label:'Communication & team',
+      good:[
+        'I called early and clearly',
+        'I used my set calls (communication library)',
+        'I organised the players in front of me',
+        'I took control and led the group',
+        'I spent time with my team-mates before or after',
+        'I was positive and encouraging to others'
+      ],
+      work:[
+        ['I was too quiet and didn\'t call enough','Call every action, every time — start with the first one.'],
+        ['My calls came too late','Call earlier — before the ball is played, not after.'],
+        ['I didn\'t use my set calls','Use the calls from my communication library with the GK coach.'],
+        ['I stayed away from the group','Make an active effort to spend time with the team and build chemistry.']
+      ]},
+    mind: { ifa:null, label:'BLUE behaviours',
+      good:[
+        'Brave: I made a mistake and bounced back quickly',
+        'Brave: I made brave decisions and wanted the ball',
+        'Lead: I communicated and took control',
+        'Unite: I was a good team-mate and supported the other GKs',
+        'Unite: I was coachable and used the feedback',
+        'Edge: I took ownership of my own session',
+        'Edge: I played to my strengths and pushed for more',
+        'I stayed calm when something went wrong'
+      ],
+      work:[
+        ['I let a mistake affect my next action','Reset quickly: one breath, then the next action.'],
+        ['I held back from being brave','Make the brave decision and want the ball.'],
+        ['My energy dropped','Keep my intensity up all session — look after fuel, sleep and focus.'],
+        ['I wasn\'t really taking in the coaching points','Listen and use one coaching point every session.'],
+        ['I waited to be told instead of taking ownership','Take ownership: decide my own focus before the session starts.']
+      ]},
+    gym: { ifa:'ifa3', label:'Gym',
+      good:[
+        'I completed my whole programme',
+        'Good quality upper-body strength work',
+        'Good quality lower-body power work',
+        'I did my GK-specific activation and warm-up properly',
+        'I followed the PPC\'s programme'
+      ],
+      work:[
+        ['I skipped part of the programme','Complete the whole programme.'],
+        ['I rushed my reps','Slow down and focus on technique.'],
+        ['I was too tired to do it well','Look after sleep, food and recovery before gym.']
+      ]}
+  };
+
+  // "Think like a No.1": the England qualities, in plain words, straight from the FA characteristics.
+  var QL_ENGLAND_PICKS = [
+    ['tout1','I was brave and made a big save'],
+    ['tout2','My positioning and positive actions defended the space'],
+    ['tin1','I played forward with quality'],
+    ['tin2','I kept the ball for the team under pressure'],
+    ['phys1','I was fast and sharp'],
+    ['phys2','My physical presence made an impact'],
+    ['psy1','I found a way when it didn\'t go to plan'],
+    ['psy2','I pushed myself to get better'],
+    ['psy3','I wanted to win']
+  ];
+  var QL_NO1_LINES = {
+    area:'Chelsea: Dominate the Area. England: defend the goal with bravery. Today: decide early and be brave.',
+    goal:'Chelsea: Dominate the Goal. England: big saves, with bravery. Today: be set, be big, be brave.',
+    space:'Chelsea: Dominate the Space. England: defend the space through good positioning and positive actions.',
+    ball:'Chelsea: Dominate the Ball. England: play forward with quality and keep the ball under pressure.',
+    comms:'Chelsea: Lead — communicate and take control. England: positive actions and finding a way.',
+    gym:'Chelsea: Explosive, Strong, Robust. England: fast, agile and a real physical presence.',
+    dflt:'Think like a No.1: brave decisions, want the ball, find a way.'
+  };
+
+  // England link (private to the family — never used by My Story or the Chelsea PDF).
+  var QL_ENGLAND = { area:['tout1','tout2','phys2'], goal:['tout1','tout2'], space:['tout2','phys1'], ball:['tin1','tin2'], comms:['tout2','psy1'], mind:['psy1','psy2'], gym:['phys1','phys2'] };
+  function qlEnglandForKinds(kinds){
+    var out = [];
+    kinds.forEach(function(k){
+      var ids = (QL_KINDS[k] && QL_KINDS[k].ifa) ? getEnglandLinks(QL_KINDS[k].ifa) : (QL_ENGLAND[k] || []);
+      ids.forEach(function(id){ if(out.indexOf(id) < 0) out.push(id); });
+    });
+    return out;
+  }
+  function englandCharsForReflection(r){
+    if(r.englandChars && r.englandChars.length) return r.englandChars;
+    var out = [];
+    getLinkedIfas(r).forEach(function(k){ getEnglandLinks(k).forEach(function(id){ if(out.indexOf(id) < 0) out.push(id); }); });
+    return out;
+  }
+
+  // Which kinds fit this session? Looks at the session itself first, then this week's
+  // syllabus (primary theme, then secondary, then the named focus skills).
+  function qlInferKinds(sess){
+    function scan(txt){
+      txt = (txt || '').toLowerCase();
+      var k = [];
+      if(/dominate the area|cross|aerial|corner|high ball|set.?play|free kick|long throw/.test(txt)) k.push('area');
+      if(/dominate the goal|shot|save|handl|dive|diving|1v1|one.?v.?one|angle|breakaway|penalt/.test(txt)) k.push('goal');
+      if(/dominate the space|through.?ball|ball in behind|sweep|space|footwork|deceler/.test(txt)) k.push('space');
+      if(/dominate the ball|distribut|pass|kick|throw|strik|build|in possession|outside the|inside the|over the|opposition structure/.test(txt)) k.push('ball');
+      if(/comm|call|voice|talk|organis|connect|union/.test(txt)) k.push('comms');
+      return k;
+    }
+    var out = [];
+    function add(list){ list.forEach(function(k){ if(out.indexOf(k) < 0) out.push(k); }); }
+    add(scan((sess.title || '') + ' ' + (sess.focus || '') + ' ' + (sess.theme || '')));
+    var syl = null;
+    try{ syl = getSyllabusForWeek(toIsoDate(mondayOf(new Date(sess.date + 'T00:00:00')))); }catch(e){}
+    if(syl){
+      add(scan(syl.primaryTheme));
+      add(scan(syl.secondaryTheme));
+      add(scan((syl.focusSkills || []).join(' ')));
+    }
+    return out.slice(0, 3);
+  }
+
+  function openQuickLog(sess){
+    var isGym = sess.type === 'gym';
+    var kinds = isGym ? ['gym'] : qlInferKinds(sess);
+    var fallback = !isGym && kinds.length === 0;
+    var order = isGym ? ['gym'] : (fallback ? ['area','ball','goal','space','comms'] : kinds);
+    var capGood = fallback ? 2 : (kinds.length > 1 ? 3 : 5), capWork = fallback ? 1 : (kinds.length > 1 ? 2 : 3);
+
+    var goods = [], works = [], moreGood = [], moreWork = [];
+    function pushUnique(arr, o){ if(!arr.some(function(x){ return x.text === o.text; })) arr.push(o); }
+    function addKind(k, cg, cw, intoMore){
+      var kd = QL_KINDS[k];
+      kd.good.forEach(function(t, i){ pushUnique(intoMore || i >= cg ? moreGood : goods, { text:t, ifa:kd.ifa }); });
+      kd.work.forEach(function(w, i){ pushUnique(intoMore || i >= cw ? moreWork : works, { text:w[0], act:w[1], ifa:kd.ifa }); });
+    }
+    order.forEach(function(k){ addKind(k, capGood, capWork, false); });
+    if(!isGym){ addKind('mind', 3, 2, false); }
+    if(!isGym) Object.keys(QL_KINDS).forEach(function(k){
+      if(order.indexOf(k) > -1 || k === 'mind' || k === 'gym') return;
+      addKind(k, 0, 0, true);
+    });
+    var suggestedIfas = {};
+    order.forEach(function(k){ if(QL_KINDS[k].ifa && !fallback) suggestedIfas[QL_KINDS[k].ifa] = true; });
+    
+
+    var selOverall = null, selDone = null, selGood = [], selWork = null, selEng = [];
+    var selIfas = Object.keys(suggestedIfas);
+
+    function chipHtml(o, side){
+      return '<button type="button" class="ql-chip" data-side="' + side + '" data-text="' + escapeHtml(o.text) + '">' + escapeHtml(o.text) + '</button>';
+    }
+    var moreBlock = (moreGood.length || moreWork.length)
+      ? '<button type="button" class="btn-link" id="ql-more-btn" style="margin:2px 0 10px;">Show more options</button>' +
+        '<div id="ql-more" style="display:none;">' +
+          (moreGood.length ? '<div class="hint" style="margin:0 0 6px;">More that went well</div><div class="ql-chips">' + moreGood.map(function(o){ return chipHtml(o, 'good'); }).join('') + '</div>' : '') +
+          (moreWork.length ? '<div class="hint" style="margin:0 0 6px;">More to work on</div><div class="ql-chips">' + moreWork.map(function(o){ return chipHtml(o, 'work'); }).join('') + '</div>' : '') +
+        '</div>'
+      : '';
+
+    var titleLine = '<div class="card-meta" style="margin-bottom:12px;">' + escapeHtml(sess.title || (isGym ? 'Gym' : 'Training')) + ' · ' + escapeHtml(fmtDate(sess.date)) +
+      (sess.theme ? ' · ' + escapeHtml(sess.theme) : '') + (sess.focus ? '<br>Focus: ' + escapeHtml(sess.focus) : '') + '</div>';
+
+    var no1Line = '<div class="ql-no1">' + escapeHtml(isGym ? QL_NO1_LINES.gym : (kinds.length ? (QL_NO1_LINES[kinds[0]] || QL_NO1_LINES.dflt) : QL_NO1_LINES.dflt)) + '</div>';
+    var engBlock = '<div class="section-label">How did I show England qualities? <span class="hint" style="display:inline;">optional, tap any</span></div><div class="ql-chips">' +
+      QL_ENGLAND_PICKS.map(function(e){ return '<button type="button" class="ql-chip ql-eng-chip" data-eng="' + e[0] + '">' + escapeHtml(e[1]) + '</button>'; }).join('') + '</div>';
+    var body;
+    if(isGym){
+      body =
+        '<div class="section-label" style="margin-top:4px;">Did you do it?</div>' +
+        '<div class="ql-yn"><button type="button" class="ql-chip" id="ql-done-yes">Yes, done</button><button type="button" class="ql-chip" id="ql-done-no">Not this time</button></div>' +
+        '<div class="section-label">What was good?</div><div class="ql-chips">' + goods.map(function(o){ return chipHtml(o, 'good'); }).join('') + '</div>' +
+        '<div class="section-label">One thing to improve <span class="hint" style="display:inline;">(optional)</span></div><div class="ql-chips">' + works.map(function(o){ return chipHtml(o, 'work'); }).join('') + '</div>';
+    } else {
+      body =
+        '<div class="section-label" style="margin-top:4px;">How\'d It Go, Honestly?</div>' +
+        '<div class="overall-scale" id="ql-scale">' +
+          '<button type="button" class="r1" data-val="1">1<br>Rubbish</button><button type="button" class="r2" data-val="2">2</button><button type="button" class="r3" data-val="3">3<br>Okay</button><button type="button" class="r4" data-val="4">4</button><button type="button" class="r5" data-val="5">5<br>Brilliant</button>' +
+        '</div>' +
+        '<div class="section-label">What went well? <span class="hint" style="display:inline;">tap any</span></div><div class="ql-chips">' + goods.map(function(o){ return chipHtml(o, 'good'); }).join('') + '</div>' +
+        '<div class="section-label">One thing to work on <span class="hint" style="display:inline;">pick one</span></div><div class="ql-chips">' + works.map(function(o){ return chipHtml(o, 'work'); }).join('') + '</div>';
+    }
+
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>' + (isGym ? 'Quick Gym Log' : 'Quick Log') + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      titleLine + no1Line + body + moreBlock + engBlock +
+      (isGym ? '' :
+        '<div class="section-label">Which Focus Area(s)?</div>' +
+        '<div class="ifa-chip-toggle" id="ql-ifa-toggle">' +
+          IDP_IFAS.map(function(ifa){ return '<button type="button" data-val="' + ifa.key + '" class="' + (suggestedIfas[ifa.key] ? 'selected' : '') + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
+        '</div>' +
+        '<div class="hint" style="margin-top:6px;">Already ticked if it matches the session. Change it if not.</div>') +
+      '<div class="hint" id="ql-eng" style="margin-top:10px;"></div>' +
+      '<div class="field" style="margin-top:12px;"><label>Anything else? (optional)</label><input type="text" id="ql-note" placeholder="One line is plenty"></div>' +
+      '<button type="button" class="btn btn-primary" id="ql-save" style="margin-top:6px;">Save</button>' +
+      '<button type="button" class="btn-link" id="ql-full" style="display:block; margin:12px auto 0;">Use the full form instead</button>'
+    );
+
+    var root = document.getElementById('modal-content');
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.getElementById('ql-full').addEventListener('click', function(){ openReflectionForm(sess); });
+    var moreBtn = document.getElementById('ql-more-btn');
+    if(moreBtn) moreBtn.addEventListener('click', function(){
+      var m = document.getElementById('ql-more');
+      var showing = m.style.display !== 'none';
+      m.style.display = showing ? 'none' : 'block';
+      moreBtn.textContent = showing ? 'Show more options' : 'Show fewer options';
+    });
+    if(!isGym){
+      root.querySelectorAll('#ql-scale button').forEach(function(b){
+        b.addEventListener('click', function(){
+          selOverall = parseInt(b.getAttribute('data-val'), 10);
+          root.querySelectorAll('#ql-scale button').forEach(function(x){ x.classList.remove('selected'); });
+          b.classList.add('selected');
+        });
+      });
+      root.querySelectorAll('#ql-ifa-toggle button').forEach(function(b){
+        b.addEventListener('click', function(){
+          var k = b.getAttribute('data-val');
+          var i = selIfas.indexOf(k);
+          if(i > -1){ selIfas.splice(i, 1); b.classList.remove('selected'); } else { selIfas.push(k); b.classList.add('selected'); }
+          if(typeof refreshEng === 'function') refreshEng();
+        });
+      });
+    } else {
+      var yes = document.getElementById('ql-done-yes'), no = document.getElementById('ql-done-no');
+      yes.addEventListener('click', function(){ selDone = true; yes.classList.add('on-good'); no.classList.remove('on-work'); });
+      no.addEventListener('click', function(){ selDone = false; no.classList.add('on-work'); yes.classList.remove('on-good'); });
+    }
+    function lookupWork(text){
+      var found = null;
+      Object.keys(QL_KINDS).forEach(function(k){ QL_KINDS[k].work.forEach(function(w){ if(w[0] === text) found = { act:w[1], ifa:QL_KINDS[k].ifa }; }); });
+      return found;
+    }
+    function lookupGoodIfa(text){
+      var f = null;
+      Object.keys(QL_KINDS).forEach(function(k){ if(QL_KINDS[k].good.indexOf(text) > -1) f = QL_KINDS[k].ifa; });
+      return f;
+    }
+    function kindOfText(text){
+      var f = null;
+      Object.keys(QL_KINDS).forEach(function(k){
+        if(QL_KINDS[k].good.indexOf(text) > -1) f = k;
+        QL_KINDS[k].work.forEach(function(w){ if(w[0] === text) f = k; });
+      });
+      return f;
+    }
+    function currentKinds(){
+      var ks = [];
+      if(isGym) ks.push('gym');
+      selGood.concat(selWork ? [selWork] : []).forEach(function(t){ var k = kindOfText(t); if(k && ks.indexOf(k) < 0) ks.push(k); });
+      selIfas.forEach(function(ifa){ Object.keys(QL_KINDS).forEach(function(k){ if(QL_KINDS[k].ifa === ifa && ks.indexOf(k) < 0 && !isGym) ks.push(k); }); });
+      return ks;
+    }
+    function refreshEng(){
+      var el = document.getElementById('ql-eng');
+      if(!el) return;
+      var ids = qlEnglandForKinds(currentKinds());
+      selEng.forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
+      el.textContent = ids.length ? 'England link (just for us, not Chelsea): ' + ids.map(function(id){ var c = englandCharById(id); return c ? c.short : ''; }).filter(Boolean).join(' · ') : '';
+    }
+    refreshEng();
+    root.querySelectorAll('.ql-eng-chip').forEach(function(c){
+      c.addEventListener('click', function(){
+        var id = c.getAttribute('data-eng'), i = selEng.indexOf(id);
+        if(i > -1){ selEng.splice(i, 1); c.classList.remove('on-eng'); } else { selEng.push(id); c.classList.add('on-eng'); }
+        refreshEng();
+      });
+    });
+    root.querySelectorAll('.ql-chip[data-side]').forEach(function(c){
+      c.addEventListener('click', function(){
+        var side = c.getAttribute('data-side'), text = c.getAttribute('data-text');
+        if(side === 'good'){
+          var gi = selGood.indexOf(text);
+          if(gi > -1){ selGood.splice(gi, 1); c.classList.remove('on-good'); } else { selGood.push(text); c.classList.add('on-good'); }
+        } else {
+          root.querySelectorAll('.ql-chip[data-side="work"]').forEach(function(x){ x.classList.remove('on-work'); });
+          if(selWork === text){ selWork = null; }
+          else { selWork = text; root.querySelectorAll('.ql-chip[data-side="work"]').forEach(function(x){ if(x.getAttribute('data-text') === text) x.classList.add('on-work'); }); }
+        }
+        refreshEng();
+      });
+    });
+
+    document.getElementById('ql-save').addEventListener('click', function(){
+      var note = (document.getElementById('ql-note').value || '').trim();
+      if(!isGym && !selOverall){ alert('Tap a number first — how did it go?'); return; }
+      if(isGym && selDone === null){ alert('Tap whether you did it or not.'); return; }
+      if(!isGym && !selGood.length && !selWork && !note){ alert('Tap at least one thing — what went well, or what to work on.'); return; }
+      var wk = selWork ? lookupWork(selWork) : null;
+      var ifas = selIfas.slice();
+      selGood.forEach(function(t){ var f = lookupGoodIfa(t); if(f && ifas.indexOf(f) < 0 && !isGym) ifas.push(f); });
+      if(wk && wk.ifa && ifas.indexOf(wk.ifa) < 0 && !isGym) ifas.push(wk.ifa);
+      var parts = [];
+      if(selGood.length) parts.push('What went well: ' + selGood.join('; ') + '.');
+      if(selWork) parts.push('What I want to work on: ' + selWork + '.');
+      if(note) parts.push(note.charAt(note.length - 1).match(/[.!?]/) ? note : note + '.');
+      var entry = {
+        id: uid(), sessionId: sess.id, title: sess.title || (isGym ? 'Gym' : 'Training'), date: sess.date,
+        type: isGym ? 'gym' : 'training', theme: sess.theme || '',
+        overall: isGym ? null : selOverall,
+        evidence: isGym ? '' : parts.join(' '),
+        attributes: {},
+        wentWell: selGood.join('; '),
+        evenBetterIf: selWork || '',
+        action: wk ? wk.act : '',
+        opponent: '', score: '', matchClass: null, goalsConceded: null, concededGoals: [],
+        gymFocus: isGym ? ((sess.focus || '') + (selGood.length ? (sess.focus ? ' — ' : '') + selGood.join('; ') : '') + (note ? ' (' + note + ')' : '')) : '',
+        gymCompleted: isGym ? selDone : null,
+        recovery: null, analysisMatchId: '', boxMoment: '',
+        linkedIfas: isGym ? [] : ifas,
+        englandChars: (function(){ var a = qlEnglandForKinds(currentKinds()); selEng.forEach(function(id){ if(a.indexOf(id) < 0) a.push(id); }); return a; })(),
+        englandPicked: selEng.slice(),
+        quickLog: true
+      };
+      state.reflections.push(entry);
+      saveData();
+      closeModal();
+      switchView(entry.date === todayIso() ? 'today' : 'journal');
     });
   }
 
