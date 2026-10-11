@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v43 — 11 Oct 2026 -->
+<!-- Lily GK Journal — v46 — 11 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -463,6 +463,18 @@
   .ql-chip.on-work{background:rgba(255,180,84,0.16); border-color:var(--amber);}
   .ql-chip.on-eng{background:rgba(110,168,254,0.16); border-color:#6EA8FE;}
   .ql-no1{margin:0 0 14px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,0.03); font-size:13px; line-height:1.4; color:var(--text-dim);}
+  .mic-btn{margin-top:6px; padding:9px 14px; border-radius:999px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--text-dim); font-size:13px; cursor:pointer; font-family:inherit;}
+  .mic-btn.listening{border-color:var(--red); color:var(--red);}
+  .ql-list{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
+  .ql-list .ql-chip{width:100%; padding:14px 16px; font-size:15px;}
+  .ql-cat{display:flex; justify-content:space-between; align-items:center; font-weight:600;}
+  .ql-count{font-family:'JetBrains Mono',monospace; font-size:12px; opacity:0.8;}
+  .ql-q{font-family:'Oswald',sans-serif; font-weight:600; font-size:20px; color:var(--text); margin:6px 0 4px;}
+  .ql-hint{font-size:13px; color:var(--text-dim); margin-bottom:12px;}
+  .ql-nav{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .ql-steps{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint);}
+  .ql-picked{padding:10px 12px; border-radius:12px; border:1.5px solid var(--amber); background:rgba(255,180,84,0.12); font-size:14px; margin-bottom:12px;}
+  .ql-voice .mic-btn{display:block; width:100%; padding:20px; font-size:17px; margin-top:8px;}
   .ql-yn{display:flex; gap:8px; margin-bottom:12px;}
   .ql-yn .ql-chip{flex:1; text-align:center; padding:16px 10px;}
   .eng-badge{font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--text-faint); white-space:nowrap;}
@@ -759,8 +771,11 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v43';
+  var APP_VERSION = 'v46';
   var CHANGELOG = [
+    { version:'v46', notes:'Quick Log: a "Just say how it went" option — talk for ten seconds like a voice note and the words are written into the journal (no tapping needed). Gym sessions go back to how they were: no gym feedback in the Quick Log.' },
+    { version:'v45', notes:'Quick Log is now one question per screen with options tucked inside each other: how it went, then pick an area and tap what happened, then one thing to work on, then (optional) England qualities, then a summary and Save. Only a handful of buttons are on screen at once.' },
+    { version:'v44', notes:'Speak instead of type: a Speak button under the writing boxes (Quick Log "Anything else?", What actually happened, One Thing To Work On and others). Tap it, talk, and the words appear as text. Only the words are kept — no audio is recorded or saved.' },
     { version:'v43', notes:'Think like a No.1. Quick Log now opens with a one-line reminder of what Chelsea and England both want from that session, and has an optional "How did I show England qualities?" row of taps (brave, big save, play forward, keep the ball, find a way, want to win and so on) in the FA\'s own wording. What she picks is added to the England tally. Private to us — never in My Story or the Chelsea PDF.' },
     { version:'v42.2', notes:'Quick Log now quietly tags each session with the England goalkeeper characteristics it relates to (using your editable Focus Area links), and the England reference on Standards shows how many logged sessions touch each one. Private to us — never in My Story or the Chelsea PDF.' },
     { version:'v42.1', notes:'Quick Log options now use the Chelsea GK Induction 26/27 wording: the Dominate the Goal / Area / Space / Ball syllabus (1v1s, shot ranges, crosses, set plays, through balls, play around / through / over) and the BLUE behaviours. If a session has no theme, it uses that week\'s syllabus theme and focus skills.' },
@@ -2006,7 +2021,7 @@
         var sess = state.schedule.find(function(s){ return s.id === card.getAttribute('data-missing-log-id'); });
         if(!sess) return;
         if(sess.type === 'match'){ openMatchPrepModal(sess); }
-        else if(sess.type === 'training' || sess.type === 'gym'){ openQuickLog(sess); }
+        else if(sess.type === 'training'){ openQuickLog(sess); }
         else { openReflectionForm(sess); }
       });
     });
@@ -2675,7 +2690,7 @@
             openReflectionDetail(reflectionForSession[id].id);
           } else if(sess.type === 'match'){
             openMatchPrepModal(sess);
-          } else if(sess.type === 'training' || sess.type === 'gym'){
+          } else if(sess.type === 'training'){
             openQuickLog(sess);
           } else {
             openReflectionForm(sess);
@@ -2973,7 +2988,7 @@
         var existing = state.reflections.find(function(r){ return r.sessionId === id; });
         if(existing){ openReflectionDetail(existing.id); }
         else if(sess.type === 'match'){ openMatchPrepModal(sess); }
-        else if(sess.type === 'training' || sess.type === 'gym'){ openQuickLog(sess); }
+        else if(sess.type === 'training'){ openQuickLog(sess); }
         else{ openScheduleForm(sess); }
       });
     });
@@ -3087,19 +3102,6 @@
         ['My energy dropped','Keep my intensity up all session — look after fuel, sleep and focus.'],
         ['I wasn\'t really taking in the coaching points','Listen and use one coaching point every session.'],
         ['I waited to be told instead of taking ownership','Take ownership: decide my own focus before the session starts.']
-      ]},
-    gym: { ifa:'ifa3', label:'Gym',
-      good:[
-        'I completed my whole programme',
-        'Good quality upper-body strength work',
-        'Good quality lower-body power work',
-        'I did my GK-specific activation and warm-up properly',
-        'I followed the PPC\'s programme'
-      ],
-      work:[
-        ['I skipped part of the programme','Complete the whole programme.'],
-        ['I rushed my reps','Slow down and focus on technique.'],
-        ['I was too tired to do it well','Look after sleep, food and recovery before gym.']
       ]}
   };
 
@@ -3126,7 +3128,7 @@
   };
 
   // England link (private to the family — never used by My Story or the Chelsea PDF).
-  var QL_ENGLAND = { area:['tout1','tout2','phys2'], goal:['tout1','tout2'], space:['tout2','phys1'], ball:['tin1','tin2'], comms:['tout2','psy1'], mind:['psy1','psy2'], gym:['phys1','phys2'] };
+  var QL_ENGLAND = { area:['tout1','tout2','phys2'], goal:['tout1','tout2'], space:['tout2','phys1'], ball:['tin1','tin2'], comms:['tout2','psy1'], mind:['psy1','psy2'] };
   function qlEnglandForKinds(kinds){
     var out = [];
     kinds.forEach(function(k){
@@ -3168,114 +3170,19 @@
     return out.slice(0, 3);
   }
 
+  // Quick Log v45: one question per screen, options nested (area first, then the few things in it).
   function openQuickLog(sess){
-    var isGym = sess.type === 'gym';
-    var kinds = isGym ? ['gym'] : qlInferKinds(sess);
-    var fallback = !isGym && kinds.length === 0;
-    var order = isGym ? ['gym'] : (fallback ? ['area','ball','goal','space','comms'] : kinds);
-    var capGood = fallback ? 2 : (kinds.length > 1 ? 3 : 5), capWork = fallback ? 1 : (kinds.length > 1 ? 2 : 3);
-
-    var goods = [], works = [], moreGood = [], moreWork = [];
-    function pushUnique(arr, o){ if(!arr.some(function(x){ return x.text === o.text; })) arr.push(o); }
-    function addKind(k, cg, cw, intoMore){
-      var kd = QL_KINDS[k];
-      kd.good.forEach(function(t, i){ pushUnique(intoMore || i >= cg ? moreGood : goods, { text:t, ifa:kd.ifa }); });
-      kd.work.forEach(function(w, i){ pushUnique(intoMore || i >= cw ? moreWork : works, { text:w[0], act:w[1], ifa:kd.ifa }); });
-    }
-    order.forEach(function(k){ addKind(k, capGood, capWork, false); });
-    if(!isGym){ addKind('mind', 3, 2, false); }
-    if(!isGym) Object.keys(QL_KINDS).forEach(function(k){
-      if(order.indexOf(k) > -1 || k === 'mind' || k === 'gym') return;
-      addKind(k, 0, 0, true);
-    });
+    var isGym = false; // Gym feedback was deliberately removed — never offered in the Quick Log
+    var kinds = qlInferKinds(sess);
+    var fallback = kinds.length === 0;
+    var allKinds = ['area','goal','space','ball','comms','mind'];
+    var shownCats = isGym ? ['gym'] : (fallback ? allKinds.slice() : kinds.concat(['mind']));
+    var moreCats = isGym ? [] : allKinds.filter(function(k){ return shownCats.indexOf(k) < 0; });
     var suggestedIfas = {};
-    order.forEach(function(k){ if(QL_KINDS[k].ifa && !fallback) suggestedIfas[QL_KINDS[k].ifa] = true; });
-    
+    if(!isGym && !fallback){ kinds.forEach(function(k){ if(QL_KINDS[k].ifa) suggestedIfas[QL_KINDS[k].ifa] = true; }); }
+    var steps = isGym ? ['done','good','work','finish'] : ['rate','good','work','eng','finish'];
+    var S = { step:0, cat:null, more:false, overall:null, done:null, good:[], work:null, eng:[], ifas:Object.keys(suggestedIfas), showNote:false, changeIfa:false, engAll:false, morePhr:{}, voice:false };
 
-    var selOverall = null, selDone = null, selGood = [], selWork = null, selEng = [];
-    var selIfas = Object.keys(suggestedIfas);
-
-    function chipHtml(o, side){
-      return '<button type="button" class="ql-chip" data-side="' + side + '" data-text="' + escapeHtml(o.text) + '">' + escapeHtml(o.text) + '</button>';
-    }
-    var moreBlock = (moreGood.length || moreWork.length)
-      ? '<button type="button" class="btn-link" id="ql-more-btn" style="margin:2px 0 10px;">Show more options</button>' +
-        '<div id="ql-more" style="display:none;">' +
-          (moreGood.length ? '<div class="hint" style="margin:0 0 6px;">More that went well</div><div class="ql-chips">' + moreGood.map(function(o){ return chipHtml(o, 'good'); }).join('') + '</div>' : '') +
-          (moreWork.length ? '<div class="hint" style="margin:0 0 6px;">More to work on</div><div class="ql-chips">' + moreWork.map(function(o){ return chipHtml(o, 'work'); }).join('') + '</div>' : '') +
-        '</div>'
-      : '';
-
-    var titleLine = '<div class="card-meta" style="margin-bottom:12px;">' + escapeHtml(sess.title || (isGym ? 'Gym' : 'Training')) + ' · ' + escapeHtml(fmtDate(sess.date)) +
-      (sess.theme ? ' · ' + escapeHtml(sess.theme) : '') + (sess.focus ? '<br>Focus: ' + escapeHtml(sess.focus) : '') + '</div>';
-
-    var no1Line = '<div class="ql-no1">' + escapeHtml(isGym ? QL_NO1_LINES.gym : (kinds.length ? (QL_NO1_LINES[kinds[0]] || QL_NO1_LINES.dflt) : QL_NO1_LINES.dflt)) + '</div>';
-    var engBlock = '<div class="section-label">How did I show England qualities? <span class="hint" style="display:inline;">optional, tap any</span></div><div class="ql-chips">' +
-      QL_ENGLAND_PICKS.map(function(e){ return '<button type="button" class="ql-chip ql-eng-chip" data-eng="' + e[0] + '">' + escapeHtml(e[1]) + '</button>'; }).join('') + '</div>';
-    var body;
-    if(isGym){
-      body =
-        '<div class="section-label" style="margin-top:4px;">Did you do it?</div>' +
-        '<div class="ql-yn"><button type="button" class="ql-chip" id="ql-done-yes">Yes, done</button><button type="button" class="ql-chip" id="ql-done-no">Not this time</button></div>' +
-        '<div class="section-label">What was good?</div><div class="ql-chips">' + goods.map(function(o){ return chipHtml(o, 'good'); }).join('') + '</div>' +
-        '<div class="section-label">One thing to improve <span class="hint" style="display:inline;">(optional)</span></div><div class="ql-chips">' + works.map(function(o){ return chipHtml(o, 'work'); }).join('') + '</div>';
-    } else {
-      body =
-        '<div class="section-label" style="margin-top:4px;">How\'d It Go, Honestly?</div>' +
-        '<div class="overall-scale" id="ql-scale">' +
-          '<button type="button" class="r1" data-val="1">1<br>Rubbish</button><button type="button" class="r2" data-val="2">2</button><button type="button" class="r3" data-val="3">3<br>Okay</button><button type="button" class="r4" data-val="4">4</button><button type="button" class="r5" data-val="5">5<br>Brilliant</button>' +
-        '</div>' +
-        '<div class="section-label">What went well? <span class="hint" style="display:inline;">tap any</span></div><div class="ql-chips">' + goods.map(function(o){ return chipHtml(o, 'good'); }).join('') + '</div>' +
-        '<div class="section-label">One thing to work on <span class="hint" style="display:inline;">pick one</span></div><div class="ql-chips">' + works.map(function(o){ return chipHtml(o, 'work'); }).join('') + '</div>';
-    }
-
-    openModal(
-      '<div class="modal-handle"></div>' +
-      '<div class="modal-header"><h2>' + (isGym ? 'Quick Gym Log' : 'Quick Log') + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
-      titleLine + no1Line + body + moreBlock + engBlock +
-      (isGym ? '' :
-        '<div class="section-label">Which Focus Area(s)?</div>' +
-        '<div class="ifa-chip-toggle" id="ql-ifa-toggle">' +
-          IDP_IFAS.map(function(ifa){ return '<button type="button" data-val="' + ifa.key + '" class="' + (suggestedIfas[ifa.key] ? 'selected' : '') + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') +
-        '</div>' +
-        '<div class="hint" style="margin-top:6px;">Already ticked if it matches the session. Change it if not.</div>') +
-      '<div class="hint" id="ql-eng" style="margin-top:10px;"></div>' +
-      '<div class="field" style="margin-top:12px;"><label>Anything else? (optional)</label><input type="text" id="ql-note" placeholder="One line is plenty"></div>' +
-      '<button type="button" class="btn btn-primary" id="ql-save" style="margin-top:6px;">Save</button>' +
-      '<button type="button" class="btn-link" id="ql-full" style="display:block; margin:12px auto 0;">Use the full form instead</button>'
-    );
-
-    var root = document.getElementById('modal-content');
-    document.getElementById('close-modal').addEventListener('click', closeModal);
-    document.getElementById('ql-full').addEventListener('click', function(){ openReflectionForm(sess); });
-    var moreBtn = document.getElementById('ql-more-btn');
-    if(moreBtn) moreBtn.addEventListener('click', function(){
-      var m = document.getElementById('ql-more');
-      var showing = m.style.display !== 'none';
-      m.style.display = showing ? 'none' : 'block';
-      moreBtn.textContent = showing ? 'Show more options' : 'Show fewer options';
-    });
-    if(!isGym){
-      root.querySelectorAll('#ql-scale button').forEach(function(b){
-        b.addEventListener('click', function(){
-          selOverall = parseInt(b.getAttribute('data-val'), 10);
-          root.querySelectorAll('#ql-scale button').forEach(function(x){ x.classList.remove('selected'); });
-          b.classList.add('selected');
-        });
-      });
-      root.querySelectorAll('#ql-ifa-toggle button').forEach(function(b){
-        b.addEventListener('click', function(){
-          var k = b.getAttribute('data-val');
-          var i = selIfas.indexOf(k);
-          if(i > -1){ selIfas.splice(i, 1); b.classList.remove('selected'); } else { selIfas.push(k); b.classList.add('selected'); }
-          if(typeof refreshEng === 'function') refreshEng();
-        });
-      });
-    } else {
-      var yes = document.getElementById('ql-done-yes'), no = document.getElementById('ql-done-no');
-      yes.addEventListener('click', function(){ selDone = true; yes.classList.add('on-good'); no.classList.remove('on-work'); });
-      no.addEventListener('click', function(){ selDone = false; no.classList.add('on-work'); yes.classList.remove('on-good'); });
-    }
     function lookupWork(text){
       var found = null;
       Object.keys(QL_KINDS).forEach(function(k){ QL_KINDS[k].work.forEach(function(w){ if(w[0] === text) found = { act:w[1], ifa:QL_KINDS[k].ifa }; }); });
@@ -3297,76 +3204,213 @@
     function currentKinds(){
       var ks = [];
       if(isGym) ks.push('gym');
-      selGood.concat(selWork ? [selWork] : []).forEach(function(t){ var k = kindOfText(t); if(k && ks.indexOf(k) < 0) ks.push(k); });
-      selIfas.forEach(function(ifa){ Object.keys(QL_KINDS).forEach(function(k){ if(QL_KINDS[k].ifa === ifa && ks.indexOf(k) < 0 && !isGym) ks.push(k); }); });
+      S.good.concat(S.work ? [S.work] : []).forEach(function(t){ var k = kindOfText(t); if(k && ks.indexOf(k) < 0) ks.push(k); });
+      S.ifas.forEach(function(ifa){ Object.keys(QL_KINDS).forEach(function(k){ if(QL_KINDS[k].ifa === ifa && ks.indexOf(k) < 0 && !isGym) ks.push(k); }); });
       return ks;
     }
-    function refreshEng(){
-      var el = document.getElementById('ql-eng');
-      if(!el) return;
-      var ids = qlEnglandForKinds(currentKinds());
-      selEng.forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
-      el.textContent = ids.length ? 'England link (just for us, not Chelsea): ' + ids.map(function(id){ var c = englandCharById(id); return c ? c.short : ''; }).filter(Boolean).join(' · ') : '';
+    function countIn(kind, list){
+      return list.filter(function(t){ return kindOfText(t) === kind; }).length;
     }
-    refreshEng();
-    root.querySelectorAll('.ql-eng-chip').forEach(function(c){
-      c.addEventListener('click', function(){
-        var id = c.getAttribute('data-eng'), i = selEng.indexOf(id);
-        if(i > -1){ selEng.splice(i, 1); c.classList.remove('on-eng'); } else { selEng.push(id); c.classList.add('on-eng'); }
-        refreshEng();
-      });
-    });
-    root.querySelectorAll('.ql-chip[data-side]').forEach(function(c){
-      c.addEventListener('click', function(){
-        var side = c.getAttribute('data-side'), text = c.getAttribute('data-text');
-        if(side === 'good'){
-          var gi = selGood.indexOf(text);
-          if(gi > -1){ selGood.splice(gi, 1); c.classList.remove('on-good'); } else { selGood.push(text); c.classList.add('on-good'); }
-        } else {
-          root.querySelectorAll('.ql-chip[data-side="work"]').forEach(function(x){ x.classList.remove('on-work'); });
-          if(selWork === text){ selWork = null; }
-          else { selWork = text; root.querySelectorAll('.ql-chip[data-side="work"]').forEach(function(x){ if(x.getAttribute('data-text') === text) x.classList.add('on-work'); }); }
-        }
-        refreshEng();
-      });
-    });
+    function go(n){ S.step = n; S.cat = null; render(); }
 
-    document.getElementById('ql-save').addEventListener('click', function(){
-      var note = (document.getElementById('ql-note').value || '').trim();
-      if(!isGym && !selOverall){ alert('Tap a number first — how did it go?'); return; }
-      if(isGym && selDone === null){ alert('Tap whether you did it or not.'); return; }
-      if(!isGym && !selGood.length && !selWork && !note){ alert('Tap at least one thing — what went well, or what to work on.'); return; }
-      var wk = selWork ? lookupWork(selWork) : null;
-      var ifas = selIfas.slice();
-      selGood.forEach(function(t){ var f = lookupGoodIfa(t); if(f && ifas.indexOf(f) < 0 && !isGym) ifas.push(f); });
+    var root = document.getElementById('modal-content');
+    var sessLine = '<div class="card-meta" style="margin-bottom:10px;">' + escapeHtml(sess.title || (isGym ? 'Gym' : 'Training')) + ' · ' + escapeHtml(fmtDate(sess.date)) + (sess.focus ? '<br>Focus: ' + escapeHtml(sess.focus) : '') + '</div>';
+
+    function catButtons(side){
+      var cats = shownCats.concat(S.more ? moreCats : []);
+      var list = cats.map(function(k){
+        var n = side === 'good' ? countIn(k, S.good) : (S.work && kindOfText(S.work) === k ? 1 : 0);
+        return '<button type="button" class="ql-chip ql-cat' + (n ? (side === 'good' ? ' on-good' : ' on-work') : '') + '" data-cat="' + k + '">' + escapeHtml(QL_KINDS[k].label) + (n ? ' <span class="ql-count">' + (side === 'good' ? n : '✓') + '</span>' : '') + '</button>';
+      }).join('');
+      var more = (!S.more && moreCats.length) ? '<button type="button" class="btn-link" id="ql-more" style="margin:2px 0 10px;">Other areas…</button>' : '';
+      return '<div class="ql-list">' + list + '</div>' + more;
+    }
+    function phraseButtons(side, kind){
+      var kd = QL_KINDS[kind];
+      var items = side === 'good' ? kd.good.map(function(t){ return [t]; }) : kd.work;
+      var selectedHidden = items.slice(5).some(function(it){ return side === 'good' ? S.good.indexOf(it[0]) > -1 : S.work === it[0]; });
+      var all = S.morePhr[side + kind] || selectedHidden;
+      var shown = all ? items : items.slice(0, 5);
+      var html = '<div class="ql-list">' + shown.map(function(it){
+        return side === 'good'
+          ? '<button type="button" class="ql-chip' + (S.good.indexOf(it[0]) > -1 ? ' on-good' : '') + '" data-good="' + escapeHtml(it[0]) + '">' + escapeHtml(it[0]) + '</button>'
+          : '<button type="button" class="ql-chip' + (S.work === it[0] ? ' on-work' : '') + '" data-work="' + escapeHtml(it[0]) + '">' + escapeHtml(it[0]) + '</button>';
+      }).join('') + '</div>';
+      if(!all && items.length > 5){ html += '<button type="button" class="btn-link" data-morephr="' + side + kind + '" style="margin:-4px 0 10px;">Show more…</button>'; }
+      return html;
+    }
+
+    function render(){
+      var key = steps[S.step];
+      var body = '';
+      var nextLabel = 'Next';
+      var showNext = true;
+      if(key === 'rate'){
+        body = '<div class="ql-no1">' + escapeHtml(kinds.length ? (QL_NO1_LINES[kinds[0]] || QL_NO1_LINES.dflt) : QL_NO1_LINES.dflt) + '</div>' +
+          '<div class="ql-q">How\'d it go, honestly?</div>' +
+          '<div class="overall-scale" id="ql-scale">' +
+            '<button type="button" class="r1' + (S.overall === 1 ? ' selected' : '') + '" data-val="1">1<br>Rubbish</button><button type="button" class="r2' + (S.overall === 2 ? ' selected' : '') + '" data-val="2">2</button><button type="button" class="r3' + (S.overall === 3 ? ' selected' : '') + '" data-val="3">3<br>Okay</button><button type="button" class="r4' + (S.overall === 4 ? ' selected' : '') + '" data-val="4">4</button><button type="button" class="r5' + (S.overall === 5 ? ' selected' : '') + '" data-val="5">5<br>Brilliant</button>' +
+          '</div>';
+        showNext = false;
+      } else if(key === 'done'){
+        body = '<div class="ql-q">Did you do it?</div>' +
+          '<div class="ql-yn"><button type="button" class="ql-chip' + (S.done === true ? ' on-good' : '') + '" id="ql-done-yes">Yes, done</button><button type="button" class="ql-chip' + (S.done === false ? ' on-work' : '') + '" id="ql-done-no">Not this time</button></div>';
+        showNext = false;
+      } else if(key === 'good'){
+        if(isGym){
+          body = '<div class="ql-q">What was good?</div><div class="ql-hint">Tap any</div>' + phraseButtons('good', 'gym');
+        } else if(S.voice){
+          body = '<div class="ql-voice"><div class="ql-q">Just say it</div><div class="ql-hint">Like a voice note to a friend — 10 seconds is plenty. How did it go, what was good, what to work on? Tap Speak, talk, and tap again if you want to add more.</div>' +
+            '<div class="field"><textarea id="ql-note" rows="4" placeholder="Your words will appear here">' + escapeHtml(S.note) + '</textarea></div></div>' +
+            '<button type="button" class="btn btn-primary" id="ql-voice-done">Done</button>';
+          showNext = false;
+        } else if(S.cat){
+          body = '<div class="ql-q">' + escapeHtml(QL_KINDS[S.cat].label) + '</div><div class="ql-hint">Tap what went well</div>' + phraseButtons('good', S.cat) +
+            '<button type="button" class="btn btn-primary" id="ql-cat-done">Done</button>';
+          showNext = false;
+        } else {
+          body = '<div class="ql-q">What went well?</div><div class="ql-hint">Pick an area, then tap what happened</div>' + catButtons('good') +
+            '<button type="button" class="btn btn-ghost" id="ql-say-it" style="margin-bottom:10px;">🎤 Or just say how it went</button>';
+          nextLabel = S.good.length ? 'Next' : 'Skip';
+        }
+      } else if(key === 'work'){
+        if(isGym){
+          body = '<div class="ql-q">One thing to improve</div><div class="ql-hint">Optional — tap one</div>' + phraseButtons('work', 'gym');
+          nextLabel = S.work ? 'Next' : 'Skip';
+        } else if(S.cat){
+          body = '<div class="ql-q">' + escapeHtml(QL_KINDS[S.cat].label) + '</div><div class="ql-hint">Pick one thing to work on</div>' + phraseButtons('work', S.cat) +
+            '<button type="button" class="btn btn-ghost" id="ql-cat-done">Back</button>';
+          showNext = false;
+        } else {
+          body = '<div class="ql-q">One thing to work on</div><div class="ql-hint">Pick an area, then tap one thing</div>' +
+            (S.work ? '<div class="ql-picked">' + escapeHtml(S.work) + ' <button type="button" class="btn-link" id="ql-clear-work">Clear</button></div>' : '') +
+            catButtons('work');
+          nextLabel = S.work ? 'Next' : 'Skip';
+        }
+      } else if(key === 'eng'){
+        var rel = qlEnglandForKinds(currentKinds());
+        var picks = QL_ENGLAND_PICKS.filter(function(e){ return S.engAll || rel.indexOf(e[0]) > -1 || S.eng.indexOf(e[0]) > -1; });
+        if(picks.length > 5 && !S.engAll){ picks = picks.slice(0, 5); }
+        if(picks.length < 3 && !S.engAll){ picks = QL_ENGLAND_PICKS.slice(0, 5); }
+        body = '<div class="ql-q">How did I show England qualities?</div><div class="ql-hint">Optional — tap any</div>' +
+          '<div class="ql-list">' + picks.map(function(e){
+            return '<button type="button" class="ql-chip' + (S.eng.indexOf(e[0]) > -1 ? ' on-eng' : '') + '" data-eng="' + e[0] + '">' + escapeHtml(e[1]) + '</button>';
+          }).join('') + '</div>' +
+          (!S.engAll ? '<button type="button" class="btn-link" id="ql-eng-all" style="margin:2px 0 10px;">Show all</button>' : '');
+        nextLabel = S.eng.length ? 'Next' : 'Skip';
+      } else if(key === 'finish'){
+        showNext = false;
+        var ifaNames = S.ifas.map(function(k){ var f = IDP_IFAS.find(function(x){ return x.key === k; }); return f ? f.title.replace(/^IFA \d — /, '') : ''; }).filter(Boolean);
+        body = '<div class="ql-q">All set?</div><div class="card" style="margin-bottom:12px;">' +
+          (isGym ? '<div class="eng-char" style="margin-top:0;">' + (S.done ? 'Done' : 'Not this time') + '</div>' : '<div class="eng-char" style="margin-top:0;">How it went: <b>' + S.overall + ' / 5</b></div>') +
+          '<div class="eng-char">Went well: ' + (S.good.length ? S.good.length + ' thing' + (S.good.length === 1 ? '' : 's') : '—') + '</div>' +
+          '<div class="eng-char">Work on: ' + (S.work ? escapeHtml(S.work) : '—') + '</div>' +
+          (isGym ? '' : '<div class="eng-char">Focus Areas: ' + (ifaNames.length ? escapeHtml(ifaNames.join(' · ')) : 'none') + ' <button type="button" class="btn-link" id="ql-change-ifa">Change</button></div>') +
+          '</div>' +
+          (S.changeIfa ? '<div class="ifa-chip-toggle" id="ql-ifa-toggle" style="margin-bottom:12px;">' + IDP_IFAS.map(function(ifa){ return '<button type="button" data-val="' + ifa.key + '" class="' + (S.ifas.indexOf(ifa.key) > -1 ? 'selected' : '') + '">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</button>'; }).join('') + '</div>' : '') +
+          (S.showNote
+            ? '<div class="field"><label>Anything else?</label><textarea id="ql-note" rows="2" placeholder="One line is plenty">' + escapeHtml(S.note) + '</textarea></div>'
+            : '<button type="button" class="btn btn-ghost" id="ql-add-note" style="margin-bottom:12px;">Add a note (or speak it)</button>') +
+          '<button type="button" class="btn btn-primary" id="ql-save">Save</button>' +
+          '<button type="button" class="btn-link" id="ql-full" style="display:block; margin:12px auto 0;">Use the full form instead</button>';
+      }
+
+      root.innerHTML =
+        '<div class="modal-handle"></div>' +
+        '<div class="modal-header"><h2>' + (isGym ? 'Quick Gym Log' : 'Quick Log') + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
+        '<div class="ql-nav">' + ((S.step > 0 || S.cat || S.voice) ? '<button type="button" class="trk-mini" id="ql-back">‹ Back</button>' : '<span></span>') + '<span class="ql-steps">' + (S.step + 1) + ' of ' + steps.length + '</span></div>' +
+        (S.step === 0 ? sessLine : '') + body +
+        (showNext ? '<button type="button" class="btn btn-primary" id="ql-next" style="margin-top:6px;">' + nextLabel + '</button>' : '');
+      wire();
+      wireMicButtons(root);
+    }
+
+    function wire(){
+      function q(sel){ return root.querySelector(sel); }
+      function qa(sel){ return root.querySelectorAll(sel); }
+      q('#close-modal').addEventListener('click', closeModal);
+      var back = q('#ql-back');
+      if(back) back.addEventListener('click', function(){ if(S.voice){ var nt = q('#ql-note'); if(nt) S.note = nt.value; S.voice = false; render(); } else if(S.cat){ S.cat = null; render(); } else if(S.step > 0){ go(S.step - 1); } });
+      var next = q('#ql-next'); if(next) next.addEventListener('click', function(){ go(S.step + 1); });
+      qa('#ql-scale button').forEach(function(b){ b.addEventListener('click', function(){ S.overall = parseInt(b.getAttribute('data-val'), 10); go(S.step + 1); }); });
+      var yes = q('#ql-done-yes'), no = q('#ql-done-no');
+      if(yes) yes.addEventListener('click', function(){ S.done = true; go(S.step + 1); });
+      if(no) no.addEventListener('click', function(){ S.done = false; go(S.step + 1); });
+      qa('[data-cat]').forEach(function(b){ b.addEventListener('click', function(){ S.cat = b.getAttribute('data-cat'); render(); }); });
+      var more = q('#ql-more'); if(more) more.addEventListener('click', function(){ S.more = true; render(); });
+      qa('[data-morephr]').forEach(function(b){ b.addEventListener('click', function(){ S.morePhr[b.getAttribute('data-morephr')] = true; render(); }); });
+      var sayIt = q('#ql-say-it'); if(sayIt) sayIt.addEventListener('click', function(){ S.voice = true; render(); });
+      var vd = q('#ql-voice-done'); if(vd) vd.addEventListener('click', function(){ var nt = q('#ql-note'); if(nt) S.note = nt.value; S.voice = false; S.showNote = true; go(steps.length - 1); });
+      var cd = q('#ql-cat-done'); if(cd) cd.addEventListener('click', function(){ S.cat = null; render(); });
+      qa('[data-good]').forEach(function(b){ b.addEventListener('click', function(){
+        var t = b.getAttribute('data-good'), i = S.good.indexOf(t);
+        if(i > -1){ S.good.splice(i, 1); b.classList.remove('on-good'); } else { S.good.push(t); b.classList.add('on-good'); }
+      }); });
+      qa('[data-work]').forEach(function(b){ b.addEventListener('click', function(){
+        var t = b.getAttribute('data-work');
+        S.work = (S.work === t) ? null : t;
+        if(isGym){ render(); } else { S.cat = null; render(); }
+      }); });
+      var cw = q('#ql-clear-work'); if(cw) cw.addEventListener('click', function(){ S.work = null; render(); });
+      qa('[data-eng]').forEach(function(b){ b.addEventListener('click', function(){
+        var id = b.getAttribute('data-eng'), i = S.eng.indexOf(id);
+        if(i > -1){ S.eng.splice(i, 1); b.classList.remove('on-eng'); } else { S.eng.push(id); b.classList.add('on-eng'); }
+      }); });
+      var ea = q('#ql-eng-all'); if(ea) ea.addEventListener('click', function(){ S.engAll = true; render(); });
+      var ci = q('#ql-change-ifa'); if(ci) ci.addEventListener('click', function(){ S.changeIfa = !S.changeIfa; render(); });
+      qa('#ql-ifa-toggle button').forEach(function(b){ b.addEventListener('click', function(){
+        var k = b.getAttribute('data-val'), i = S.ifas.indexOf(k);
+        if(i > -1){ S.ifas.splice(i, 1); } else { S.ifas.push(k); }
+        render();
+      }); });
+      var an = q('#ql-add-note'); if(an) an.addEventListener('click', function(){ S.showNote = true; render(); });
+      var note = q('#ql-note'); if(note) note.addEventListener('input', function(){ S.note = note.value; });
+      var full = q('#ql-full'); if(full) full.addEventListener('click', function(){ openReflectionForm(sess); });
+      var save = q('#ql-save'); if(save) save.addEventListener('click', doSave);
+    }
+
+    function doSave(){
+      var noteEl = root.querySelector('#ql-note');
+      var note = ((noteEl ? noteEl.value : S.note) || '').trim();
+      if(!isGym && !S.overall){ alert('Tap a number first — how did it go?'); go(0); return; }
+      if(isGym && S.done === null){ alert('Tap whether you did it or not.'); go(0); return; }
+      if(!isGym && !S.good.length && !S.work && !note){ alert('Tap at least one thing — what went well, or what to work on.'); go(1); return; }
+      var wk = S.work ? lookupWork(S.work) : null;
+      var ifas = S.ifas.slice();
+      S.good.forEach(function(t){ var f = lookupGoodIfa(t); if(f && ifas.indexOf(f) < 0 && !isGym) ifas.push(f); });
       if(wk && wk.ifa && ifas.indexOf(wk.ifa) < 0 && !isGym) ifas.push(wk.ifa);
       var parts = [];
-      if(selGood.length) parts.push('What went well: ' + selGood.join('; ') + '.');
-      if(selWork) parts.push('What I want to work on: ' + selWork + '.');
+      if(S.good.length) parts.push('What went well: ' + S.good.join('; ') + '.');
+      if(S.work) parts.push('What I want to work on: ' + S.work + '.');
       if(note) parts.push(note.charAt(note.length - 1).match(/[.!?]/) ? note : note + '.');
+      var eng = qlEnglandForKinds(currentKinds());
+      S.eng.forEach(function(id){ if(eng.indexOf(id) < 0) eng.push(id); });
       var entry = {
         id: uid(), sessionId: sess.id, title: sess.title || (isGym ? 'Gym' : 'Training'), date: sess.date,
         type: isGym ? 'gym' : 'training', theme: sess.theme || '',
-        overall: isGym ? null : selOverall,
+        overall: isGym ? null : S.overall,
         evidence: isGym ? '' : parts.join(' '),
         attributes: {},
-        wentWell: selGood.join('; '),
-        evenBetterIf: selWork || '',
+        wentWell: S.good.join('; '),
+        evenBetterIf: S.work || '',
         action: wk ? wk.act : '',
         opponent: '', score: '', matchClass: null, goalsConceded: null, concededGoals: [],
-        gymFocus: isGym ? ((sess.focus || '') + (selGood.length ? (sess.focus ? ' — ' : '') + selGood.join('; ') : '') + (note ? ' (' + note + ')' : '')) : '',
-        gymCompleted: isGym ? selDone : null,
+        gymFocus: isGym ? ((sess.focus || '') + (S.good.length ? (sess.focus ? ' — ' : '') + S.good.join('; ') : '') + (note ? ' (' + note + ')' : '')) : '',
+        gymCompleted: isGym ? S.done : null,
         recovery: null, analysisMatchId: '', boxMoment: '',
         linkedIfas: isGym ? [] : ifas,
-        englandChars: (function(){ var a = qlEnglandForKinds(currentKinds()); selEng.forEach(function(id){ if(a.indexOf(id) < 0) a.push(id); }); return a; })(),
-        englandPicked: selEng.slice(),
+        englandChars: eng,
+        englandPicked: S.eng.slice(),
         quickLog: true
       };
       state.reflections.push(entry);
       saveData();
       closeModal();
       switchView(entry.date === todayIso() ? 'today' : 'journal');
-    });
+    }
+
+    openModal('');
+    render();
   }
 
   function openMatchPrepModal(session){
@@ -4676,9 +4720,78 @@
   var backdrop = document.getElementById('modal-backdrop');
   var modalContent = document.getElementById('modal-content');
 
+  // ---------- Speak instead of type (v44) ----------
+  // Uses the phone's own speech recognition (Safari on iPhone / Chrome). Only the words are
+  // kept — no audio is recorded or stored. If the phone won't allow it, the button explains
+  // and the keyboard's own microphone still works.
+  var MicRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var micActive = null;
+
+  function wireMicButtons(root){
+    if(!MicRecognition || !root) return;
+    root.querySelectorAll('textarea, #ql-note, #ref-gym-focus').forEach(function(field){
+      if(field.getAttribute('data-mic') === '1') return;
+      field.setAttribute('data-mic', '1');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mic-btn';
+      btn.textContent = '🎤 Speak';
+      var note = document.createElement('div');
+      note.className = 'hint mic-note';
+      note.style.display = 'none';
+      field.parentNode.insertBefore(btn, field.nextSibling);
+      btn.parentNode.insertBefore(note, btn.nextSibling);
+
+      var rec = null, base = '';
+      function reset(){
+        btn.textContent = '🎤 Speak';
+        btn.classList.remove('listening');
+        if(micActive === btn) micActive = null;
+      }
+      function say(msg){ note.textContent = msg; note.style.display = msg ? 'block' : 'none'; }
+      btn.addEventListener('click', function(){
+        if(rec){ try{ rec.stop(); }catch(e){} return; }
+        if(micActive && micActive !== btn){ micActive.click(); }
+        say('');
+        try{
+          rec = new MicRecognition();
+          rec.lang = 'en-GB';
+          rec.interimResults = true;
+          rec.continuous = false;
+          base = field.value ? field.value.replace(/\s+$/, '') + ' ' : '';
+          rec.onresult = function(ev){
+            var text = '';
+            for(var i = 0; i < ev.results.length; i++){ text += ev.results[i][0].transcript; }
+            field.value = base + text;
+            field.dispatchEvent(new Event('input', { bubbles:true }));
+          };
+          rec.onerror = function(ev){
+            var e = ev && ev.error;
+            if(e === 'not-allowed' || e === 'service-not-allowed'){
+              say('Your phone did not allow the microphone. Check Settings → Safari → Microphone (and Dictation is on in Settings → General → Keyboard), or use the 🎤 on your keyboard instead.');
+            } else if(e === 'no-speech'){
+              say('Did not hear anything — tap Speak and try again.');
+            } else if(e && e !== 'aborted'){
+              say('Speaking did not work this time. You can use the 🎤 on your keyboard instead.');
+            }
+          };
+          rec.onend = function(){ rec = null; reset(); };
+          rec.start();
+          btn.textContent = '● Listening… tap to stop';
+          btn.classList.add('listening');
+          micActive = btn;
+        }catch(e){
+          rec = null; reset();
+          say('Speaking is not available here. Use the 🎤 on your keyboard instead.');
+        }
+      });
+    });
+  }
+
   function openModal(html){
     modalContent.innerHTML = html;
     backdrop.classList.remove('hidden');
+    wireMicButtons(modalContent);
   }
   function closeModal(){
     backdrop.classList.add('hidden');
