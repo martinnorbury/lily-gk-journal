@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v41.1 — 11 Oct 2026 -->
+<!-- Lily GK Journal — v41.2 — 11 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -751,8 +751,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v41.1';
+  var APP_VERSION = 'v41.2';
   var CHANGELOG = [
+    { version:'v41.2', notes:'Match Tracker: you can now discard a tracker that is running, delete any tracker, and say how much Lily played (whole match, first half, second half, part) when you end it. The end button is now Final Whistle / Lily Off for early finishes.' },
     { version:'v41.1', notes:'Match Tracker: the review now shows the rating at half time and splits the game into first half and second half.' },
     { version:'v41', notes:'Match Tracker moved out of Today into its own Tracker tab so it never distracts Lily. Start it at kick-off with one tap; at the Final Whistle you lock in all the moments and the clock, and link the game to a match from the Schedule (or leave it unlinked for a test). Times line up with the Hudl video.' },
     { version:'v40', notes:'Match Tracker (Today tab). Starts every match at 6.0; tap + or − and a short list of reasons pops up, and the rating moves. The clock starts at Kick Off and runs straight through, so every moment can be matched to the video (enter where kick-off is in the video and each moment shows the exact time to jump to). Half Time, Second Half and Full Time markers, Undo, a step chart of the rating through the game, a moment-by-moment list with the Focus Area each one relates to, and a link from the match entry in the Journal. Kept separate from the 1–5 ratings, Run Rate, My Story and its PDF.' },
@@ -2106,6 +2107,7 @@
   }
 
   // --- Tracker tab ---
+  function trackerPlayedText(t){ return ({first:'First half only', second:'Second half only', part:'Part of the match'})[t.played] || ''; }
   function trackerLinkText(t){
     var sess = t.sessionId ? state.schedule.find(function(x){ return x.id === t.sessionId; }) : null;
     if(sess) return 'Linked to ' + fmtDate(sess.date) + ' — ' + (sess.opponent ? 'vs ' + sess.opponent : sess.title);
@@ -2121,14 +2123,15 @@
       .sort(function(a, b){ return (b.startedAt || 0) - (a.startedAt || 0); });
     var top = active
       ? '<div class="hint" style="margin-bottom:10px;">' + (active.status === 'live' ? 'A match is in progress.' : 'A tracker is ready.') + '</div>' +
-        '<button type="button" class="btn btn-primary" id="trk-resume-btn" data-trk-id="' + active.id + '">Resume Tracker</button>'
+        '<button type="button" class="btn btn-primary" id="trk-resume-btn" data-trk-id="' + active.id + '">Resume Tracker</button>' +
+        '<button type="button" class="btn btn-ghost" id="trk-discard-btn" data-trk-id="' + active.id + '" style="margin-top:8px; color:var(--red); border-color:rgba(255,128,128,0.3);">Discard This Tracker</button>'
       : '<div class="hint" style="margin-bottom:10px;">Start at kick-off. Tap + or − through the match and pick a quick reason. Every moment is timed so it lines up with the Hudl video. At the final whistle you lock it in and link it to the match.</div>' +
         '<button type="button" class="btn btn-primary" id="trk-start-btn">Start Match Tracker</button>';
     var past = done.map(function(t){
       var c = trackerPillColors(trackerFinalRating(t));
       return '<div class="card pressable" style="margin-top:8px;" data-trk-review-id="' + t.id + '">' +
         '<div class="card-top"><div><div class="card-title" style="font-size:14px;">' + (t.opponent ? 'vs ' + escapeHtml(t.opponent) : 'Match') + '</div>' +
-        '<div class="card-meta">' + fmtDate(t.date) + ' · ' + escapeHtml(trackerLinkText(t)) + '</div></div>' +
+        '<div class="card-meta">' + fmtDate(t.date) + (trackerPlayedText(t) ? ' · ' + trackerPlayedText(t) : '') + ' · ' + escapeHtml(trackerLinkText(t)) + '</div></div>' +
         '<span class="trk-pill" style="background:' + c.bg + '; color:' + c.fg + '; padding:4px 12px;"><b style="font-size:20px;">' + trackerFinalRating(t).toFixed(1) + '</b></span></div></div>';
     }).join('');
     el.innerHTML = '<div class="section-label" style="margin-top:6px;">Match Tracker</div><div class="card">' + top + '</div>' +
@@ -2139,6 +2142,13 @@
   function wireTrackerCard(){
     var startBtn = document.getElementById('trk-start-btn');
     if(startBtn) startBtn.addEventListener('click', startTrackerNow);
+    var discardBtn = document.getElementById('trk-discard-btn');
+    if(discardBtn) discardBtn.addEventListener('click', function(){
+      if(!confirm('Discard this tracker and everything recorded in it?')) return;
+      var did = discardBtn.getAttribute('data-trk-id');
+      state.matchTracks = (state.matchTracks || []).filter(function(t){ return t.id !== did; });
+      saveData(); renderAll();
+    });
     var resumeBtn = document.getElementById('trk-resume-btn');
     if(resumeBtn) resumeBtn.addEventListener('click', function(){ openTrackerLive(resumeBtn.getAttribute('data-trk-id')); });
     document.querySelectorAll('[data-trk-review-id]').forEach(function(card){
@@ -2184,6 +2194,9 @@
       '<div class="card" style="margin-top:10px;">' +
         '<div class="field"><label>Which match was this?</label><select id="trk-fin-match">' + opts + '</select></div>' +
         '<div class="field"><label>Opponent</label><input type="text" id="trk-fin-opp" value="' + escapeHtml(track.opponent || '') + '" placeholder="e.g. Arsenal"></div>' +
+        '<div class="field"><label>How much did Lily play?</label><select id="trk-fin-played">' +
+          [['full','Whole match'],['first','First half only'],['second','Second half only'],['part','Part of the match']].map(function(o){ return '<option value="' + o[0] + '"' + ((track.played || 'full') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
+        '</select></div>' +
         (relink ? '' : '<div class="hint" style="margin:0;">Locking it in saves every moment and its time. Nothing can be added or changed after this, but you can link it to a different match later.</div>') +
       '</div>' +
       '<button type="button" class="btn btn-primary" id="trk-fin-go" style="margin-top:14px;">' + (relink ? 'Save Link' : 'Lock It In') + '</button>';
@@ -2204,6 +2217,7 @@
       track.sessionId = sessionId;
       if(sess) track.date = sess.date;
       track.opponent = (opp.value || '').trim();
+      track.played = q('#trk-fin-played').value;
       if(!relink){
         track.markers.push({ t:trackerElapsed(track), label:'Full time' });
         track.status = 'done'; track.locked = true; track.endedAt = Date.now();
@@ -2253,7 +2267,7 @@
         (!hasHT ? '<button type="button" class="btn btn-ghost" id="trk-ht">Half Time</button>'
                 : (!has2H ? '<button type="button" class="btn btn-ghost" id="trk-2h">Second Half Starts</button>' : '')) +
         '<button type="button" class="btn btn-ghost" id="trk-undo"' + (track.events.length ? '' : ' disabled') + '>Undo Last</button>' +
-        '<button type="button" class="btn btn-ghost" id="trk-ft">Final Whistle</button>' +
+        '<button type="button" class="btn btn-ghost" id="trk-ft">Final Whistle / Lily Off</button>' +
       '</div>';
     }
     var recent = track.events.slice(-3).reverse().map(function(e){
@@ -2425,15 +2439,15 @@
         halfLines +
         ifaLines +
       '</div>' +
-      (track.status === 'done' ? '<div class="card" style="margin-top:10px;"><div class="eng-char" style="margin-top:0;">' + escapeHtml(trackerLinkText(track)) + '</div>' +
+      (track.status === 'done' ? '<div class="card" style="margin-top:10px;"><div class="eng-char" style="margin-top:0;">' + escapeHtml(trackerLinkText(track)) + '</div>' + (trackerPlayedText(track) ? '<div class="eng-char">Lily played: ' + trackerPlayedText(track) + '</div>' : '') +
         '<button type="button" class="btn btn-ghost" id="trk-relink" style="margin-top:8px;">' + (track.sessionId ? 'Change Match' : 'Link to a Match') + '</button></div>' : '') +
       '<div class="card" style="margin-top:10px;">' +
-        '<div class="field" style="margin-bottom:6px;"><label>Hudl video time at kick-off (mm:ss)</label><input type="text" id="trk-offset" value="' + fmtClock(offset) + '" placeholder="0:00"></div>' +
-        '<div class="hint" style="margin:0;">Enter where kick-off happens in the Hudl video, and the blue ▶ times below become the exact moment to jump to.</div>' +
+        '<div class="field" style="margin-bottom:6px;"><label>Hudl video time when you tapped Kick Off (mm:ss)</label><input type="text" id="trk-offset" value="' + fmtClock(offset) + '" placeholder="0:00"></div>' +
+        '<div class="hint" style="margin:0;">Enter where in the Hudl video you tapped Kick Off (for a second-half-only game, where the half Lily plays starts), and the blue ▶ times below become the exact moment to jump to.</div>' +
       '</div>' +
       '<div class="section-label">Moment by moment</div>' +
       (timeline || '<div class="hint">No moments recorded yet.</div>') +
-      (track.status === 'done' ? '<button type="button" class="btn btn-ghost" id="trk-delete" style="margin-top:20px; color:var(--red); border-color:rgba(255,128,128,0.3);">Delete This Tracker</button>' : '');
+      ('<button type="button" class="btn btn-ghost" id="trk-delete" style="margin-top:20px; color:var(--red); border-color:rgba(255,128,128,0.3);">Delete This Tracker</button>');
 
     function q(sel){ return ov.querySelector(sel); }
     q('#trk-close').addEventListener('click', closeTrackerOverlay);
