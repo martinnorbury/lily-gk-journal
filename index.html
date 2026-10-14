@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v46 — 11 Oct 2026 -->
+<!-- Lily GK Journal — v46.2 — 11 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -771,8 +771,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v46';
+  var APP_VERSION = 'v46.2';
   var CHANGELOG = [
+    { version:'v46.2', notes:'Schedule import: the weekly PDF says "WEEK COMMENCING 12th October" with no year, which is why dates came through blank and nothing was imported. The year is now worked out automatically.' },
+    { version:'v46.1', notes:'Schedule import fix: it now reads more date styles on the PDF (12 Oct 2026, 12th October 2026), asks for the week-starting date if it can\'t find one instead of silently importing nothing, and after importing it opens the Schedule on that week.' },
     { version:'v46', notes:'Quick Log: a "Just say how it went" option — talk for ten seconds like a voice note and the words are written into the journal (no tapping needed). Gym sessions go back to how they were: no gym feedback in the Quick Log.' },
     { version:'v45', notes:'Quick Log is now one question per screen with options tucked inside each other: how it went, then pick an area and tap what happened, then one thing to work on, then (optional) England qualities, then a summary and Save. Only a handful of buttons are on screen at once.' },
     { version:'v44', notes:'Speak instead of type: a Speak button under the writing boxes (Quick Log "Anything else?", What actually happened, One Thing To Work On and others). Tap it, talk, and the words appear as text. Only the words are kept — no audio is recorded or saved.' },
@@ -3519,12 +3521,27 @@
     }).sort(function(a,b){ return a.x - b.x; });
 
     var weekStart = null;
-    var wcMatch = fullText.match(/(\d{1,2})(st|nd|rd|th)\s+([A-Za-z]+)\s+(\d{4})/);
-    if(wcMatch){
-      var dnum = parseInt(wcMatch[1], 10);
-      var monthIdx = MONTH_NAMES.indexOf(wcMatch[3].toLowerCase());
-      var year = parseInt(wcMatch[4], 10);
-      if(monthIdx > -1){ weekStart = new Date(year, monthIdx, dnum); }
+    var dateRe = /(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?(?:,?\s+(\d{4}))?/g;
+    var wcMatch;
+    while(!weekStart && (wcMatch = dateRe.exec(fullText)) !== null){
+      var mi = -1;
+      var mword = wcMatch[2].toLowerCase();
+      for(var mm = 0; mm < MONTH_NAMES.length; mm++){
+        if(mword.length >= 3 && MONTH_NAMES[mm].indexOf(mword) === 0){ mi = mm; break; }
+      }
+      if(mi > -1){
+        var yr = wcMatch[3] ? parseInt(wcMatch[3], 10) : new Date().getFullYear();
+        var found = new Date(yr, mi, parseInt(wcMatch[1], 10));
+        if(!wcMatch[3]){
+          // The Chelsea PDFs just say "12th October" with no year — use the year that puts it nearest to today.
+          var nowMs = Date.now();
+          [yr - 1, yr + 1].forEach(function(y2){
+            var alt = new Date(y2, mi, parseInt(wcMatch[1], 10));
+            if(Math.abs(alt - nowMs) < Math.abs(found - nowMs)) found = alt;
+          });
+        }
+        weekStart = mondayOf(found); // a week-commencing date is a Monday already; this guards against any other date on the page
+      }
     }
 
     var columns = dayHeaders.map(function(h){ return { day: h.day, x: h.x, items: [] }; });
@@ -3532,6 +3549,9 @@
     // Discard text that's clearly not day-column content: exact day names, the
     // small date sub-label under each day header (e.g. "24th"), and known
     // fixed labels like "NOTES" that sit below the table.
+    // Anything at or below the NOTES line is a footnote for the whole week, not a day's session.
+    var notesY = null;
+    items.forEach(function(it){ if(it.str.trim().toUpperCase() === 'NOTES' && notesY === null) notesY = it.transform[5]; });
     var xs = columns.map(function(c){ return c.x; }).sort(function(a,b){ return a-b; });
     var spacing = xs.length > 1 ? (xs[xs.length-1] - xs[0]) / (xs.length - 1) : 999;
     var maxDist = spacing * 0.6;
@@ -3543,6 +3563,7 @@
       if(/^\d{1,2}(st|nd|rd|th)$/i.test(s)) return;
       if(s.toUpperCase() === 'NOTES') return;
       var x = it.transform[4], y = it.transform[5];
+      if(notesY !== null && y <= notesY + 2) return;
       var nearest = columns[0], best = Math.abs(x - columns[0].x);
       columns.forEach(function(c){
         var d = Math.abs(x - c.x);
@@ -3583,7 +3604,7 @@
     }
 
     var isMatch = /\bgame\b|\bvs\.?\b|\bko\b/i.test(text);
-    var coachMatch = text.match(/Coach:?\s*([A-Za-z]+)/i);
+    var coachMatch = text.match(/Coach:\s*([A-Za-z]+)/i);
     var locMatch = text.match(/(Hub\s*\d*|Main)\s*(Grass|3G|Astro)/i);
     var sharedCoach = coachMatch ? coachMatch[1] : '';
     var sharedLocation = locMatch ? locMatch[0].replace(/\s+/g,' ').trim() : '';
@@ -3669,7 +3690,7 @@
   function openImportReview(days, errorMsg){
     var rowsHtml = days.map(function(d, i){
       var summary = d.day + (d.time ? ' ' + d.time : '') + (d.off ? ' — Off' : ' (' + d.type + ')') + (d.date ? ' — ' + fmtDate(d.date) : '');
-      return '<div class="import-row" data-idx="' + i + '">' +
+      return '<div class="import-row" data-idx="' + i + '" data-day="' + escapeHtml(d.day || '') + '">' +
         '<div class="import-row-head">' +
           '<div class="import-row-summary">' + escapeHtml(summary) + '</div>' +
           '<label class="import-off"><input type="checkbox" class="imp-off" ' + (d.off ? 'checked' : '') + '> Off/Skip this one</label>' +
@@ -3699,6 +3720,7 @@
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Review Import</h2><button class="modal-close" id="close-modal">×</button></div>' +
       (errorMsg ? '<div class="empty-state" style="padding:8px 0 18px;">' + escapeHtml(errorMsg) + '</div>' : '') +
+      (days.some(function(d){ return !d.date; }) ? '<div class="card" style="margin-bottom:14px; border-color:var(--amber);"><div class="hint" style="margin-bottom:8px;">I couldn\'t find the week\'s date on the PDF. Pick the Monday of this week and I\'ll fill in every day.</div><div class="field" style="margin-bottom:0;"><label>Week starting (Monday)</label><input type="date" id="imp-week"></div></div>' : '') +
       (days.length ? '<div class="hint" style="margin-bottom:16px;">Check each day against the real schedule — fix anything that\'s off, tick "Off/Skip" for rest days, then import.</div>' + rowsHtml : '') +
       (days.length ? '<button class="btn btn-primary" id="confirm-import" style="margin-top:8px;">Import to Schedule</button>' : '') +
       '<button class="btn btn-ghost" id="cancel-import" style="margin-top:10px;">' + (days.length ? 'Cancel' : 'Close') + '</button>'
@@ -3722,9 +3744,28 @@
       });
     });
 
+    var weekPick = document.getElementById('imp-week');
+    if(weekPick){
+      weekPick.addEventListener('change', function(){
+        if(!weekPick.value) return;
+        var mon = mondayOf(new Date(weekPick.value + 'T00:00:00'));
+        document.querySelectorAll('.import-row').forEach(function(row){
+          var di = DAY_NAMES.indexOf((row.getAttribute('data-day') || '').toUpperCase());
+          if(di < 0) return;
+          var dt = new Date(mon); dt.setDate(mon.getDate() + di);
+          row.querySelector('.imp-date').value = toIsoDate(dt);
+        });
+      });
+    }
+
     var confirmBtn = document.getElementById('confirm-import');
     if(confirmBtn){
       confirmBtn.addEventListener('click', function(){
+        var missingDate = false;
+        document.querySelectorAll('.import-row').forEach(function(row){
+          if(!row.querySelector('.imp-off').checked && !row.querySelector('.imp-date').value) missingDate = true;
+        });
+        if(missingDate){ alert('Some days have no date — pick the week starting date at the top (or fill in each date) and try again.'); return; }
         try{
           var newEntries = [];
           var datesToReplace = [];
@@ -3760,7 +3801,7 @@
           console.error('Import to schedule failed', err);
         }
         closeModal();
-        switchView('today');
+        switchView('schedule');
       });
     }
   }
