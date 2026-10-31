@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v47 — 31 Oct 2026 -->
+<!-- Lily GK Journal — v47.1 — 31 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -772,8 +772,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v47';
+  var APP_VERSION = 'v47.1';
   var CHANGELOG = [
+    { version:'v47.1', notes:'Removed the last "Tap to log it" / "Tap to edit" wording from the Schedule cards. Sessions still open when tapped; nothing nags.' },
     { version:'v47', notes:'A calmer app. Today now just shows the day, the week\'s focus and the last catch-up — no nudges, no catch-up list, no reminders. New Weekly Review (Schedule tab): after the weekly video catch-up, copy a ready-made prompt, give it to Claude or NotebookLM with the transcript, and paste back the result to fill in the week\'s journal entries, next week\'s block focus and each session\'s focus. Lily doesn\'t have to log anything.' },
     { version:'v46.2', notes:'Schedule import: the weekly PDF says "WEEK COMMENCING 12th October" with no year, which is why dates came through blank and nothing was imported. The year is now worked out automatically.' },
     { version:'v46.1', notes:'Schedule import fix: it now reads more date styles on the PDF (12 Oct 2026, 12th October 2026), asks for the week-starting date if it can\'t find one instead of silently importing nothing, and after importing it opens the Schedule on that week.' },
@@ -2897,8 +2898,8 @@
             state.reflections.some(function(r){ return r.sessionId === sib.id; });
         });
         var statusText = needsReflection
-          ? (hasReflection ? '✓ Logged' : 'Tap to log it →')
-          : (coveredBySibling ? 'Covered in today\'s training note' : 'Tap to edit →');
+          ? (hasReflection ? '✓ In the journal' : '')
+          : (coveredBySibling ? 'Covered in today\'s training note' : '');
         var statusColor = (needsReflection && hasReflection) ? 'var(--lime)' : (coveredBySibling ? 'var(--text-dim)' : 'var(--text-faint)');
         return '<div class="card-top">' +
             '<div>' +
@@ -2914,7 +2915,7 @@
           (s.theme ? '<div class="theme-chip">' + escapeHtml(s.theme) + '</div>' : '') +
           (s.hudlLink ? '<a href="' + escapeHtml(s.hudlLink) + '" target="_blank" rel="noopener" class="hudl-link hudl-link-inline">▶ Watch on Hudl</a>' : '') +
           (s.photo ? '<div class="card-photo-chip photo-chip-inline" data-photo-schedule-id="' + s.id + '"><img src="' + s.photo + '" alt=""> Photo attached</div>' : '') +
-          '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + statusColor + ';">' + statusText + '</div>';
+          (statusText ? '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + statusColor + ';">' + statusText + '</div>' : '');
       }
 
       var cards;
