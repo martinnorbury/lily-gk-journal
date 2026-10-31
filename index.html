@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v46.2 — 11 Oct 2026 -->
+<!-- Lily GK Journal — v47 — 31 Oct 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -663,6 +663,7 @@
     <input type="file" id="import-pdf-input" accept="application/pdf" style="display:none;">
     <div id="import-status" style="font-size:12px; color:var(--text-faint); margin-top:8px; text-align:center; font-family:'JetBrains Mono',monospace;"></div>
     <button class="btn btn-ghost" id="add-schedule-btn" style="margin-top:10px;">+ Add Session Manually</button>
+    <button class="btn btn-ghost" id="weekly-review-btn" style="margin-top:10px;">Weekly Review (from our catch-up)</button>
   </div>
 
   <!-- JOURNAL VIEW -->
@@ -771,8 +772,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v46.2';
+  var APP_VERSION = 'v47';
   var CHANGELOG = [
+    { version:'v47', notes:'A calmer app. Today now just shows the day, the week\'s focus and the last catch-up — no nudges, no catch-up list, no reminders. New Weekly Review (Schedule tab): after the weekly video catch-up, copy a ready-made prompt, give it to Claude or NotebookLM with the transcript, and paste back the result to fill in the week\'s journal entries, next week\'s block focus and each session\'s focus. Lily doesn\'t have to log anything.' },
     { version:'v46.2', notes:'Schedule import: the weekly PDF says "WEEK COMMENCING 12th October" with no year, which is why dates came through blank and nothing was imported. The year is now worked out automatically.' },
     { version:'v46.1', notes:'Schedule import fix: it now reads more date styles on the PDF (12 Oct 2026, 12th October 2026), asks for the week-starting date if it can\'t find one instead of silently importing nothing, and after importing it opens the Schedule on that week.' },
     { version:'v46', notes:'Quick Log: a "Just say how it went" option — talk for ten seconds like a voice note and the words are written into the journal (no tapping needed). Gym sessions go back to how they were: no gym feedback in the Quick Log.' },
@@ -2613,101 +2615,78 @@
   }
 
   function renderToday(){
+    // Calm Today (v47): a view of the day and the week — no nudges, no catch-up list, no reminders.
     var el = document.getElementById('today-content');
     var today = new Date();
     var dateStr = todayIso();
-    var nudge = blueNudgeForDate(today);
     var friendlyDate = today.toLocaleDateString('en-GB', { day:'numeric', month:'long' });
-    var nudgeHtml = '<div class="today-nudge"><div class="today-nudge-letter">' + nudge.letter + '</div><div><div class="today-nudge-name">' + nudge.name + '</div><div class="today-nudge-desc">' + nudge.desc + '</div></div></div>';
 
     var todaysSessions = sortByTimeOfDay(state.schedule.filter(function(s){ return s.date === dateStr && (s.type === 'training' || s.type === 'match'); }));
     var reflectionForSession = {};
     state.reflections.forEach(function(r){ if(r.sessionId) reflectionForSession[r.sessionId] = r; });
-    var adhocToday = state.reflections.filter(function(r){ return r.date === dateStr && !r.sessionId; });
 
-    var seasonBannerHtml = renderSeasonBannerHtml();
-    var missingLogsHtml = buildMissingLogsHtml();
-    var ifaReminderHtml = buildIfaReminderHtml();
-
-    if(todaysSessions.length === 0){
-      if(adhocToday.length > 0){
-        el.innerHTML = renderDayCompleteHtml(adhocToday[adhocToday.length - 1], friendlyDate, nudge, seasonBannerHtml) + missingLogsHtml + ifaReminderHtml;
-        wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
-        return;
-      }
-      el.innerHTML =
-        '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + ' — no session scheduled today.</div></div>' +
-        seasonBannerHtml +
-        nudgeHtml +
-        '<div class="today-rest">Rest day — nothing to log. If that\'s changed, add it in Schedule.</div>' +
-        '<button class="btn btn-ghost" id="today-goto-schedule" style="margin-top:16px;">View Schedule</button>' +
-        missingLogsHtml + ifaReminderHtml;
-      var gotoBtn = document.getElementById('today-goto-schedule');
-      if(gotoBtn) gotoBtn.addEventListener('click', function(){ switchView('schedule'); });
-      wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
-      return;
+    var syl = getSyllabusForWeek(toIsoDate(mondayOf(today)));
+    var weekHtml = '';
+    if(syl && syl.primaryTheme){
+      weekHtml = '<div class="card" style="margin-top:12px;"><div class="section-label" style="margin:0 0 6px;">This week</div>' +
+        '<div class="card-title" style="font-size:16px;">' + escapeHtml(syl.primaryTheme) + '</div>' +
+        (syl.secondaryTheme && syl.secondaryTheme !== syl.primaryTheme ? '<div class="card-meta">Then: ' + escapeHtml(syl.secondaryTheme) + '</div>' : '') +
+        ((syl.focusSkills && syl.focusSkills.length) ? '<div class="eng-char">' + syl.focusSkills.map(escapeHtml).join(' · ') + '</div>' : '') +
+      '</div>';
     }
+    var reviews = (state.weeklyReviews || []).slice().sort(function(a, b){ return a.weekStart < b.weekStart ? -1 : 1; });
+    var lastReview = reviews.length ? reviews[reviews.length - 1] : null;
+    var reviewHtml = lastReview && lastReview.summary
+      ? '<div class="card" style="margin-top:12px;"><div class="section-label" style="margin:0 0 6px;">From our last catch-up</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(lastReview.summary) + '</div></div>'
+      : '';
 
-    var allReflected = todaysSessions.length > 0 && todaysSessions.every(function(s){ return reflectionForSession[s.id]; });
-
-    if(todaysSessions.length > 0 && !allReflected){
-      var sessionCards = todaysSessions.map(function(s){
-        var reflected = !!reflectionForSession[s.id];
-        var metaBits = [];
-        if(s.time) metaBits.push(s.time);
-        if(s.location) metaBits.push(s.location);
-        if(s.coach) metaBits.push('Coach: ' + s.coach);
-        var titleText = s.type === 'match' ? (s.title + (s.opponent ? ' vs ' + s.opponent : '')) : s.title;
-
-        var extras = '';
-        if(s.type === 'match'){ extras = renderWarmupCardHtml(s) + renderFuelingTimelineHtml(s); }
-
-        return '<div class="card pressable today-session-list-card" data-today-session-id="' + s.id + '">' +
-          '<div class="card-top">' +
-            '<div><div class="card-title">' + escapeHtml(titleText) + '</div>' +
-              (metaBits.length ? '<div class="card-meta">' + metaBits.map(escapeHtml).join(' · ') + '</div>' : '') +
-            '</div>' +
-            '<span class="tag ' + s.type + '">' + s.type + '</span>' +
+    var sessionCards = todaysSessions.map(function(s){
+      var reflected = !!reflectionForSession[s.id];
+      var metaBits = [];
+      if(s.time) metaBits.push(s.time);
+      if(s.location) metaBits.push(s.location);
+      if(s.coach) metaBits.push('Coach: ' + s.coach);
+      var titleText = s.type === 'match' ? (s.title + (s.opponent ? ' vs ' + s.opponent : '')) : s.title;
+      var extras = '';
+      if(s.type === 'match'){ extras = renderWarmupCardHtml(s) + renderFuelingTimelineHtml(s); }
+      return '<div class="card pressable today-session-list-card" data-today-session-id="' + s.id + '">' +
+        '<div class="card-top">' +
+          '<div><div class="card-title">' + escapeHtml(titleText) + '</div>' +
+            (metaBits.length ? '<div class="card-meta">' + metaBits.map(escapeHtml).join(' · ') + '</div>' : '') +
           '</div>' +
-          (s.focus ? '<div class="card-focus">' + escapeHtml(s.focus) + '</div>' : '') +
-          '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:' + (reflected ? 'var(--lime)' : 'var(--text-faint)') + ';">' +
-            (reflected ? '✓ Logged' : 'Tap to log it →') +
-          '</div>' +
-        '</div>' + extras;
-      }).join('');
+          '<span class="tag ' + s.type + '">' + s.type + '</span>' +
+        '</div>' +
+        (s.focus ? '<div class="card-focus">' + escapeHtml(s.focus) + '</div>' : '') +
+        (reflected ? '<div style="margin-top:10px; font-size:12px; font-family:\'JetBrains Mono\',monospace; color:var(--lime);">✓ In the journal</div>' : '') +
+      '</div>' + extras;
+    }).join('');
 
-      el.innerHTML =
-        '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + '</div></div>' +
-        seasonBannerHtml +
-        (todaysSessions.length > 1 ? '<div class="today-multi-note">' + todaysSessions.length + ' sessions today — tap either one to log it, whichever order suits.</div>' : '') +
-        sessionCards +
-        nudgeHtml +
-        missingLogsHtml + ifaReminderHtml;
+    el.innerHTML =
+      '<div class="today-greeting"><div class="today-hi">Hi Lily!</div><div class="today-sub">' + friendlyDate + (todaysSessions.length ? '' : ' — nothing scheduled today.') + '</div></div>' +
+      sessionCards +
+      (todaysSessions.length ? '' : '<div class="today-rest">Rest day.</div>') +
+      weekHtml + reviewHtml +
+      '<button class="btn btn-ghost" id="today-goto-schedule" style="margin-top:16px;">View my week</button>';
 
-      document.querySelectorAll('[data-today-session-id]').forEach(function(card){
-        card.addEventListener('click', function(){
-          var id = card.getAttribute('data-today-session-id');
-          var sess = todaysSessions.find(function(s){ return s.id === id; });
-          if(reflectionForSession[id]){
-            openReflectionDetail(reflectionForSession[id].id);
-          } else if(sess.type === 'match'){
-            openMatchPrepModal(sess);
-          } else if(sess.type === 'training'){
-            openQuickLog(sess);
-          } else {
-            openReflectionForm(sess);
-          }
-        });
+    var gotoBtn = document.getElementById('today-goto-schedule');
+    if(gotoBtn) gotoBtn.addEventListener('click', function(){ switchView('schedule'); });
+
+    document.querySelectorAll('[data-today-session-id]').forEach(function(card){
+      card.addEventListener('click', function(){
+        var id = card.getAttribute('data-today-session-id');
+        var sess = todaysSessions.find(function(s){ return s.id === id; });
+        if(reflectionForSession[id]){
+          openReflectionDetail(reflectionForSession[id].id);
+        } else if(sess.type === 'match'){
+          openMatchPrepModal(sess);
+        } else if(sess.type === 'training'){
+          openQuickLog(sess);
+        } else {
+          openReflectionForm(sess);
+        }
       });
-
-      wireFuelingChecklist();
-      wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
-      return;
-    }
-
-    var doneEntry = todaysSessions.map(function(s){ return reflectionForSession[s.id]; }).filter(Boolean).pop();
-    el.innerHTML = renderDayCompleteHtml(doneEntry, friendlyDate, nudge, seasonBannerHtml) + missingLogsHtml + ifaReminderHtml;
-    wireSeasonBanner(); wireMissingLogs(); wireIfaReminder();
+    });
+    wireFuelingChecklist();
   }
 
   var GK_COACH_NAMES = ['josh', 'seb', 'ella', 'kane'];
@@ -3415,6 +3394,237 @@
     render();
   }
 
+  // ---------- Weekly Review (v47) ----------
+  // The weekly video catch-up is recorded (e.g. Fieldy), the transcript goes to Claude / NotebookLM with
+  // the prompt below, and the JSON that comes back is pasted here. The app checks it, shows what it will
+  // do, and only then saves. Lily never has to log anything.
+  function wrWeekChoices(){
+    var thisW = mondayOf(new Date());
+    return [0, -1, -2].map(function(k){ var d = new Date(thisW); d.setDate(thisW.getDate() + k * 7); return d; });
+  }
+
+  function wrBuildPrompt(weekStartIso){
+    var ws = new Date(weekStartIso + 'T00:00:00');
+    var we = new Date(ws); we.setDate(ws.getDate() + 6);
+    var nextMon = new Date(ws); nextMon.setDate(ws.getDate() + 7);
+    var nextIso = toIsoDate(nextMon);
+    var sessions = state.schedule.filter(function(s){ return s.date >= weekStartIso && s.date <= toIsoDate(we); })
+      .sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+    var sessLines = sessions.map(function(s){
+      return '- ' + s.date + ' · ' + s.type + ' · ' + (s.title || '') + (s.opponent ? ' vs ' + s.opponent : '') + (s.time ? ' · ' + s.time : '') + (s.focus ? ' · focus: ' + s.focus : '');
+    }).join('\n') || '- (no sessions in the app for this week)';
+    var ifaLines = IDP_IFAS.map(function(i){ return '- ' + i.key + ' = ' + i.title.replace(/^IFA \d — /, '') + ' (' + i.what + ')'; }).join('\n');
+    var engLines = ENGLAND_GK_CHARS.map(function(c){ return '- ' + c.id + ' = ' + c.short; }).join('\n');
+    return [
+      'You are helping me write my daughter Lily\'s weekly review for her goalkeeper journal (Chelsea FC Academy U15). I will paste the transcript of our weekly video catch-up after this message, under the heading TRANSCRIPT.',
+      '',
+      'RULES',
+      '- Use only what is actually said in the transcript. Do not invent anything. If something was not mentioned, leave it out (empty string or empty list).',
+      '- Write in Lily\'s voice (first person), kind and honest, no pressure, short plain phrases.',
+      '- Do NOT include any gym sessions or classroom/analysis sessions — only training sessions and matches.',
+      '- Ratings are 1 to 5 (1 = rubbish, 3 = okay, 5 = brilliant). Use the number Lily gave. If she described the session without a number, pick the closest and set "ratingEstimated": true.',
+      '- "ifas" are the Chelsea Focus Areas the session touched; "england" are the England goalkeeper characteristic ids it touched. Only include those that clearly fit.',
+      '- Reply with ONE JSON block only, no other text.',
+      '',
+      'THE WEEK: Monday ' + weekStartIso + ' to Sunday ' + toIsoDate(we),
+      'SESSIONS IN THE APP (use these exact dates):',
+      sessLines,
+      '',
+      'CHELSEA FOCUS AREAS (ifas):',
+      ifaLines,
+      '',
+      'ENGLAND CHARACTERISTICS (england ids):',
+      engLines,
+      '',
+      'CHELSEA THEMES (for nextWeek): ' + THEMES.join(' | '),
+      '',
+      'JSON SHAPE (exactly this):',
+      '{',
+      '  "weekStart": "' + weekStartIso + '",',
+      '  "summary": "2-4 sentences about the week in Lily\'s voice",',
+      '  "sessions": [',
+      '    { "date": "YYYY-MM-DD", "rating": 4, "ratingEstimated": false,',
+      '      "wentWell": ["short first-person phrase"], "workOn": "one thing to work on",',
+      '      "nextAction": "one small action", "ifas": ["ifa3"], "england": ["tout1"], "note": "optional one line" }',
+      '  ],',
+      '  "nextWeek": {',
+      '    "weekStart": "' + nextIso + '",',
+      '    "blockPrimaryTheme": "one of the themes above, or empty",',
+      '    "blockSecondaryTheme": "one of the themes above, or empty",',
+      '    "focusSkills": ["short phrases"],',
+      '    "sessionFocus": [ { "date": "YYYY-MM-DD", "focus": "short phrase for that session" } ]',
+      '  }',
+      '}',
+      '',
+      'TRANSCRIPT:',
+      '(paste the Fieldy transcript here)'
+    ].join('\n');
+  }
+
+  function wrExtractJson(text){
+    var t = (text || '').trim();
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+    var a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if(a < 0 || b <= a) throw new Error('I can\'t see the JSON block in what you pasted. Paste exactly what Claude or NotebookLM gave back, starting with { and ending with }.');
+    return JSON.parse(t.slice(a, b + 1));
+  }
+
+  function openWeeklyReview(){
+    var choices = wrWeekChoices();
+    var weekIso = toIsoDate(choices[1]); // default: last week (the usual time to do the catch-up is early in the following week)
+    var today = new Date();
+    if(today.getDay() === 0 || today.getDay() === 6){ weekIso = toIsoDate(choices[0]); } // weekend: the week just played
+    function render(){
+      openModal(
+        '<div class="modal-handle"></div>' +
+        '<div class="modal-header"><h2>Weekly Review</h2><button class="modal-close" id="close-modal">×</button></div>' +
+        '<div class="hint" style="margin-bottom:12px;">After your weekly video catch-up: 1) copy the prompt, 2) paste it into Claude or NotebookLM along with the Fieldy transcript, 3) paste what comes back below.</div>' +
+        '<div class="field"><label>Which week?</label><select id="wr-week">' +
+          choices.map(function(d){ var iso = toIsoDate(d); return '<option value="' + iso + '"' + (iso === weekIso ? ' selected' : '') + '>Week of ' + escapeHtml(fmtDate(iso)) + '</option>'; }).join('') +
+        '</select></div>' +
+        '<button type="button" class="btn btn-ghost" id="wr-copy">1 · Copy the prompt</button>' +
+        '<div class="hint" id="wr-copied" style="display:none; margin-top:6px;"></div>' +
+        '<div class="field" style="margin-top:14px;"><label>3 · Paste the result here</label><textarea id="wr-paste" rows="6" placeholder="Starts with { ... and ends with }"></textarea></div>' +
+        '<div class="hint" id="wr-error" style="display:none; color:var(--red);"></div>' +
+        '<button type="button" class="btn btn-primary" id="wr-check" style="margin-top:6px;">Check it</button>'
+      );
+      document.getElementById('close-modal').addEventListener('click', closeModal);
+      var sel = document.getElementById('wr-week');
+      sel.addEventListener('change', function(){ weekIso = sel.value; });
+      document.getElementById('wr-copy').addEventListener('click', function(){
+        var prompt = wrBuildPrompt(sel.value);
+        var note = document.getElementById('wr-copied');
+        function fallback(){
+          note.style.display = 'block';
+          note.innerHTML = 'Your phone wouldn\'t copy it automatically. Select all of this and copy it:<textarea rows="6" style="width:100%; margin-top:6px;" readonly>' + escapeHtml(prompt) + '</textarea>';
+        }
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(prompt).then(function(){
+            note.style.display = 'block'; note.textContent = 'Copied. Now paste it into Claude or NotebookLM, then add the transcript underneath.';
+          }).catch(fallback);
+        } else { fallback(); }
+      });
+      document.getElementById('wr-check').addEventListener('click', function(){
+        var err = document.getElementById('wr-error');
+        var data;
+        try{ data = wrExtractJson(document.getElementById('wr-paste').value); }
+        catch(e){ err.style.display = 'block'; err.textContent = (e && e.message && !/JSON/.test(e.message)) ? e.message : 'That doesn\'t look right — it should be the JSON block exactly as it came back. ' + (e && e.message ? '(' + e.message + ')' : ''); return; }
+        err.style.display = 'none';
+        wrPreview(data, sel.value);
+      });
+    }
+    render();
+  }
+
+  function wrPreview(data, weekIso){
+    var ws = new Date(weekIso + 'T00:00:00');
+    var we = new Date(ws); we.setDate(ws.getDate() + 6);
+    var weekEndIso = toIsoDate(we);
+    var notes = [];
+    var rows = [];
+    var validIfas = IDP_IFAS.map(function(i){ return i.key; });
+    var validEng = ENGLAND_GK_CHARS.map(function(c){ return c.id; });
+    (Array.isArray(data.sessions) ? data.sessions : []).forEach(function(it){
+      if(it.title && /gym|classroom|analysis/i.test(String(it.title))){ notes.push('Skipped ' + String(it.title) + ' — gym and classroom sessions aren\'t logged here.'); return; }
+      var cands = state.schedule.filter(function(s){ return s.date === it.date && (s.type === 'training' || s.type === 'match'); });
+      if(!it.date || it.date < weekIso || it.date > weekEndIso){ notes.push('Skipped an entry dated ' + (it.date || '?') + ' — not in that week.'); return; }
+      if(!cands.length){ notes.push('Skipped ' + fmtDate(it.date) + ' — no training or match in the Schedule that day.'); return; }
+      var sess = cands[0];
+      if(it.title){ var tm = cands.find(function(s){ return (s.title || '').toLowerCase() === String(it.title).toLowerCase(); }); if(tm) sess = tm; }
+      if(rows.some(function(x){ return x.sess.id === sess.id; })){ notes.push('Skipped a second entry for ' + fmtDate(it.date) + ' — that session is already in this review.'); return; }
+      var existing = state.reflections.find(function(r){ return r.sessionId === sess.id; });
+      if(existing && !existing.weeklyReview){ notes.push(fmtDate(it.date) + ' already has an entry in the journal — left as it is.'); return; }
+      var rating = parseInt(it.rating, 10);
+      if(!(rating >= 1 && rating <= 5)){ notes.push('Skipped ' + fmtDate(it.date) + ' — no 1 to 5 rating given.'); return; }
+      rows.push({
+        sess: sess, rating: rating, estimated: !!it.ratingEstimated,
+        wentWell: (Array.isArray(it.wentWell) ? it.wentWell : (it.wentWell ? [it.wentWell] : [])).map(String).filter(Boolean),
+        workOn: it.workOn ? String(it.workOn) : '', nextAction: it.nextAction ? String(it.nextAction) : '',
+        ifas: (Array.isArray(it.ifas) ? it.ifas : []).filter(function(k){ return validIfas.indexOf(k) > -1; }),
+        england: (Array.isArray(it.england) ? it.england : []).filter(function(k){ return validEng.indexOf(k) > -1; }),
+        note: it.note ? String(it.note) : '', replaces: existing ? existing.id : null
+      });
+    });
+    var nw = data.nextWeek || {};
+    var nextIso = nw.weekStart || toIsoDate(new Date(ws.getTime() + 7 * 86400000));
+    var p1 = THEMES.indexOf(nw.blockPrimaryTheme) > -1 ? nw.blockPrimaryTheme : '';
+    var p2 = THEMES.indexOf(nw.blockSecondaryTheme) > -1 ? nw.blockSecondaryTheme : '';
+    var skills = Array.isArray(nw.focusSkills) ? nw.focusSkills.map(String).filter(Boolean).slice(0, 6) : [];
+    var focuses = (Array.isArray(nw.sessionFocus) ? nw.sessionFocus : []).filter(function(f){ return f && f.date && f.focus; });
+    var summary = data.summary ? String(data.summary) : '';
+
+    var rowsHtml = rows.map(function(r, i){
+      return '<div class="card" style="margin-top:8px;" data-wr-row="' + i + '">' +
+        '<div class="card-top"><div><div class="card-title" style="font-size:14px;">' + escapeHtml(fmtDate(r.sess.date) + ' — ' + (r.sess.title || r.sess.type)) + '</div>' +
+        '<div class="card-meta">' + (r.estimated ? 'Rating estimated — check it' : 'Rating from the chat') + '</div></div>' +
+        '<select class="wr-rating">' + [1,2,3,4,5].map(function(n){ return '<option value="' + n + '"' + (n === r.rating ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
+        (r.wentWell.length ? '<div class="eng-char">Went well: ' + escapeHtml(r.wentWell.join('; ')) + '</div>' : '') +
+        (r.workOn ? '<div class="eng-char">Work on: ' + escapeHtml(r.workOn) + '</div>' : '') +
+        (r.ifas.length ? '<div class="eng-char">Focus Areas: ' + escapeHtml(r.ifas.map(function(k){ var f = IDP_IFAS.find(function(x){ return x.key === k; }); return f ? f.title.replace(/^IFA \d — /, '') : k; }).join(' · ')) + '</div>' : '') +
+        '<label class="check-row" style="margin-top:8px;"><input type="checkbox" class="wr-include" checked><span>Add to the journal</span></label>' +
+      '</div>';
+    }).join('');
+
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>Check the review</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      (summary ? '<div class="card"><div class="section-label" style="margin:0 0 6px;">Week summary</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(summary) + '</div></div>' : '') +
+      (rowsHtml ? '<div class="section-label">Sessions</div>' + rowsHtml : '<div class="hint">No sessions to add.</div>') +
+      ((p1 || skills.length || focuses.length)
+        ? '<div class="section-label">Next week (w/c ' + escapeHtml(fmtDate(nextIso)) + ')</div><div class="card">' +
+            (p1 ? '<div class="eng-char" style="margin-top:0;">Block focus: ' + escapeHtml(p1) + (p2 ? ' then ' + escapeHtml(p2) : '') + '</div>' : '') +
+            (skills.length ? '<div class="eng-char">Skills: ' + skills.map(escapeHtml).join(' · ') + '</div>' : '') +
+            focuses.map(function(f){ return '<div class="eng-char">' + escapeHtml(fmtDate(f.date)) + ': ' + escapeHtml(String(f.focus)) + '</div>'; }).join('') +
+          '</div>' : '') +
+      (notes.length ? '<div class="hint" style="margin-top:12px;">' + notes.map(escapeHtml).join('<br>') + '</div>' : '') +
+      '<button type="button" class="btn btn-primary" id="wr-save" style="margin-top:14px;">Save to the journal</button>' +
+      '<button type="button" class="btn btn-ghost" id="wr-back" style="margin-top:8px;">Back</button>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.getElementById('wr-back').addEventListener('click', openWeeklyReview);
+    document.getElementById('wr-save').addEventListener('click', function(){
+      var added = 0;
+      document.querySelectorAll('[data-wr-row]').forEach(function(card){
+        var r = rows[parseInt(card.getAttribute('data-wr-row'), 10)];
+        if(!card.querySelector('.wr-include').checked) return;
+        var rating = parseInt(card.querySelector('.wr-rating').value, 10);
+        var parts = [];
+        if(r.wentWell.length) parts.push('What went well: ' + r.wentWell.join('; ') + '.');
+        if(r.workOn) parts.push('What I want to work on: ' + r.workOn + '.');
+        if(r.note) parts.push(/[.!?]$/.test(r.note) ? r.note : r.note + '.');
+        var isMatch = r.sess.type === 'match';
+        var entry = {
+          id: uid(), sessionId: r.sess.id, title: r.sess.title || (isMatch ? 'Match' : 'Training'), date: r.sess.date,
+          type: isMatch ? 'match' : 'training', theme: r.sess.theme || '',
+          overall: rating, evidence: parts.join(' '), attributes: {},
+          wentWell: r.wentWell.join('; '), evenBetterIf: r.workOn, action: r.nextAction,
+          opponent: isMatch ? (r.sess.opponent || '') : '', score: '', matchClass: null, goalsConceded: null, concededGoals: [],
+          gymFocus: '', gymCompleted: null, recovery: null, analysisMatchId: '', boxMoment: '',
+          linkedIfas: r.ifas, englandChars: r.england, englandPicked: [],
+          weeklyReview: true, ratingEstimated: r.estimated
+        };
+        if(r.replaces){ state.reflections = state.reflections.filter(function(x){ return x.id !== r.replaces; }); }
+        state.reflections.push(entry);
+        added++;
+      });
+      // next week's block focus and session focus
+      if(p1){
+        state.syllabusOverrides = state.syllabusOverrides || {};
+        state.syllabusOverrides[nextIso] = { weekStart: nextIso, primaryTheme: p1, secondaryTheme: p2 || p1, focusSkills: skills };
+      }
+      state.sessionFocusByDate = state.sessionFocusByDate || {};
+      focuses.forEach(function(f){
+        state.sessionFocusByDate[f.date] = String(f.focus);
+        state.schedule.forEach(function(s){ if(s.date === f.date && (s.type === 'training' || s.type === 'match')){ s.focus = String(f.focus); } });
+      });
+      state.weeklyReviews = (state.weeklyReviews || []).filter(function(w){ return w.weekStart !== weekIso; });
+      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now() });
+      saveData();
+      closeModal();
+      switchView('today');
+    });
+  }
+
   function openMatchPrepModal(session){
     openModal(
       '<div class="modal-handle"></div>' +
@@ -3450,6 +3660,8 @@
   // ---------- PDF Import ----------
   var DAY_NAMES = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'];
   var MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+
+  document.getElementById('weekly-review-btn').addEventListener('click', openWeeklyReview);
 
   document.getElementById('import-pdf-btn').addEventListener('click', function(){
     document.getElementById('import-pdf-input').click();
@@ -3780,7 +3992,7 @@
               title: row.querySelector('.imp-title').value.trim() || (type === 'match' ? 'Match' : 'Training'),
               date: date,
               type: type,
-              focus: '',
+              focus: ((state.sessionFocusByDate || {})[date]) || '',
               time: row.querySelector('.imp-time').value.trim(),
               location: row.querySelector('.imp-location').value.trim(),
               coach: row.querySelector('.imp-coach').value.trim(),
