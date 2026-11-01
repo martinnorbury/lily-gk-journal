@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v53 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v55 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -758,7 +758,6 @@
     <div id="standards-list"></div>
   </div>
 
-  <button class="btn-fab" id="fab-btn" title="New reflection">+</button>
 
   <div class="gk-nav">
     <button class="nav-item active" data-view="today">
@@ -803,8 +802,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v53';
+  var APP_VERSION = 'v55';
   var CHANGELOG = [
+    { version:'v55', notes:'The + button for adding a daily entry is gone. Fixed: a week with a photo but no written entry was being left out of the Journal, so photos like the one from 7 Oct never showed. Re-importing the weekly Chelsea PDF no longer wipes a session\'s photo (or its link to a reflection). Photos now show on each week card in the Journal (small thumbnails and a count), so a photo attached to a session is visible straight away instead of only inside the week page.' },
+    { version:'v54', notes:'Tapping a session on Today or the Schedule no longer opens the daily Quick Log. It now shows a calm read-only page (when, where, coach, theme, plan) with buttons to see the week, see what was noted, or edit the session details.' },
     { version:'v53', notes:'The Journal is now weekly only: one card per week showing the whole week together (training, gym, classroom and match counts, the week score, what went well, what to work on, the match result and the focus areas). Tap a week for everything in it. The individual sessions are tucked away inside each week for editing. The daily list is gone from the Journal.' },
     { version:'v52', notes:'Match Tracker has five new tap reasons that line up with the 2 Oct targets (set early and high, set too low or late, alive early, waited and read the flight, rushed out early). IAP & Xmas Prep now tracks the four targets from the 2 Oct IDP review (set height, being alive earlier, crossing patience, shot-stopping first with resilience): Xmas Card 2 and the IAP briefing show the notes and Match Tracker evidence logged since 2 Oct for each. Hudl clip criteria and talking points rewritten around those targets (higher set, delay commitment and read the flight, composure under press). Praise now lists composure, decision-making, distribution under press, team connection and her app logging. Briefing title carries the date and the questions are for Josh, Seb and Kiera.' },
     { version:'v51', notes:'One score a week. The weekly review now carries a single week score out of 5 (what Lily would give the week); per-session scores are optional. Progress, the temperature check and the Xmas and IAP numbers use the week score. New "Questions to ask Lily" in the Weekly Review: about ten questions built for the week from the 6-week theme, the block behaviour (UNITE, LEAD, BRAVE, EDGE), her three focus areas, the coaches\' feedback, any match, recovery and next week.' },
@@ -2662,8 +2663,7 @@
         var sess = state.schedule.find(function(s){ return s.id === card.getAttribute('data-missing-log-id'); });
         if(!sess) return;
         if(sess.type === 'match'){ openMatchPrepModal(sess); }
-        else if(sess.type === 'training'){ openQuickLog(sess); }
-        else { openReflectionForm(sess); }
+        else { openSessionInfo(sess); }
       });
     });
   }
@@ -3322,10 +3322,8 @@
           openReflectionDetail(reflectionForSession[id].id);
         } else if(sess.type === 'match'){
           openMatchPrepModal(sess);
-        } else if(sess.type === 'training'){
-          openQuickLog(sess);
         } else {
-          openReflectionForm(sess);
+          openSessionInfo(sess);
         }
       });
     });
@@ -3612,8 +3610,7 @@
         var existing = state.reflections.find(function(r){ return r.sessionId === id; });
         if(existing){ openReflectionDetail(existing.id); }
         else if(sess.type === 'match'){ openMatchPrepModal(sess); }
-        else if(sess.type === 'training'){ openQuickLog(sess); }
-        else{ openScheduleForm(sess); }
+        else{ openSessionInfo(sess); }
       });
     });
   }
@@ -4732,8 +4729,12 @@
             var date = row.querySelector('.imp-date').value;
             if(!date) return;
             datesToReplace.push(date);
+            // keep the old entry's id, photo and Hudl link when the same kind of session is re-imported on that date
+            var prev = (state.schedule || []).find(function(o){ return o.date === date && o.type === type; });
             newEntries.push({
-              id: uid(),
+              id: prev ? prev.id : uid(),
+              photo: prev && prev.photo ? prev.photo : undefined,
+              hudlLink: prev && prev.hudlLink ? prev.hudlLink : undefined,
               title: row.querySelector('.imp-title').value.trim() || (type === 'match' ? 'Match' : 'Training'),
               date: date,
               type: type,
@@ -4955,7 +4956,7 @@
       w.summary = (w.review && w.review.summary) ? w.review.summary : '';
       w.went = went; w.work = work;
       return w;
-    }).filter(function(w){ return w.refs.length || w.tracks.length || w.review; });
+    }).filter(function(w){ return w.refs.length || w.tracks.length || w.review || w.photos.length; });
   }
 
   function weekMetaText(w){
@@ -4994,6 +4995,7 @@
       (work.length ? '<div class="eng-char"><b>Work on:</b> ' + escapeHtml(work.join(' · ')) + '</div>' : '') +
       w.matchList.slice(0, 2).map(function(m){ return '<div class="eng-char"><b>Match:</b> ' + escapeHtml(weekMatchLine(m)) + '</div>'; }).join('') +
       (w.ifas.length ? '<div style="margin-top:6px;">' + w.ifas.map(function(k){ return '<span class="theme-chip">' + escapeHtml(k.toUpperCase().replace('IFA', 'IFA ')) + '</span>'; }).join(' ') + '</div>' : '') +
+      (w.photos.length ? '<div style="display:flex; gap:6px; margin-top:8px; align-items:center;">' + w.photos.slice(0, 4).map(function(x){ return '<img src="' + x.photo + '" alt="" style="width:44px; height:44px; object-fit:cover; border-radius:6px;">'; }).join('') + '<span class="card-meta">' + w.photos.length + (w.photos.length === 1 ? ' photo' : ' photos') + '</span></div>' : '') +
       '</div>';
   }
   function weekAvgText(w){ return w.avg === null ? '—' : (w.estimated ? '~' : '') + w.avg.toFixed(1); }
@@ -6301,6 +6303,37 @@
     });
   }
 
+  // v54: read-only session view. Tapping a session never opens a logging form.
+  function openSessionInfo(sess){
+    if(!sess) return;
+    var existing = state.reflections.find(function(r){ return r.sessionId === sess.id; });
+    var rows = [];
+    function row(k, v){ if(v) rows.push('<div class="card-meta" style="margin:6px 0;"><strong>' + k + ':</strong> ' + escapeHtml(String(v)) + '</div>'); }
+    row('When', fmtDate(sess.date) + (sess.time ? ' · ' + sess.time : ''));
+    row('Where', sess.location);
+    row('Coach', sess.coach);
+    row('Theme', sess.theme);
+    var focus = ((state.sessionFocusByDate || {})[sess.date]) || sess.focus || sess.plan || sess.notes || '';
+    row('Planned', focus);
+    var wk = weekOf(sess.date);
+    var hasWeek = buildWeeks().some(function(x){ return x.weekStart === wk; });
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>' + escapeHtml(sess.title || 'Session') + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      rows.join('') +
+      '<div class="card-meta" style="margin:12px 0;">Nothing to log here. This session is reviewed in the Sunday catch-up and shows up in its week.</div>' +
+      (existing ? '<button class="btn btn-ghost" id="si-entry" style="margin-bottom:10px;">See what was noted</button>' : '') +
+      (hasWeek ? '<button class="btn btn-primary" id="si-week" style="margin-bottom:10px;">See this week</button>' : '') +
+      '<button class="btn btn-ghost" id="si-edit">Edit session details</button>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    var wb = document.getElementById('si-week');
+    if(wb) wb.addEventListener('click', function(){ closeModal(); openWeekDetail(wk); });
+    document.getElementById('si-edit').addEventListener('click', function(){ closeModal(); openScheduleForm(sess); });
+    var eb = document.getElementById('si-entry');
+    if(eb) eb.addEventListener('click', function(){ closeModal(); openReflectionDetail(existing.id); });
+  }
+
   function openScheduleForm(existingSession){
     var isEdit = !!existingSession;
     var today = existingSession ? existingSession.date : new Date().toISOString().slice(0,10);
@@ -6803,7 +6836,6 @@
     });
   }
 
-  document.getElementById('fab-btn').addEventListener('click', function(){ openReflectionForm(null); });
 
   // ---------- Reflection Detail ----------
   function openReflectionDetail(id){
