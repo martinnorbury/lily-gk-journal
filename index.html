@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v50 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v52 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -803,8 +803,11 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v50';
+  var APP_VERSION = 'v52';
   var CHANGELOG = [
+    { version:'v52', notes:'Match Tracker has five new tap reasons that line up with the 2 Oct targets (set early and high, set too low or late, alive early, waited and read the flight, rushed out early). IAP & Xmas Prep now tracks the four targets from the 2 Oct IDP review (set height, being alive earlier, crossing patience, shot-stopping first with resilience): Xmas Card 2 and the IAP briefing show the notes and Match Tracker evidence logged since 2 Oct for each. Hudl clip criteria and talking points rewritten around those targets (higher set, delay commitment and read the flight, composure under press). Praise now lists composure, decision-making, distribution under press, team connection and her app logging. Briefing title carries the date and the questions are for Josh, Seb and Kiera.' },
+    { version:'v51', notes:'One score a week. The weekly review now carries a single week score out of 5 (what Lily would give the week); per-session scores are optional. Progress, the temperature check and the Xmas and IAP numbers use the week score. New "Questions to ask Lily" in the Weekly Review: about ten questions built for the week from the 6-week theme, the block behaviour (UNITE, LEAD, BRAVE, EDGE), her three focus areas, the coaches\' feedback, any match, recovery and next week.' },
+    { version:'v50.1', notes:'Coach feedback updated with the fuller notes from the IFA / IDP review meeting with Seb, Josh and Kiera: composure, decision-making and distribution under press praised; set higher on long-range strikes; be alive earlier in the defensive third; delay commitment on crosses and read the flight; keep shot-stopping first and stay confident after a goal. These feed the Xmas cards, the IAP briefing, the Hudl learning-clip hints and the weekly review prompt.' },
     { version:'v50', notes:'Progress is now weekly. The overview and temperature check work by week (weeks reviewed, average week, good weeks, best week), with a week-by-week list and a tap-through page for each week. Every earlier daily entry is rolled up into its week automatically, so nothing is lost. The Journal groups entries under a week header, and the focus-area links count weeks rather than entries.' },
     { version:'v49.1', notes:'Coach feedback from the player review with Seb and Kiera is now in the app: praised for distribution and team confidence; work on unusual saves and close-range box positioning; the coach liked Lily tracking her IFAs in the app. It shows in the IAP briefing, the Xmas cards and the PDF, feeds the ideas for next-half targets, and is included in the weekly review prompt. New coach feedback can be added in the IAP briefing tab.' },
     { version:'v49', notes:'Built from Chelsea\'s own documents: the weekly themes now continue the 6-week cycle to 14 Dec (marked as planned until Seb confirms), Lily\'s three IFAs use the exact wording from her IDP, and the IAP & Xmas Prep uses Chelsea\'s 100-point recovery score, the clip criteria for each focus area, the Hudl sharing rules, the Block 2 LEAD theme and the BLUE definitions. The Xmas cards now cover July to December and ask for adjusted or new IFAs for January to May.' },
@@ -1370,26 +1373,31 @@
   var IP_TALK = {
     call:'What did I see, and what did I say?',
     nocall:'What stopped me, and what will I say next time?',
-    fwdpass:'Why did I choose that pass, and what did the press look like?',
+    fwdpass:'Why that pass, and how did I stay composed under the press?',
     turnover:'What option did I miss?',
-    cross:'How did I read the flight, and where did I take it?',
-    crossmiss:'What held me back? Did I stay on my line?',
-    bigsave:'How early was I set, and what did I see before the shot?',
-    save:'Was I set early and balanced?',
+    cross:'Did I delay my commitment and read the flight before I went?',
+    crossmiss:'Did I rush out early or stay pinned on my line? What would I read next time?',
+    bigsave:'How early and how high was I set, and what did I see before the shot?',
+    save:'Was I set early, high enough and balanced?',
     won1v1:'What made me big and brave?',
     lost1v1:'What would an earlier set or start have changed?',
     spill:'Was my set late, or my hands in the wrong place?',
-    position:'Where should I have been?',
+    position:'Where should I have been, and was I set high enough?',
+    sethigh:'How early and how high was I set, and what did I see?',
+    alive:'What did I see early that got me moving?',
+    readcross:'What did I read in the flight before I committed?',
+    setlow:'Why was I low or late, and what would a higher, earlier set have changed?',
+    rushed:'What made me go early, and what would I read next time?',
     error:'What did I see, and what would I do differently?'
   };
 
-  var IP_GOAL_OK = ['bigsave', 'save', 'won1v1'];
-  var IP_GOAL_BAD = ['lost1v1', 'spill', 'position', 'error'];
+  var IP_GOAL_OK = ['bigsave', 'save', 'won1v1', 'sethigh', 'alive'];
+  var IP_GOAL_BAD = ['lost1v1', 'spill', 'position', 'error', 'setlow'];
   var IP_CRITERIA = {
     ifa1:{ ok:'Clear vocal organisation of the back line, calling early for the ball.', bad:'Quiet or late communication that caused defensive confusion.' },
-    ifa2:{ ok:'Calm under pressure, switching play to exploit the far-side overload.', bad:'Forcing the pass back into pressure on the same side.' },
-    ifa3:{ ok:'Brave, decisive claim at full extension, through bodies.', bad:'Misjudging the flight or staying pinned on the line.' },
-    goal:{ ok:'Early set stance, then a clean catch or reaction save.', bad:'Late set, still moving or flat-footed when the shot is released.' }
+    ifa2:{ ok:'Composed under the press, switching play to the far side.', bad:'Playing back into pressure on the same side.' },
+    ifa3:{ ok:'Delaying commitment, reading the flight, then claiming at full extension.', bad:'Rushing out early before reading the flight, or staying pinned on the line.' },
+    goal:{ ok:'Early set, higher on long-range strikes, alive early as the ball enters the defensive third, then a clean catch or reaction save.', bad:'Set too low on a long-range strike, or a late or flat-footed set.' }
   };
   var IP_HUDL_RULES = 'Share the playlist with Kiera by Monday 14 Dec. Set coach access to Can View or Can Contribute and tag it with the player label Lily Norbury. Clips are for internal development only and must never be posted on social media.';
   var IP_AREAS = [
@@ -1399,7 +1407,7 @@
       succ:function(e){ return e.ifa === 'ifa2' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa2' && e.delta < 0; } },
     { key:'ifa3', ifa:'ifa3', title:'IFA 3 · Cross Taking & Aerial Dominance',
       succ:function(e){ return e.ifa === 'ifa3' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa3' && e.delta < 0; } },
-    { key:'goal', ifa:null, title:'Dominate the Goal · Set Stance',
+    { key:'goal', ifa:null, title:'Dominate the Goal · Set Stance & Anticipation',
       succ:function(e){ return IP_GOAL_OK.indexOf(e.key) > -1; }, learn:function(e){ return IP_GOAL_BAD.indexOf(e.key) > -1; } }
   ];
 
@@ -1515,10 +1523,11 @@
       edge: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length
     };
   }
+  function ipWeeks(){ var from = weekOf(IP_FROM); return buildWeeks().filter(function(w){ return w.weekStart >= from && w.avg !== null; }); }
   function ipGrowth(){
-    var r = ipRatings();
-    var a = r.filter(function(x){ return x.date < '2026-11-01'; }).map(function(x){ return x.overall; });
-    var b = r.filter(function(x){ return x.date >= '2026-11-01'; }).map(function(x){ return x.overall; });
+    var r = ipWeeks();
+    var a = r.filter(function(x){ return x.weekStart < '2026-11-01'; }).map(function(x){ return x.avg; });
+    var b = r.filter(function(x){ return x.weekStart >= '2026-11-01'; }).map(function(x){ return x.avg; });
     return { first: a.length ? ipAvg(a).toFixed(1) : null, nFirst:a.length, later: b.length ? ipAvg(b).toFixed(1) : null, nLater:b.length };
   }
   function ipSuggestedTargets(){
@@ -1540,18 +1549,64 @@
   }
   // Coach feedback (from player reviews). Seeded once from the review with Seb and Kiera.
   function ipFeedback(){
+    var src = 'IFA / IDP review meeting, 2 Oct 2026 (Seb, Josh and Kiera, with Lily and parents)';
+    var d = '2026-10-02';
+    var seed = [
+      { id:'cr1', source:src, date:d, type:'praised', text:'Composure, decision-making and distribution under press', detail:'The coaches highly praised her in-possession play.' },
+      { id:'cr7', source:src, date:d, type:'praised', text:'Team connection' },
+      { id:'cr2', source:src, date:d, type:'praised', text:'Her app logging', detail:'Lily tracks communication, distribution and cross-taking in the app after each session.' },
+      { id:'cr3', source:src, date:d, type:'workOn',  text:'Set higher on long-range strikes', detail:'Avoid setting too low on long-range strikes. A higher set allows a quicker reaction and greater reach, including to the top corner.' },
+      { id:'cr4', source:src, date:d, type:'workOn',  text:'Be alive earlier in the defensive third', detail:'Be alive earlier as the ball enters the defensive third. Work the feet quickly and trust natural anticipation before the strike.' },
+      { id:'cr5', source:src, date:d, type:'workOn',  text:'Delay commitment on crosses and read the flight', detail:'Read the flight of the ball rather than automatically rushing forward.' },
+      { id:'cr6', source:src, date:d, type:'workOn',  text:'Keep shot-stopping first and stay confident after a goal', detail:'Keep in-possession duties secondary to core shot-stopping, and keep confidence and resilience after conceded goals.' }
+    ];
     if(!Array.isArray(state.coachFeedback)){
-      var src = 'Player review with Seb and Kiera';
-      state.coachFeedback = [
-        { id:'cf1', source:src, type:'praised', text:'Distribution' },
-        { id:'cf2', source:src, type:'praised', text:'Team confidence' },
-        { id:'cf3', source:src, type:'workOn',  text:'Unusual saves' },
-        { id:'cf4', source:src, type:'workOn',  text:'Close-range box positioning' },
-        { id:'cf5', source:src, type:'note',    text:'The coach liked that Lily uses the app to track her IFAs and session feedback.' }
-      ];
+      state.coachFeedback = seed.slice();
+    } else {
+      // drop the earliest, shorter version of these notes (ids cf1-cf5); keep anything added by hand
+      state.coachFeedback = state.coachFeedback.filter(function(f){ return f && !/^cf[1-5]$/.test(f.id); });
+      seed.forEach(function(sd){
+        var i = -1;
+        state.coachFeedback.forEach(function(f, k){ if(f.id === sd.id) i = k; });
+        if(i > -1) state.coachFeedback[i] = sd; else state.coachFeedback.push(sd);
+      });
     }
     return state.coachFeedback.filter(function(f){ return f && ipSafe(f.text); });
   }
+  var IP_TARGET_SINCE = '2026-10-02';
+  var IP_TARGETS = [
+    { key:'set',   title:'Set height', re:/\bset\b|stance|setting (too )?(low|high)|set (higher|lower)|height|top corner/i },
+    { key:'alive', title:'Alive earlier (anticipation)', re:/alive|anticipat|defensive third|read(ing)? the (game|play)|first step/i },
+    { key:'cross', title:'Crossing patience', re:/cross|flight|patien|delay|rush(ed|ing)?\b/i },
+    { key:'mind',  title:'Shot-stopping first and resilience', re:/confiden|resilien|bounce|shot[- ]?stopp|after (a|the) goal|conceded/i }
+  ];
+  function ipTargetEvidence(){
+    var refs = ipRefs().filter(function(r){ return r.date >= IP_TARGET_SINCE; });
+    var tracks = ipTracks().filter(function(m){ return m.date && m.date >= IP_TARGET_SINCE; });
+    function cnt(keys){ var n = 0; tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(keys.indexOf(e.key) > -1) n++; }); }); return n; }
+    var stat = {
+      set:   function(){ return 'set early and high ' + cnt(['sethigh']) + ', set too low or late ' + cnt(['setlow']) + ', saves ' + cnt(['save', 'bigsave']); },
+      alive: function(){ return 'alive early ' + cnt(['alive']) + ', 1v1s won ' + cnt(['won1v1']) + ', beaten ' + cnt(['lost1v1']); },
+      cross: function(){ return 'claimed ' + cnt(['cross', 'readcross']) + ' (read the flight ' + cnt(['readcross']) + '), missed ' + cnt(['crossmiss']) + ', rushed out ' + cnt(['rushed']); },
+      mind:  function(){ return 'bounced back ' + cnt(['bounce']) + ' times, goals conceded ' + cnt(['goal', 'error']); }
+    };
+    return IP_TARGETS.map(function(t){
+      var quotes = [], seen = {}, count = 0;
+      refs.slice().reverse().forEach(function(r){
+        var pieces = [r.wentWell, r.evenBetterIf, r.action, r.evidence];
+        for(var i = 0; i < pieces.length; i++){
+          var txt = ipSafe(pieces[i]);
+          if(txt && t.re.test(txt)){
+            count++;
+            if(quotes.length < 2 && !seen[txt]){ seen[txt] = true; quotes.push({ date:r.date, text:truncate(txt, 130) }); }
+            break;
+          }
+        }
+      });
+      return { key:t.key, title:t.title, count:count, quotes:quotes, stat: tracks.length ? stat[t.key]() : '' };
+    });
+  }
+
   function ipFeedbackBy(type){ return ipFeedback().filter(function(f){ return f.type === type; }); }
   function ipFeedbackLine(type){ return ipFeedbackBy(type).map(function(f){ return ipSafe(f.text); }).join(', '); }
 
@@ -1633,8 +1688,8 @@
 
   function ipHudlHtml(){
     var c = ipClips();
-    var wo = ipFeedbackLine('workOn');
-    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of the 4 focus areas.' + (wo ? ' The coaches asked her to work on ' + escapeHtml(wo.toLowerCase()) + ', so that is a good place to look for learning clips.' : '') + '</div>';
+    var wo = ipFeedbackBy('workOn').slice(0, 3).map(function(f){ return ipSafe(f.text); }).join('; ');
+    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of the 4 focus areas.' + (wo ? ' The coaches asked her to work on: ' + escapeHtml(wo) + '. That is a good place to look for learning clips.' : '') + '</div>';
     var last = '';
     c.rows.forEach(function(r){
       if(r.area !== last){
@@ -1656,21 +1711,27 @@
 
   function ipXmasHtml(){
     var st = ipStandards(), rec = ipRecovery(), rt = ipRatings(), tracks = ipTracks(), ev = ipIfaEvidence();
-    var avg = rt.length ? ipAvg(rt.map(function(r){ return r.overall; })).toFixed(1) : null;
+    var wks = ipWeeks();
+    var avg = wks.length ? ipAvg(wks.map(function(w){ return w.avg; })).toFixed(1) : null;
     var stdRows = ATTR_KEYS.map(function(k){
       return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + (st[k] ? st[k].avg + ' / 5' : '—') + '</div></div>';
     }).join('');
     var card1 = '<div class="card ip-card"><div class="ip-card-t">Card 1 · My first-half numbers</div>' + stdRows +
       '<div class="journal-detail-row"><div class="k">Recovery score</div><div class="v">' + (rec.score === null ? '—' : rec.score + ' · ' + rec.band) + '</div></div>' +
-      '<div class="journal-detail-row"><div class="k">Average session rating</div><div class="v">' + (avg ? avg + ' / 5' : '—') + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Average week score</div><div class="v">' + (avg ? avg + ' / 5' : '—') + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Weeks reviewed</div><div class="v">' + wks.length + '</div></div>' +
       '<div class="journal-detail-row"><div class="k">Sessions in my journal</div><div class="v">' + ipRefs().length + '</div></div>' +
       '<div class="journal-detail-row"><div class="k">Matches tracked</div><div class="v">' + tracks.length + '</div></div>' +
-      '<div class="hint" style="margin-top:8px;">July to December. Recovery score is my average on Chelsea\'s 100-point system' + (rec.n ? ' (' + rec.n + ' check-ins)' : '') + '; 100+ is Excellent, 80-99 Good, 60-79 Fair. Standards averages only count sessions I scored.</div></div>';
-    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 2 · My progress on my 3 IFAs</div>' + ev.map(function(e){
+      '<div class="hint" style="margin-top:8px;">July to December. Recovery score is my average on Chelsea\'s 100-point system' + (rec.n ? ' (' + rec.n + ' check-ins)' : '') + '; 100+ is Excellent, 80-99 Good, 60-79 Fair. Standards averages only count the sessions or weeks I scored.</div></div>';
+    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 2 · My 3 IFAs and the 2 Oct targets</div>' + ev.map(function(e){
       var q = e.quotes.length ? e.quotes.map(function(x){ return '<div class="ip-quote">“' + escapeHtml(x.text) + '”<span> ' + escapeHtml(fmtDate(x.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes linked yet.</div>';
       var m = e.moments.map(function(x){ return '<div class="ip-moment">▶ ' + escapeHtml(ipMatchLabel(x.date, x.opp)) + ' — ' + escapeHtml(x.label) + '</div>'; }).join('');
       return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + '</div>' + q + m + '</div>';
     }).join('') +
+      '<div class="ip-ifa"><div class="ip-ifa-t">My progress on the 2 Oct targets</div>' + ipTargetEvidence().map(function(t){
+        return '<div class="ip-moment"><b>' + escapeHtml(t.title) + '</b>' + (t.stat ? ' · ' + escapeHtml(t.stat) : '') + '</div>' +
+          (t.quotes.length ? t.quotes.map(function(q){ return '<div class="ip-quote">“' + escapeHtml(q.text) + '”<span> ' + escapeHtml(fmtDate(q.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes since 2 Oct yet.</div>');
+      }).join('') + '</div>' +
       (ipFeedbackBy('praised').length ? '<div class="ip-ifa"><div class="ip-ifa-t">What the coaches praised</div><div class="ip-moment">' + escapeHtml(ipFeedbackLine('praised')) + '</div></div>' : '') +
       '</div>';
     var tg = ipPrepState().targets, sugg = ipSuggestedTargets(), goals = ipGoalNotes();
@@ -1691,9 +1752,9 @@
     var dq = state.iapDiscussionPoints || ['', '', ''], sq = ipSuggestedQuestions();
     var ph = sq.concat(IP_QUESTION_STARTERS);
     var statusWord = function(k){ return String((idp.ifaStatuses && idp.ifaStatuses[k]) || 'on_track').replace(/_/g, ' '); };
-    var growth = (gr.first && gr.later) ? 'Average session rating ' + gr.first + ' (Aug–Oct) to ' + gr.later + ' (Nov onwards).' :
-      (gr.first || gr.later) ? 'Average session rating ' + (gr.first || gr.later) + ' so far.' : 'Not enough rated sessions yet for a trend.';
-    return '<div class="card ip-card"><div class="ip-card-t">Lily Norbury · U15 Block 2 IAP Review Briefing</div>' +
+    var growth = (gr.first && gr.later) ? 'Average week score ' + gr.first + ' (to Oct) to ' + gr.later + ' (Nov onwards).' :
+      (gr.first || gr.later) ? 'Average week score ' + (gr.first || gr.later) + ' so far.' : 'Not enough scored weeks yet for a trend.';
+    return '<div class="card ip-card"><div class="ip-card-t">Lily Norbury — U15 Block 2 IAP Review Briefing (15 Dec 2026)</div>' +
       '<div class="hint">Tue 15 Dec 2026 · 18:50–19:10 · with Kiera, Josh and Seb · Block 2 theme: LEAD</div>' +
       '<div class="section-label">Mid-season progress</div><div class="ip-quote" style="margin-top:0;">' + escapeHtml(growth) + '</div>' +
       ev.map(function(e){
@@ -1701,6 +1762,9 @@
         return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + ' <span class="ip-chip">' + escapeHtml(statusWord(e.ifa.key)) + '</span></div>' +
           '<div class="ip-moment">' + e.linkedCount + ' linked session' + (e.linkedCount === 1 ? '' : 's') + (e.avg ? ' · average ' + e.avg + '/5' : '') + (e.momentCount ? ' · ' + e.momentCount + ' good match moment' + (e.momentCount === 1 ? '' : 's') : '') + '</div>' +
           '<div class="ip-quote">' + escapeHtml(q) + '</div></div>';
+      }).join('') +
+      '<div class="section-label">The 2 Oct targets</div>' + ipTargetEvidence().map(function(t){
+        return '<div class="journal-detail-row"><div class="k">' + escapeHtml(t.title) + '</div><div class="v">' + (t.count ? t.count + ' note' + (t.count === 1 ? '' : 's') : 'no notes yet') + (t.stat ? ' · ' + escapeHtml(t.stat) : '') + '</div></div>';
       }).join('') +
       '<div class="section-label">Chelsea GK DNA</div>' +
       '<div class="hint" style="margin-bottom:6px;">Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.</div>' +
@@ -1710,12 +1774,12 @@
       '<div class="section-label">What the coaches said</div>' +
       ipFeedback().map(function(f){
         var k = f.type === 'praised' ? 'Praised' : (f.type === 'workOn' ? 'Work on' : 'Note');
-        return '<div class="journal-detail-row"><div class="k">' + k + '</div><div class="v">' + escapeHtml(ipSafe(f.text)) + '</div></div>';
+        return '<div class="journal-detail-row"><div class="k">' + k + '</div><div class="v">' + escapeHtml(ipSafe(f.text)) + (f.detail && ipSafe(f.detail) ? '<div class="hint" style="margin-top:3px;">' + escapeHtml(ipSafe(f.detail)) + '</div>' : '') + '</div></div>';
       }).join('') +
       '<div class="field" style="margin-top:8px;"><select id="ip-fb-type"><option value="praised">Praised</option><option value="workOn">Work on</option><option value="note">Note</option></select>' +
       '<input type="text" id="ip-fb-text" placeholder="Add something a coach said" style="margin-top:6px;"></div>' +
       '<button type="button" class="btn btn-ghost" id="ip-fb-add">Add coach feedback</button>' +
-      '<div class="section-label">Questions I want to ask Josh and Seb</div>' +
+      '<div class="section-label">Questions I want to ask Josh, Seb and Kiera</div>' +
       [0, 1, 2].map(function(i){ return '<div class="field"><input type="text" class="ip-q" data-i="' + i + '" value="' + escapeHtml(dq[i] || '') + '" placeholder="' + escapeHtml(ph[i] || 'My question') + '"></div>'; }).join('') +
       '</div>';
   }
@@ -1751,7 +1815,7 @@
     // 1 · Hudl clips
     var c = ipClips();
     band('Hudl playlist: Lily Norbury + IAP1', '12 clips: 2 successful + 1 learning for each focus area · due 14 Dec 2026');
-    var cols = [{ w:36, t:'Focus area' }, { w:19, t:'Clip type' }, { w:38, t:'Match & date' }, { w:15, t:'Hudl time' }, { w:72, t:'Key note / talking point' }];
+    var cols = [{ w:36, t:'Focus area' }, { w:19, t:'Clip type' }, { w:38, t:'Match & date' }, { w:15, t:'Hudl time' }, { w:72, t:'Key talking point' }];
     function tHead(){
       need(8); doc.setFillColor(225, 235, 250); doc.rect(mx, y - 4, W - mx * 2, 6.5, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(3, 70, 148);
@@ -1781,9 +1845,11 @@
     head('Card 1 - My first-half numbers (July to December)');
     ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], st[k] ? st[k].avg + ' / 5' : '—'); });
     line('Recovery score (100-point)', rec.score === null ? '—' : rec.score + ' - ' + rec.band);
-    line('Average session rating', rt.length ? ipAvg(rt.map(function(r){ return r.overall; })).toFixed(1) + ' / 5' : '—');
+    var wksP = ipWeeks();
+    line('Average week score', wksP.length ? ipAvg(wksP.map(function(w){ return w.avg; })).toFixed(1) + ' / 5' : '—');
+    line('Weeks reviewed', String(wksP.length));
     y += 3;
-    head('Card 2 - IFA breakthroughs & evidence');
+    head('Card 2 - My 3 IFAs and the 2 Oct targets');
     ev.forEach(function(e){
       para(e.ifa.title, { bold:true, color:[30, 55, 100] });
       if(!e.quotes.length && !e.moments.length) para('Nothing linked yet.', { indent:3, color:[140, 140, 150] });
@@ -1791,6 +1857,13 @@
       e.moments.forEach(function(m){ para('Match moment: ' + ipMatchLabel(m.date, m.opp) + ' - ' + m.label, { indent:3, color:[3, 70, 148] }); });
       y += 1.5;
     });
+    para('My progress on the 2 Oct targets', { bold:true, color:[30, 55, 100] });
+    ipTargetEvidence().forEach(function(t){
+      para(t.title + (t.stat ? ' - ' + t.stat : ''), { indent:3, bold:true });
+      if(!t.quotes.length) para('No notes since 2 Oct yet.', { indent:6, color:[140, 140, 150] });
+      t.quotes.forEach(function(q){ para('"' + q.text + '" (' + fmtDate(q.date) + ')', { indent:6 }); });
+    });
+    y += 1.5;
     if(ipFeedbackBy('praised').length){ para('What the coaches praised: ' + ipFeedbackLine('praised'), { bold:true, color:[30, 55, 100] }); }
     y += 2;
     head('Card 3 - My IFAs for January to May 2027: adjusted or new');
@@ -1806,9 +1879,9 @@
     // 3 · Joint briefing (one page)
     doc.addPage(); y = 0;
     var gr = ipGrowth(), dna = ipDna(), idp = getIdpState();
-    band('Lily Norbury - U15 Block 2 IAP Review Briefing', '15 Dec 2026 · 18:50-19:10 · Kiera, Josh and Seb · Block 2 theme: LEAD');
+    band('Lily Norbury - U15 Block 2 IAP Review Briefing (15 Dec 2026)', '18:50-19:10 · with Kiera, Josh and Seb · Block 2 theme: LEAD');
     head('Mid-season progress');
-    para((gr.first && gr.later) ? 'Average session rating ' + gr.first + ' (Aug-Oct) to ' + gr.later + ' (Nov onwards).' : (gr.first || gr.later) ? 'Average session rating ' + (gr.first || gr.later) + ' so far.' : 'Not enough rated sessions yet for a trend.');
+    para((gr.first && gr.later) ? 'Average week score ' + gr.first + ' (to Oct) to ' + gr.later + ' (Nov onwards).' : (gr.first || gr.later) ? 'Average week score ' + (gr.first || gr.later) + ' so far.' : 'Not enough scored weeks yet for a trend.');
     y += 1;
     ev.forEach(function(e){
       var s = String((idp.ifaStatuses && idp.ifaStatuses[e.ifa.key]) || 'on_track').replace(/_/g, ' ');
@@ -1816,6 +1889,8 @@
       para(e.linkedCount + ' linked session(s)' + (e.avg ? ', average ' + e.avg + '/5' : '') + (e.momentCount ? ', ' + e.momentCount + ' good match moment(s)' : ''), { indent:3 });
       if(e.quotes[0]) para('"' + truncate(e.quotes[0].text, 110) + '"', { indent:3, color:[90, 100, 120] });
     });
+    y += 2; head('The 2 Oct targets');
+    ipTargetEvidence().forEach(function(t){ para(t.title + ': ' + (t.count ? t.count + ' note' + (t.count === 1 ? '' : 's') : 'no notes yet') + (t.stat ? ' - ' + t.stat : ''), { indent:2 }); });
     y += 2; head('Chelsea GK DNA');
     line('Brave', dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's'));
     line('Leading', dna.lead + ' good call' + (dna.lead === 1 ? '' : 's'));
@@ -1825,7 +1900,7 @@
     if(ipFeedbackBy('praised').length) para('Praised: ' + ipFeedbackLine('praised'), { indent:2 });
     if(ipFeedbackBy('workOn').length) para('Work on: ' + ipFeedbackLine('workOn'), { indent:2 });
     ipFeedbackBy('note').slice(0, 2).forEach(function(f){ para(ipSafe(f.text), { indent:2, color:[90, 100, 120] }); });
-    y += 3; head('Questions Lily wants to ask Josh and Seb');
+    y += 3; head('Questions Lily wants to ask Josh, Seb and Kiera');
     var dq = (state.iapDiscussionPoints || []).filter(function(p){ return p && p.trim(); });
     if(!dq.length) para('Not filled in yet.', { color:[140, 140, 150] });
     dq.slice(0, 3).forEach(function(p, i){ para((i + 1) + '. ' + p, { indent:2 }); });
@@ -2605,7 +2680,10 @@
     { key:'brave',     label:'Brave action',                   delta:0.3 },
     { key:'call',      label:'Good call / command',            delta:0.2, ifa:'ifa1' },
     { key:'sweep',     label:'Cleared danger behind the line', delta:0.3 },
-    { key:'bounce',    label:'Bounced back after a mistake',   delta:0.2 }
+    { key:'bounce',    label:'Bounced back after a mistake',   delta:0.2 },
+    { key:'sethigh',   label:'Set early and high',             delta:0.2 },
+    { key:'alive',     label:'Alive early, trusted anticipation', delta:0.3 },
+    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.5, ifa:'ifa3' }
   ];
   var TRACKER_MINUS = [
     { key:'goal',      label:'Goal conceded',                  delta:-0.3 },
@@ -2615,7 +2693,9 @@
     { key:'turnover',  label:'Distribution turned over',       delta:-0.3, ifa:'ifa2' },
     { key:'spill',     label:'Spilled / fumbled a shot',       delta:-0.4 },
     { key:'nocall',    label:'No call / late call',            delta:-0.2, ifa:'ifa1' },
-    { key:'position',  label:'Poor positioning',               delta:-0.3 }
+    { key:'position',  label:'Poor positioning',               delta:-0.3 },
+    { key:'setlow',    label:'Set too low or late',            delta:-0.3 },
+    { key:'rushed',    label:'Rushed out early to a cross',    delta:-0.4, ifa:'ifa3' }
   ];
 
   var trackerTimer = null;
@@ -3984,7 +4064,8 @@
       '- Use only what is actually said in the transcript. Do not invent anything. If something was not mentioned, leave it out (empty string or empty list).',
       '- Write in Lily\'s voice (first person), kind and honest, no pressure, short plain phrases.',
       '- Do NOT include any gym sessions or classroom/analysis sessions — only training sessions and matches.',
-      '- Ratings are 1 to 5 (1 = rubbish, 3 = okay, 5 = brilliant). Use the number Lily gave. If she described the session without a number, pick the closest and set "ratingEstimated": true.',
+      '- "weekScore" is the 1 to 5 score Lily gave for the whole week (1 = rubbish, 3 = okay, 5 = brilliant). Use the number she said. If she did not give one, estimate it from how she described the week and set "weekScoreEstimated": true.',
+      '- A session "rating" (1 to 5) is OPTIONAL. Only give one if Lily scored that session. Otherwise use null. Do not invent session ratings.',
       '- OPTIONAL: if Lily scored herself on the 5 Standards (tactical, technical, psych, physical, social) in the chat, add them as "standards" (1 to 5). Only if she said them. Otherwise leave "standards" out.',
       '- OPTIONAL: "goalProgress" = what she said about her personal goals this week (short phrases). "iapTalkingPoints" = up to 3 things she said she wants to raise with the coaches at her IAP review. Leave out if not mentioned.',
       '- "ifas" are the Chelsea Focus Areas the session touched; "england" are the England goalkeeper characteristic ids it touched. Only include those that clearly fit.',
@@ -4001,7 +4082,7 @@
       engLines,
       '',
       'COACH FEEDBACK SO FAR (context only; use it to tag sessions where it clearly fits, never to invent):',
-      (ipFeedback().map(function(f){ return '- ' + (f.type === 'praised' ? 'Praised: ' : (f.type === 'workOn' ? 'Work on: ' : 'Note: ')) + ipSafe(f.text); }).join('\n') || '- (none yet)'),
+      (ipFeedback().map(function(f){ return '- ' + (f.type === 'praised' ? 'Praised: ' : (f.type === 'workOn' ? 'Work on: ' : 'Note: ')) + ipSafe(f.text) + (f.detail && ipSafe(f.detail) ? ' (' + ipSafe(f.detail) + ')' : ''); }).join('\n') || '- (none yet)'),
       '',
       'CHELSEA THEMES (for nextWeek): ' + THEMES.join(' | '),
       '',
@@ -4009,11 +4090,12 @@
       '{',
       '  "weekStart": "' + weekStartIso + '",',
       '  "summary": "2-4 sentences about the week in Lily\'s voice",',
+      '  "weekScore": 4, "weekScoreEstimated": false,',
       '  "standards": { "tactical": 4, "technical": 4, "psych": 3, "physical": 4, "social": 4 },',
       '  "goalProgress": ["short phrase"],',
       '  "iapTalkingPoints": ["short question or point"],',
       '  "sessions": [',
-      '    { "date": "YYYY-MM-DD", "rating": 4, "ratingEstimated": false,',
+      '    { "date": "YYYY-MM-DD", "rating": null, "ratingEstimated": false,',
       '      "wentWell": ["short first-person phrase"], "workOn": "one thing to work on",',
       '      "nextAction": "one small action", "ifas": ["ifa3"], "england": ["tout1"], "note": "optional one line" }',
       '  ],',
@@ -4029,6 +4111,73 @@
       'TRANSCRIPT:',
       '(paste the Fieldy transcript here)'
     ].join('\n');
+  }
+
+  var WR_BLOCK_DEF = {
+    UNITE:'be a good team-mate, support the GK group, be coachable',
+    LEAD:'communicate, take control, be a role model',
+    BRAVE:'make brave decisions, bounce back from mistakes, want the ball',
+    EDGE:'take ownership, play to your strengths, keep striving for more'
+  };
+  function wrQuestions(weekIso){
+    var we = new Date(weekIso + 'T00:00:00'); we.setDate(we.getDate() + 6);
+    var weekEnd = toIsoDate(we);
+    var syl = getSyllabusForWeek(weekIso);
+    var blk = null; BLUE_BLOCKS.forEach(function(b){ if(weekIso >= b.from && weekIso <= b.to) blk = b; });
+    var matches = state.schedule.filter(function(x){ return x.type === 'match' && x.date >= weekIso && x.date <= weekEnd; });
+    var fb = ipFeedbackBy('workOn');
+    var wkNo = Math.max(0, Math.floor((new Date(weekIso + 'T00:00:00') - new Date('2026-07-27T00:00:00')) / 604800000));
+    var pick = fb.length ? fb[wkNo % fb.length] : null;
+    var q = [];
+    q.push({ t:'Week score', q:'Out of 5, how would you score your week? What makes it that number?' });
+    q.push({ t:'Best moment', q:'What was your best moment this week, in training or in a game? What did you do?' });
+    if(syl && syl.primaryTheme && !/free/i.test(syl.primaryTheme)){
+      q.push({ t:'Weekly theme', q:'This week\'s theme was ' + syl.primaryTheme + (syl.secondaryTheme && syl.secondaryTheme !== syl.primaryTheme ? ' (then ' + syl.secondaryTheme + ')' : '') + '. Where did you see yourself doing that? Give me one example.' });
+    } else if(syl){
+      q.push({ t:'Free week', q:'This was a free week for your own focus. Which of your three focus areas did you work on, and how?' });
+    }
+    if(blk) q.push({ t:'Block behaviour', q:'This block is ' + blk.theme + ': ' + WR_BLOCK_DEF[blk.theme] + '. What did you do this week that showed it? What could you do next week?' });
+    q.push({ t:'Your focus areas', q:'Communication, distribution, crosses. Which of your three focus areas came up most this week? What happened, and what did you try?' });
+    if(pick) q.push({ t:'Coach feedback', q:'The coaches asked you to work on: "' + ipSafe(pick.text) + '". Did you notice it this week? What did you try?' });
+    matches.forEach(function(m){
+      q.push({ t:'Match' + (m.opponent ? ' vs ' + m.opponent : ''), q:'Against ' + (m.opponent || 'the other team') + ': one thing you did well and one thing you would do differently? Is there a moment worth putting on Hudl for your IAP playlist?' });
+    });
+    q.push({ t:'Recovery', q:'How was your recovery this week: sleep, food after sessions, water? Which one habit would you improve?' });
+    q.push({ t:'Next week', q:'What is the one thing you want to get better at next week, and what will you do about it in each session?' });
+    var opt = [
+      { t:'5 Standards (every few weeks)', q:'Score yourself out of 5 on each: Tactical, Technical, Psychological, Physical and Social. Why that number?' },
+      { t:'Think like a No.1', q:'Pick one moment from this week. What would the best goalkeeper in the world have done there?' }
+    ];
+    return { main:q, optional:opt };
+  }
+
+  function openWeeklyQuestions(weekIso){
+    var set = wrQuestions(weekIso);
+    var text = set.main.map(function(x, i){ return (i + 1) + '. ' + x.q; }).join('\n');
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>Questions for Lily</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="hint" style="margin-bottom:10px;">Week of ' + escapeHtml(fmtDate(weekIso)) + '. About ten minutes. Ask them in this order, relaxed, and let her talk. They are built from this week\'s theme, the block behaviour, her focus areas and the coaches\' feedback.</div>' +
+      set.main.map(function(x, i){
+        return '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 4px;">' + (i + 1) + ' · ' + escapeHtml(x.t) + '</div><div style="font-size:14.5px; line-height:1.5;">' + escapeHtml(x.q) + '</div></div>';
+      }).join('') +
+      '<div class="section-label">Now and then</div>' +
+      set.optional.map(function(x){
+        return '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 4px;">' + escapeHtml(x.t) + '</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(x.q) + '</div></div>';
+      }).join('') +
+      '<button type="button" class="btn btn-ghost" id="wq-copy" style="margin-top:12px;">Copy the questions</button>' +
+      '<div class="hint" id="wq-copied" style="display:none; margin-top:6px;"></div>' +
+      '<button type="button" class="btn btn-ghost" id="wq-back" style="margin-top:8px;">Back to the review</button>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.getElementById('wq-back').addEventListener('click', openWeeklyReview);
+    document.getElementById('wq-copy').addEventListener('click', function(){
+      var note = document.getElementById('wq-copied');
+      function fallback(){ note.style.display = 'block'; note.innerHTML = 'Select all of this and copy it:<textarea rows="6" style="width:100%; margin-top:6px;" readonly>' + escapeHtml(text) + '</textarea>'; }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ note.style.display = 'block'; note.textContent = 'Copied.'; }).catch(fallback);
+      } else { fallback(); }
+    });
   }
 
   function wrExtractJson(text){
@@ -4052,6 +4201,7 @@
         '<div class="field"><label>Which week?</label><select id="wr-week">' +
           choices.map(function(d){ var iso = toIsoDate(d); return '<option value="' + iso + '"' + (iso === weekIso ? ' selected' : '') + '>Week of ' + escapeHtml(fmtDate(iso)) + '</option>'; }).join('') +
         '</select></div>' +
+        '<button type="button" class="btn btn-ghost" id="wr-questions" style="margin-bottom:8px;">Questions to ask Lily this week</button>' +
         '<button type="button" class="btn btn-ghost" id="wr-copy">1 · Copy the prompt</button>' +
         '<div class="hint" id="wr-copied" style="display:none; margin-top:6px;"></div>' +
         '<div class="field" style="margin-top:14px;"><label>3 · Paste the result here</label><textarea id="wr-paste" rows="6" placeholder="Starts with { ... and ends with }"></textarea></div>' +
@@ -4061,6 +4211,7 @@
       document.getElementById('close-modal').addEventListener('click', closeModal);
       var sel = document.getElementById('wr-week');
       sel.addEventListener('change', function(){ weekIso = sel.value; });
+      document.getElementById('wr-questions').addEventListener('click', function(){ openWeeklyQuestions(sel.value); });
       document.getElementById('wr-copy').addEventListener('click', function(){
         var prompt = wrBuildPrompt(sel.value);
         var note = document.getElementById('wr-copied');
@@ -4105,7 +4256,7 @@
       var existing = state.reflections.find(function(r){ return r.sessionId === sess.id; });
       if(existing && !existing.weeklyReview){ notes.push(fmtDate(it.date) + ' already has an entry in the journal — left as it is.'); return; }
       var rating = parseInt(it.rating, 10);
-      if(!(rating >= 1 && rating <= 5)){ notes.push('Skipped ' + fmtDate(it.date) + ' — no 1 to 5 rating given.'); return; }
+      if(!(rating >= 1 && rating <= 5)) rating = null;
       rows.push({
         sess: sess, rating: rating, estimated: !!it.ratingEstimated,
         wentWell: (Array.isArray(it.wentWell) ? it.wentWell : (it.wentWell ? [it.wentWell] : [])).map(String).filter(Boolean),
@@ -4122,6 +4273,13 @@
     var skills = Array.isArray(nw.focusSkills) ? nw.focusSkills.map(String).filter(Boolean).slice(0, 6) : [];
     var focuses = (Array.isArray(nw.sessionFocus) ? nw.sessionFocus : []).filter(function(f){ return f && f.date && f.focus; });
     var summary = data.summary ? String(data.summary) : '';
+    var wsRaw = parseInt(data.weekScore, 10);
+    var weekScoreIn = (wsRaw >= 1 && wsRaw <= 5) ? wsRaw : null;
+    var weekScoreEst = weekScoreIn !== null && !!data.weekScoreEstimated;
+    var weekScoreHtml = '<div class="card"><div class="section-label" style="margin:0 0 6px;">Week score</div>' +
+      '<div style="display:flex; align-items:center; gap:10px;"><select id="wr-weekscore"><option value=""' + (weekScoreIn === null ? ' selected' : '') + '>No score</option>' +
+      [1,2,3,4,5].map(function(n){ return '<option value="' + n + '"' + (n === weekScoreIn ? ' selected' : '') + '>' + n + ' out of 5</option>'; }).join('') + '</select>' +
+      '<div class="hint" style="margin:0;">' + (weekScoreIn === null ? 'No week score in the chat. Pick one if Lily gave one.' : (weekScoreEst ? 'Estimated. Check it.' : 'From the chat.')) + '</div></div></div>';
     var stdIn = {};
     ATTR_KEYS.forEach(function(k){ var v = data.standards ? parseInt(data.standards[k], 10) : NaN; if(v >= 1 && v <= 5) stdIn[k] = v; });
     var hasStd = Object.keys(stdIn).length > 0;
@@ -4137,8 +4295,8 @@
     var rowsHtml = rows.map(function(r, i){
       return '<div class="card" style="margin-top:8px;" data-wr-row="' + i + '">' +
         '<div class="card-top"><div><div class="card-title" style="font-size:14px;">' + escapeHtml(fmtDate(r.sess.date) + ' — ' + (r.sess.title || r.sess.type)) + '</div>' +
-        '<div class="card-meta">' + (r.estimated ? 'Rating estimated — check it' : 'Rating from the chat') + '</div></div>' +
-        '<select class="wr-rating">' + [1,2,3,4,5].map(function(n){ return '<option value="' + n + '"' + (n === r.rating ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
+        '<div class="card-meta">' + (r.rating === null ? 'No session score (the week score covers it)' : (r.estimated ? 'Rating estimated — check it' : 'Rating from the chat')) + '</div></div>' +
+        '<select class="wr-rating"><option value=""' + (r.rating === null ? ' selected' : '') + '>No score</option>' + [1,2,3,4,5].map(function(n){ return '<option value="' + n + '"' + (n === r.rating ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
         (r.wentWell.length ? '<div class="eng-char">Went well: ' + escapeHtml(r.wentWell.join('; ')) + '</div>' : '') +
         (r.workOn ? '<div class="eng-char">Work on: ' + escapeHtml(r.workOn) + '</div>' : '') +
         (r.ifas.length ? '<div class="eng-char">Focus Areas: ' + escapeHtml(r.ifas.map(function(k){ var f = IDP_IFAS.find(function(x){ return x.key === k; }); return f ? f.title.replace(/^IFA \d — /, '') : k; }).join(' · ')) + '</div>' : '') +
@@ -4149,7 +4307,8 @@
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Check the review</h2><button class="modal-close" id="close-modal">×</button></div>' +
-      (summary ? '<div class="card"><div class="section-label" style="margin:0 0 6px;">Week summary</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(summary) + '</div></div>' : '') +
+      weekScoreHtml +
+      (summary ? '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 6px;">Week summary</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(summary) + '</div></div>' : '') +
       (rowsHtml ? '<div class="section-label">Sessions</div>' + rowsHtml : '<div class="hint">No sessions to add.</div>') +
       extraHtml +
       ((p1 || skills.length || focuses.length)
@@ -4166,10 +4325,13 @@
     document.getElementById('wr-back').addEventListener('click', openWeeklyReview);
     document.getElementById('wr-save').addEventListener('click', function(){
       var added = 0;
+      var wsv = parseInt(document.getElementById('wr-weekscore').value, 10);
+      if(!(wsv >= 1 && wsv <= 5)) wsv = null;
       document.querySelectorAll('[data-wr-row]').forEach(function(card){
         var r = rows[parseInt(card.getAttribute('data-wr-row'), 10)];
         if(!card.querySelector('.wr-include').checked) return;
         var rating = parseInt(card.querySelector('.wr-rating').value, 10);
+        if(!(rating >= 1 && rating <= 5)) rating = null;
         var parts = [];
         if(r.wentWell.length) parts.push('What went well: ' + r.wentWell.join('; ') + '.');
         if(r.workOn) parts.push('What I want to work on: ' + r.workOn + '.');
@@ -4200,7 +4362,7 @@
         state.schedule.forEach(function(s){ if(s.date === f.date && (s.type === 'training' || s.type === 'match')){ s.focus = String(f.focus); } });
       });
       state.weeklyReviews = (state.weeklyReviews || []).filter(function(w){ return w.weekStart !== weekIso; });
-      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now(), standards: hasStd ? stdIn : null, goalProgress: goalIn, iapTalkingPoints: talkIn });
+      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now(), weekScore: wsv, weekScoreEstimated: (wsv !== null && weekScoreEst && wsv === weekScoreIn), standards: hasStd ? stdIn : null, goalProgress: goalIn, iapTalkingPoints: talkIn });
       saveData();
       closeModal();
       switchView('today');
@@ -4648,7 +4810,7 @@
       var linkedSession = r.sessionId ? state.schedule.find(function(s){ return s.id === r.sessionId; }) : null;
       var pillHtml = r.type === 'gym'
         ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
-        : '<div class="rating-pill ' + ratingClass(r.overall) + '">' + r.overall + '</div>';
+        : (typeof r.overall === 'number' ? '<div class="rating-pill ' + ratingClass(r.overall) + '">' + r.overall + '</div>' : '');
       var previewText = r.type === 'gym' ? (r.gymFocus || 'Gym session') : (r.wentWell || r.evidence || r.action || '');
       return '<div class="card pressable" data-reflection-id="' + r.id + '">' +
         '<div class="card-top">' +
@@ -4818,6 +4980,7 @@
       w.rated = w.refs.filter(function(r){ return typeof r.overall === 'number' && r.type !== 'gym'; });
       w.avg = w.rated.length ? w.rated.reduce(function(a, r){ return a + r.overall; }, 0) / w.rated.length : null;
       w.estimated = w.rated.some(function(r){ return r.ratingEstimated; });
+      if(w.review && typeof w.review.weekScore === 'number'){ w.avg = w.review.weekScore; w.estimated = !!w.review.weekScoreEstimated; w.scoreFromWeek = true; }
       w.sessions = w.refs.filter(function(r){ return r.type === 'training' || r.type === 'match'; }).length;
       var matchIds = {};
       w.refs.forEach(function(r){ if(r.type === 'match') matchIds[r.sessionId || r.id] = true; });
@@ -5998,7 +6161,7 @@
     } else {
       reflectionsWeek.forEach(function(r){
         checkPageBreak(20);
-        var ratingTag = r.type === 'gym' ? (r.gymCompleted === false ? '[Not completed]' : '[Completed]') : ('[' + r.overall + '/5]');
+        var ratingTag = r.type === 'gym' ? (r.gymCompleted === false ? '[Not completed]' : '[Completed]') : (typeof r.overall === 'number' ? '[' + r.overall + '/5]' : '');
         subheading(fmtDate(r.date) + ' — ' + r.title + '   ' + ratingTag);
         var metaBits = [r.type];
         if(r.theme) metaBits.push(r.theme);
@@ -6673,7 +6836,7 @@
         '<span class="card-meta">' + fmtDate(r.date) + '</span>' +
         (r.type === 'gym'
           ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '" style="margin-left:auto;">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
-          : '<div class="rating-pill ' + ratingClass(r.overall) + '" style="margin-left:auto;">' + r.overall + '</div>') +
+          : (typeof r.overall === 'number' ? '<div class="rating-pill ' + ratingClass(r.overall) + '" style="margin-left:auto;">' + r.overall + '</div>' : '')) +
       '</div>' +
       (reviewedMatch ? '<div class="journal-detail-row"><div class="k">Reviewing</div><div class="v">' + fmtDate(reviewedMatch.date) + (reviewedMatch.opponent ? ' vs ' + escapeHtml(reviewedMatch.opponent) : '') + '</div></div>' : '') +
       (hudlSession ? '<a href="' + escapeHtml(hudlSession.hudlLink) + '" target="_blank" rel="noopener" class="hudl-link" style="margin-bottom:16px;">▶ Watch on Hudl</a>' : '') +
