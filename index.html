@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v52 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v53 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -803,8 +803,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v52';
+  var APP_VERSION = 'v53';
   var CHANGELOG = [
+    { version:'v53', notes:'The Journal is now weekly only: one card per week showing the whole week together (training, gym, classroom and match counts, the week score, what went well, what to work on, the match result and the focus areas). Tap a week for everything in it. The individual sessions are tucked away inside each week for editing. The daily list is gone from the Journal.' },
     { version:'v52', notes:'Match Tracker has five new tap reasons that line up with the 2 Oct targets (set early and high, set too low or late, alive early, waited and read the flight, rushed out early). IAP & Xmas Prep now tracks the four targets from the 2 Oct IDP review (set height, being alive earlier, crossing patience, shot-stopping first with resilience): Xmas Card 2 and the IAP briefing show the notes and Match Tracker evidence logged since 2 Oct for each. Hudl clip criteria and talking points rewritten around those targets (higher set, delay commitment and read the flight, composure under press). Praise now lists composure, decision-making, distribution under press, team connection and her app logging. Briefing title carries the date and the questions are for Josh, Seb and Kiera.' },
     { version:'v51', notes:'One score a week. The weekly review now carries a single week score out of 5 (what Lily would give the week); per-session scores are optional. Progress, the temperature check and the Xmas and IAP numbers use the week score. New "Questions to ask Lily" in the Weekly Review: about ten questions built for the week from the 6-week theme, the block behaviour (UNITE, LEAD, BRAVE, EDGE), her three focus areas, the coaches\' feedback, any match, recovery and next week.' },
     { version:'v50.1', notes:'Coach feedback updated with the fuller notes from the IFA / IDP review meeting with Seb, Josh and Kiera: composure, decision-making and distribution under press praised; set higher on long-range strikes; be alive earlier in the defensive third; delay commitment on crosses and read the flight; keep shot-stopping first and stay confident after a goal. These feed the Xmas cards, the IAP briefing, the Hudl learning-clip hints and the weekly review prompt.' },
@@ -4766,83 +4767,14 @@
   // ---------- Render: Journal ----------
   function renderJournal(){
     var list = document.getElementById('journal-list');
-
-    // Reflections build most of the journal. Sessions with a photo attached but no
-    // reflection (Gym, Analysis/Classroom) get their own lightweight card too, so
-    // a photo she's added is always recorded in the journal even without writing anything.
-    var reflectedSessionIds = {};
-    state.reflections.forEach(function(r){ if(r.sessionId) reflectedSessionIds[r.sessionId] = true; });
-    var photoOnlySessions = state.schedule.filter(function(s){ return s.photo && !reflectedSessionIds[s.id]; });
-
-    var combined = state.reflections.map(function(r){ return { date: r.date, kind: 'reflection', ref: r }; })
-      .concat(photoOnlySessions.map(function(s){ return { date: s.date, kind: 'photo', ref: s }; }));
-
-    if(combined.length === 0){
-      list.innerHTML = '<div class="empty-state"><span class="disp">No entries yet</span>Reflections you save will build into a journal here — tap + to add one.</div>';
+    var weeks = buildWeeks().filter(function(w){ return w.refs.length || w.review || w.tracks.length || w.photos.length; }).reverse();
+    if(!weeks.length){
+      list.innerHTML = '<div class="empty-state"><span class="disp">No weeks yet</span>Each week shows up here as one card after the weekly catch-up.</div>';
       return;
     }
-
-    var items = combined.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).reverse();
-
-    var lastWk = '';
-    var weekMap = {};
-    buildWeeks().forEach(function(w){ weekMap[w.weekStart] = w; });
-    list.innerHTML = items.map(function(entry){
-      var wk = entry.date ? weekOf(entry.date) : '';
-      var wkHead = '';
-      if(wk && wk !== lastWk){ lastWk = wk; wkHead = weekHeaderHtml(weekMap[wk], wk); }
-      return wkHead + (function(){
-      if(entry.kind === 'photo'){
-        var s = entry.ref;
-        return '<div class="card pressable" data-photo-journal-id="' + s.id + '">' +
-          '<div class="card-top">' +
-            '<div>' +
-              '<div class="card-title">' + escapeHtml(s.title) + '</div>' +
-              '<div class="card-meta">' + fmtDate(s.date) + '</div>' +
-            '</div>' +
-            '<span class="tag ' + s.type + '">' + s.type + '</span>' +
-          '</div>' +
-          '<div class="card-photo-chip" style="margin-top:10px;"><img src="' + s.photo + '" alt=""> Photo added — no reflection written</div>' +
-        '</div>';
-      }
-      var r = entry.ref;
-      var displayTitle = reflectionDisplayTitle(r);
-      var linkedSession = r.sessionId ? state.schedule.find(function(s){ return s.id === r.sessionId; }) : null;
-      var pillHtml = r.type === 'gym'
-        ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
-        : (typeof r.overall === 'number' ? '<div class="rating-pill ' + ratingClass(r.overall) + '">' + r.overall + '</div>' : '');
-      var previewText = r.type === 'gym' ? (r.gymFocus || 'Gym session') : (r.wentWell || r.evidence || r.action || '');
-      return '<div class="card pressable" data-reflection-id="' + r.id + '">' +
-        '<div class="card-top">' +
-          '<div>' +
-            '<div class="card-title">' + escapeHtml(displayTitle) + '</div>' +
-            '<div class="card-meta">' + fmtDate(r.date) + '</div>' +
-          '</div>' +
-          '<div style="display:flex; align-items:center; gap:8px;">' +
-            '<span class="tag ' + r.type + '">' + r.type + '</span>' +
-            pillHtml +
-          '</div>' +
-        '</div>' +
-        '<div class="card-focus">' + escapeHtml(truncate(previewText, 90)) + '</div>' +
-        (r.theme ? '<div class="theme-chip">' + escapeHtml(r.theme) + '</div>' : '') +
-        (linkedSession && linkedSession.photo ? '<div class="card-photo-chip" style="margin-top:10px;"><img src="' + linkedSession.photo + '" alt=""> Photo attached</div>' : '') +
-      '</div>';
-      })();
-    }).join('');
-    list.querySelectorAll('[data-week-head]').forEach(function(h){
-      h.addEventListener('click', function(){ openWeekDetail(h.getAttribute('data-week-head')); });
-    });
-
-    list.querySelectorAll('[data-reflection-id]').forEach(function(card){
-      card.addEventListener('click', function(){
-        openReflectionDetail(card.getAttribute('data-reflection-id'));
-      });
-    });
-    list.querySelectorAll('[data-photo-journal-id]').forEach(function(card){
-      card.addEventListener('click', function(){
-        var s = state.schedule.find(function(x){ return x.id === card.getAttribute('data-photo-journal-id'); });
-        if(s && s.photo) openPhotoLightbox(s.photo);
-      });
+    list.innerHTML = '<div class="hint" style="margin-bottom:0;">One card for each week. Tap a week to see everything in it.</div>' + weeks.map(weekCardHtml).join('');
+    list.querySelectorAll('[data-week]').forEach(function(c){
+      c.addEventListener('click', function(){ openWeekDetail(c.getAttribute('data-week')); });
     });
   }
 
@@ -4974,6 +4906,7 @@
       if(d) get(weekOf(d)).tracks.push(t);
     });
     (state.weeklyReviews || []).forEach(function(w){ if(w.weekStart) get(w.weekStart).review = w; });
+    (state.schedule || []).forEach(function(x){ if(x.date && x.photo) get(weekOf(x.date)); });
     return Object.keys(map).sort().map(function(k){
       var w = map[k];
       w.refs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
@@ -4986,6 +4919,25 @@
       w.refs.forEach(function(r){ if(r.type === 'match') matchIds[r.sessionId || r.id] = true; });
       w.tracks.forEach(function(t){ matchIds[t.sessionId || t.id] = true; });
       w.matches = Object.keys(matchIds).length;
+      var wkEnd = toIsoDate(new Date(new Date(k + 'T00:00:00').getTime() + 6 * 86400000));
+      var wkSched = (state.schedule || []).filter(function(x){ return x.date >= k && x.date <= wkEnd; });
+      function cntType(t){ var a = wkSched.filter(function(x){ return x.type === t; }).length, b = w.refs.filter(function(r){ return r.type === t; }).length; return Math.max(a, b); }
+      w.counts = { training:cntType('training'), gym:cntType('gym'), classroom:cntType('analysis'), match:Math.max(cntType('match'), w.matches) };
+      w.photos = wkSched.filter(function(x){ return x.photo; });
+      var mm = {};
+      w.refs.forEach(function(r){
+        if(r.type !== 'match') return;
+        var sess = r.sessionId ? (state.schedule || []).find(function(x){ return x.id === r.sessionId; }) : null;
+        mm[r.sessionId || r.id] = { opp:r.opponent || (sess && sess.opponent) || '', goals:(typeof r.goalsConceded === 'number' ? r.goalsConceded : null), tracker:null, ref:r };
+      });
+      w.tracks.forEach(function(t){
+        var key = t.sessionId || t.id;
+        var sess = t.sessionId ? (state.schedule || []).find(function(x){ return x.id === t.sessionId; }) : null;
+        var m = mm[key] || (mm[key] = { opp:(sess && sess.opponent) || t.opponent || '', goals:null, tracker:null, ref:null });
+        m.tracker = trackerFinalRating(t);
+        if(m.goals === null) m.goals = trackerGoalsConceded(t);
+      });
+      w.matchList = Object.keys(mm).map(function(x){ return mm[x]; });
       var gyms = w.refs.filter(function(r){ return r.type === 'gym'; });
       w.gymTotal = gyms.length;
       w.gymDone = gyms.filter(function(r){ return r.gymCompleted !== false; }).length;
@@ -5007,11 +4959,42 @@
   }
 
   function weekMetaText(w){
+    var c = w.counts || { training:w.sessions, gym:w.gymTotal, classroom:0, match:w.matches };
     var bits = [];
-    if(w.sessions) bits.push(w.sessions + ' session' + (w.sessions === 1 ? '' : 's'));
-    if(w.matches) bits.push(w.matches + ' match' + (w.matches === 1 ? '' : 'es'));
-    if(w.gymTotal) bits.push('gym ' + w.gymDone + '/' + w.gymTotal);
-    return bits.join(' · ') || 'Nothing rated';
+    if(c.training) bits.push('Training ' + c.training);
+    if(c.gym) bits.push('Gym ' + c.gym);
+    if(c.classroom) bits.push('Classroom ' + c.classroom);
+    if(c.match) bits.push('Match ' + c.match);
+    return bits.join(' · ') || 'Nothing logged';
+  }
+  function weekWent(w){
+    var out = [];
+    w.refs.forEach(function(r){
+      if(r.type === 'gym' || r.type === 'analysis' || !r.wentWell) return;
+      String(r.wentWell).split(/;\s*/).forEach(function(x){ x = x.trim(); if(x && out.indexOf(x) < 0) out.push(x); });
+    });
+    return out;
+  }
+  function weekWork(w){
+    var out = [];
+    w.refs.forEach(function(r){ var x = (r.evenBetterIf || '').trim(); if(x && r.type !== 'gym' && r.type !== 'analysis' && out.indexOf(x) < 0) out.push(x); });
+    return out;
+  }
+  function weekMatchLine(m){
+    return 'vs ' + (m.opp || 'match') + (m.goals !== null ? ' · conceded ' + m.goals : '') + (m.tracker !== null ? ' · Tracker ' + m.tracker.toFixed(1) : '');
+  }
+  function weekCardHtml(w){
+    var went = weekWent(w).slice(0, 3), work = weekWork(w).slice(0, 2);
+    return '<div class="card pressable" data-week="' + w.weekStart + '" style="margin-top:10px;">' +
+      '<div class="card-top"><div><div class="card-title">Week of ' + escapeHtml(fmtDate(w.weekStart)) + '</div>' +
+      '<div class="card-meta">' + escapeHtml(weekMetaText(w)) + '</div></div>' +
+      (w.avg !== null ? '<div class="rating-pill ' + weekDotClass(w.avg) + '">' + weekAvgText(w) + '</div>' : '') + '</div>' +
+      (w.summary ? '<div class="card-focus">' + escapeHtml(truncate(w.summary, 160)) + '</div>' : '') +
+      (went.length ? '<div class="eng-char"><b>Went well:</b> ' + escapeHtml(went.join(' · ')) + '</div>' : '') +
+      (work.length ? '<div class="eng-char"><b>Work on:</b> ' + escapeHtml(work.join(' · ')) + '</div>' : '') +
+      w.matchList.slice(0, 2).map(function(m){ return '<div class="eng-char"><b>Match:</b> ' + escapeHtml(weekMatchLine(m)) + '</div>'; }).join('') +
+      (w.ifas.length ? '<div style="margin-top:6px;">' + w.ifas.map(function(k){ return '<span class="theme-chip">' + escapeHtml(k.toUpperCase().replace('IFA', 'IFA ')) + '</span>'; }).join(' ') + '</div>' : '') +
+      '</div>';
   }
   function weekAvgText(w){ return w.avg === null ? '—' : (w.estimated ? '~' : '') + w.avg.toFixed(1); }
   function weekHeaderHtml(w, ws){
@@ -5080,6 +5063,7 @@
   function openWeekDetail(ws){
     var w = buildWeeks().find(function(x){ return x.weekStart === ws; });
     if(!w) return;
+    var went = weekWent(w), work = weekWork(w);
     var rows = w.refs.map(function(r){
       var pill = r.type === 'gym'
         ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
@@ -5089,23 +5073,32 @@
         '<div class="card-meta">' + escapeHtml(fmtDate(r.date)) + ' · ' + r.type + '</div></div>' + pill + '</div>' +
         (txt ? '<div class="card-focus">' + escapeHtml(truncate(txt, 120)) + '</div>' : '') + '</div>';
     }).join('');
-    var tracks = w.tracks.map(function(t){
-      var sess = t.sessionId ? state.schedule.find(function(s){ return s.id === t.sessionId; }) : null;
-      return '<div class="eng-char">Match Tracker: ' + escapeHtml((sess && sess.opponent ? 'vs ' + sess.opponent + ' ' : '') + trackerFinalRating(t).toFixed(1) + ' rating, ' + trackerGoalsConceded(t) + ' conceded') + '</div>';
-    }).join('');
-    var std = w.review && w.review.standards ? ATTR_KEYS.filter(function(k){ return w.review.standards[k]; }).map(function(k){ return ATTR_LABELS[k] + ' ' + w.review.standards[k]; }).join(' · ') : '';
+    var rv = w.review || {};
+    var std = rv.standards ? ATTR_KEYS.filter(function(k){ return rv.standards[k]; }).map(function(k){ return ATTR_LABELS[k] + ' ' + rv.standards[k]; }).join(' · ') : '';
+    var gymLine = w.gymTotal ? '<div class="eng-char"><b>Gym:</b> ' + w.gymDone + ' of ' + w.gymTotal + ' done</div>' : '';
+    var photos = w.photos.length ? '<div class="section-label">Photos</div><div style="display:flex; gap:8px; flex-wrap:wrap;">' + w.photos.map(function(x){ return '<img src="' + x.photo + '" alt="" data-wk-photo="' + x.id + '" style="width:84px; height:84px; object-fit:cover; border-radius:8px;">'; }).join('') + '</div>' : '';
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Week of ' + escapeHtml(fmtDate(ws)) + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
-      '<div class="hint" style="margin-bottom:10px;">' + escapeHtml(weekRangeLabel(ws)) + ' · ' + escapeHtml(weekMetaText(w)) + (w.avg !== null ? ' · average ' + weekAvgText(w) + '/5' : '') + '</div>' +
-      (w.summary ? '<div class="card"><div class="section-label" style="margin:0 0 6px;">The week in a few words</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(w.summary) + '</div></div>' : '') +
-      ((tracks || std || w.ifas.length) ? '<div class="card" style="margin-top:8px;">' + tracks + (std ? '<div class="eng-char">5 Standards: ' + escapeHtml(std) + '</div>' : '') +
-        (w.ifas.length ? '<div class="eng-char">Focus areas touched: ' + w.ifas.map(function(k){ var f = IDP_IFAS.find(function(x){ return x.key === k; }); return escapeHtml(f ? f.title.replace(/^IFA \d — /, '') : k); }).join(' · ') + '</div>' : '') + '</div>' : '') +
-      '<div class="section-label">Sessions</div>' + (rows || '<div class="hint">No sessions in the journal for this week.</div>')
+      '<div class="hint" style="margin-bottom:10px;">' + escapeHtml(weekRangeLabel(ws)) + ' · ' + escapeHtml(weekMetaText(w)) + '</div>' +
+      '<div class="card"><div class="card-top"><div class="section-label" style="margin:0;">The week</div>' + (w.avg !== null ? '<div class="rating-pill ' + weekDotClass(w.avg) + '">' + weekAvgText(w) + '</div>' : '') + '</div>' +
+        (w.summary ? '<div style="font-size:14px; line-height:1.5; margin-top:6px;">' + escapeHtml(w.summary) + '</div>' : '<div class="hint" style="margin-top:6px;">No weekly summary yet.</div>') + '</div>' +
+      (went.length ? '<div class="section-label">Went well</div><div class="card">' + went.map(function(x){ return '<div class="eng-char" style="margin-top:0;">• ' + escapeHtml(x) + '</div>'; }).join('') + '</div>' : '') +
+      (work.length ? '<div class="section-label">Work on</div><div class="card">' + work.map(function(x){ return '<div class="eng-char" style="margin-top:0;">• ' + escapeHtml(x) + '</div>'; }).join('') + '</div>' : '') +
+      ((w.matchList.length || gymLine) ? '<div class="section-label">Match and gym</div><div class="card">' + w.matchList.map(function(m){ return '<div class="eng-char" style="margin-top:0;">Match ' + escapeHtml(weekMatchLine(m)) + '</div>'; }).join('') + gymLine + '</div>' : '') +
+      ((w.ifas.length || std || (rv.goalProgress && rv.goalProgress.length)) ? '<div class="section-label">Focus areas and goals</div><div class="card">' +
+        (w.ifas.length ? '<div class="eng-char" style="margin-top:0;">' + w.ifas.map(function(k){ var f = IDP_IFAS.find(function(x){ return x.key === k; }); return escapeHtml(f ? f.title.replace(/^IFA \d — /, '') : k); }).join(' · ') + '</div>' : '') +
+        (std ? '<div class="eng-char">5 Standards: ' + escapeHtml(std) + '</div>' : '') +
+        (rv.goalProgress || []).map(function(g){ return '<div class="eng-char">Goal: ' + escapeHtml(g) + '</div>'; }).join('') + '</div>' : '') +
+      photos +
+      (rows ? '<details class="hudl-step" style="margin-top:14px;"><summary>The individual sessions (tap one to edit)</summary>' + rows + '</details>' : '')
     );
     document.getElementById('close-modal').addEventListener('click', closeModal);
     modalContent.querySelectorAll('[data-wk-ref]').forEach(function(c){
       c.addEventListener('click', function(){ openReflectionDetail(c.getAttribute('data-wk-ref')); });
+    });
+    modalContent.querySelectorAll('[data-wk-photo]').forEach(function(img){
+      img.addEventListener('click', function(){ var x = state.schedule.find(function(y){ return y.id === img.getAttribute('data-wk-photo'); }); if(x && x.photo) openPhotoLightbox(x.photo); });
     });
   }
 
