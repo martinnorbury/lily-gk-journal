@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v47.1 — 31 Oct 2026 -->
+<!-- Lily GK Journal — v49 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -618,6 +618,30 @@
     background:rgba(255,128,128,0.1); border:1px solid rgba(255,128,128,0.4); border-radius:10px;
     padding:13px 15px; font-size:13px; line-height:1.55; color:var(--text); margin-bottom:16px;
   }
+  .ip-head{background:#034694;color:#fff;border-radius:12px;padding:14px;margin:0 0 12px}
+  .ip-head-t{font-weight:700;font-size:16px}
+  .ip-head-s{font-size:12px;opacity:.9;margin-top:3px}
+  .ip-tabs{display:flex;gap:6px;margin-bottom:12px}
+  .ip-tab{flex:1;padding:10px 4px;border-radius:10px;border:1px solid #034694;background:transparent;color:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+  .ip-tab.on{background:#034694;color:#fff}
+  .ip-clip{border-left:4px solid #034694;margin-top:8px}
+  .ip-clip.learn{border-left-color:#E8A33D}
+  .ip-clip-top{display:flex;justify-content:space-between;align-items:center}
+  .ip-chip{display:inline-block;background:#034694;color:#fff;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;text-transform:capitalize}
+  .ip-clip.learn .ip-chip{background:#E8A33D;color:#2A1A00}
+  .ip-clock{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}
+  .ip-clip-match{font-weight:600;font-size:14px;margin-top:6px}
+  .ip-clip-note{font-size:13px;line-height:1.45;margin-top:4px;opacity:.9}
+  .ip-card{border-top:4px solid #034694}
+  .ip-card-t{font-weight:700;font-size:15px;margin-bottom:8px;color:#4C8BE0}
+  .ip-ifa{margin-top:12px}
+  .ip-ifa-t{font-weight:600;font-size:13.5px}
+  .ip-quote{font-size:13px;line-height:1.45;margin-top:6px;font-style:italic}
+  .ip-quote span{font-style:normal;opacity:.6;font-size:11px}
+  .ip-moment{font-size:12.5px;margin-top:5px;opacity:.9}
+  .ip-suggs{display:flex;flex-wrap:wrap;gap:6px}
+  .ip-sugg{border:1px solid #034694;background:transparent;color:inherit;border-radius:16px;padding:6px 10px;font-size:12px;cursor:pointer;text-align:left}
+  .ip-export{margin-top:14px;width:100%;background:#034694;color:#fff;border:none;padding:14px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer}
 </style>
 
 <div id="gk-root">
@@ -718,6 +742,7 @@
 
   <!-- STANDARDS VIEW -->
   <div class="gk-view hidden" id="view-standards">
+    <button class="btn btn-primary" id="open-iap-prep-btn" style="margin-bottom:12px;background:#034694;">IAP &amp; Xmas Review Prep</button>
     <div id="idp-wrap"></div>
     <div id="england-wrap"></div>
     <div class="section-label">My Goals</div>
@@ -772,8 +797,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v47.1';
+  var APP_VERSION = 'v49';
   var CHANGELOG = [
+    { version:'v49', notes:'Built from Chelsea\'s own documents: the weekly themes now continue the 6-week cycle to 14 Dec (marked as planned until Seb confirms), Lily\'s three IFAs use the exact wording from her IDP, and the IAP & Xmas Prep uses Chelsea\'s 100-point recovery score, the clip criteria for each focus area, the Hudl sharing rules, the Block 2 LEAD theme and the BLUE definitions. The Xmas cards now cover July to December and ask for adjusted or new IFAs for January to May.' },
+    { version:'v48', notes:'New IAP & Xmas Prep (Standards tab): a Hudl 12-clip playlist helper built from Match Tracker moments, three player-only Xmas review cards, and a one-page IAP briefing, with an Export IAP Prep PDF button. Nothing England-related ever appears in it. Progress no longer shows "logged / scheduled" counts, ignores estimated ratings in the averages, and counts goals and clean sheets from Match Tracker. The weekly review can now also carry the 5 Standards scores, goal progress and IAP talking points.' },
     { version:'v47.1', notes:'Removed the last "Tap to log it" / "Tap to edit" wording from the Schedule cards. Sessions still open when tapped; nothing nags.' },
     { version:'v47', notes:'A calmer app. Today now just shows the day, the week\'s focus and the last catch-up — no nudges, no catch-up list, no reminders. New Weekly Review (Schedule tab): after the weekly video catch-up, copy a ready-made prompt, give it to Claude or NotebookLM with the transcript, and paste back the result to fill in the week\'s journal entries, next week\'s block focus and each session\'s focus. Lily doesn\'t have to log anything.' },
     { version:'v46.2', notes:'Schedule import: the weekly PDF says "WEEK COMMENCING 12th October" with no year, which is why dates came through blank and nothing was imported. The year is now worked out automatically.' },
@@ -939,24 +966,24 @@
   var IDP_IFAS = [
     {
       key:'ifa1', title:'IFA 1 — Communication & Team Connection', tag:'Performance Focus',
-      category:'GK ID · Social · Team Player · In Possession · Dominate the Ball · Over Opposition Structure',
+      category:'Social & Team Player · IP / Dominate Ball / Over Structure',
       what:'Develop my connection with the team so I can be confident & trusted when communicating in & out of possession.',
-      how:'Build a basic communication library with the GK coach to feel confident calling on the pitch. Make an active effort to spend time with the team and build chemistry off it.',
-      who:'Lily (GK) · GK Coach · Team-mates · Team Coaches'
+      how:'With GK coach build a basic communication library to be confident in what I’m saying. To make the effort to spend time with the team & build chemistry with them.',
+      who:'GK / GK Coach / Team-mates / Team Coaches'
     },
     {
       key:'ifa2', title:'IFA 2 — Distribution Range & Pass Types', tag:'Development Focus',
-      category:'In Possession · Dominate the Ball · Over Opposition Structure',
-      what:'Increase the distance I can play into, onto & in behind the front line. Increase my range of pass types (driven, lofted, curled).',
-      how:'Work with GK coach on different ball-striking techniques during and after training. Fully commit to my physical performance programme with PPCs.',
-      who:'Lily (GK) · GK Coach · PPC (Physical Performance Coach)'
+      category:'Game Model · IP / Dominate Ball / Over Structure',
+      what:'Increase the distance I can play into, onto & in behind the front line. Increase my range of pass types (driven, lofted, curled)',
+      how:'Work with GK coach to try different ball striking techniques during & after training. Fully commit & apply myself to my physical performance programme with PPCs.',
+      who:'GK / GK Coach / PPC'
     },
     {
       key:'ifa3', title:'IFA 3 — Cross Taking & Aerial Dominance', tag:'Development Focus',
-      category:'Game Model · Out of Possession · Dominate the Area · Cross',
-      what:'Improve decision-making & execution in cross-taking situations. Claim more crosses through bodies.',
-      how:'Add 6 extra crosses at the end of at least 1 training session per week. Dominate the area as often as possible in training. Work in the gym on upper-body strength and lower-body power.',
-      who:'Lily (GK) · GK Coach · PPC (Physical Performance Coach)'
+      category:'Game Model · OOP / Dominate Area / Cross',
+      what:'Improve decision making & executions in cross taking situations. Claim more crosses through bodies.',
+      how:'Add 6 crosses at the end of at least 1 training session per week. Try to dominate the area as often as possible in training. Work in the gym on upper body strength and lower body power to deal with physical challenges.',
+      who:'GK / GK Coach / PPC'
     }
   ];
 
@@ -994,7 +1021,25 @@
     { weekStart:'2026-09-21', primaryTheme:'Dominate the Space', secondaryTheme:'Dominate the Goal', focusSkills:['Sweeper-keeper positioning','Intercepting through-balls','Deceleration strides'] },
     { weekStart:'2026-09-28', primaryTheme:'Dominate the Ball', secondaryTheme:'Dominate the Space', focusSkills:['In-possession distribution','Playing outside the defensive structure (to CBs/FBs)','Playing under pressure'] },
     { weekStart:'2026-10-05', primaryTheme:'Dominate the Goal', secondaryTheme:'Dominate the Ball', focusSkills:['Mid & long-range shot-stopping','Pre-set footwork','Maximising distribution range'] },
-    { weekStart:'2026-10-12', primaryTheme:'Individual Focus / Free Week', secondaryTheme:'Individual Focus', focusSkills:['Personal development targets','Individual Focus Areas (IFAs)','Video micro-reviews'] }
+    { weekStart:'2026-10-12', primaryTheme:'Individual Focus / Free Week', secondaryTheme:'Individual Focus', focusSkills:['Personal development targets','Individual Focus Areas (IFAs)','Video micro-reviews'] },
+    // Planned: the same 6-week cycle carried on to the end of Block 2 (GK Induction 26/27, slides 20 and 22).
+    // The exact week-by-week dates are not in Chelsea's documents, so these are marked projected until Seb confirms.
+    { weekStart:'2026-10-19', projected:true, primaryTheme:'Dominate the Goal', secondaryTheme:'Dominate the Area', focusSkills:['Close-range shot-stopping','Set-plays','Defending goalmouth scrambles'] },
+    { weekStart:'2026-10-26', projected:true, primaryTheme:'Dominate the Area', secondaryTheme:'Dominate the Ball', focusSkills:['Dealing with crosses','Near-post aerial interceptions','GK-Union warm-ups'] },
+    { weekStart:'2026-11-02', projected:true, primaryTheme:'Dominate the Space', secondaryTheme:'Dominate the Goal', focusSkills:['Sweeper-keeper positioning','Intercepting through-balls','Deceleration strides'] },
+    { weekStart:'2026-11-09', projected:true, primaryTheme:'Dominate the Ball', secondaryTheme:'Dominate the Space', focusSkills:['In-possession distribution','Playing outside the defensive structure (to CBs/FBs)','Playing under pressure'] },
+    { weekStart:'2026-11-16', projected:true, primaryTheme:'Dominate the Goal', secondaryTheme:'Dominate the Ball', focusSkills:['Mid & long-range shot-stopping','Pre-set footwork','Maximising distribution range'] },
+    { weekStart:'2026-11-23', projected:true, primaryTheme:'Individual Focus / Free Week', secondaryTheme:'Individual Focus', focusSkills:['Personal development targets','Individual Focus Areas (IFAs)','Video micro-reviews'] },
+    { weekStart:'2026-11-30', projected:true, primaryTheme:'Dominate the Goal', secondaryTheme:'Dominate the Area', focusSkills:['Close-range shot-stopping','Set-plays','Defending goalmouth scrambles'] },
+    { weekStart:'2026-12-07', projected:true, primaryTheme:'Dominate the Area', secondaryTheme:'Dominate the Ball', focusSkills:['Dealing with crosses','Near-post aerial interceptions','GK-Union warm-ups'] },
+    { weekStart:'2026-12-14', projected:true, primaryTheme:'Dominate the Space', secondaryTheme:'Dominate the Goal', focusSkills:['Sweeper-keeper positioning','Intercepting through-balls','Deceleration strides'] }
+  ];
+  // Chelsea's block themes (Ops & Tech Induction): each block lines up with one BLUE behaviour.
+  var BLUE_BLOCKS = [
+    { name:'Block 1', theme:'UNITE', from:'2026-09-01', to:'2026-10-26' },
+    { name:'Block 2', theme:'LEAD',  from:'2026-11-03', to:'2026-12-20' },
+    { name:'Block 3', theme:'BRAVE', from:'2027-01-02', to:'2027-02-15' },
+    { name:'Block 4', theme:'EDGE',  from:'2027-02-23', to:'2027-04-06' }
   ];
 
   function getIdpState(){
@@ -1283,6 +1328,466 @@
 
     doc.save('lily-iap-briefing-' + cutoffIso + '.pdf');
   }
+
+
+  // ---------- IAP & Xmas Review Prep (v48) ----------
+  // Built for the 15 Dec 2026 Block 2 IAP review and the independent Xmas review.
+  // Chelsea-facing only: it never reads englandChars / englandPicked, and any free text
+  // that mentions England / the FA is dropped (ipSafe) so nothing private can leak.
+  var IP_FROM = '2026-07-01';
+  var IP_TAB = 'hudl';
+  var IP_PRIVATE_RE = /england|lioness|three lions|\bFA\b|st\.? george|\bSGP\b/i;
+  var ipSaveTimer = null;
+  function ipSafe(s){ s = String(s == null ? '' : s).trim(); return (!s || IP_PRIVATE_RE.test(s)) ? '' : s; }
+  function ipPrepState(){
+    state.iapPrep = state.iapPrep || {};
+    if(!Array.isArray(state.iapPrep.targets)) state.iapPrep.targets = [{target:'',adjust:''},{target:'',adjust:''},{target:'',adjust:''}];
+    while(state.iapPrep.targets.length < 3) state.iapPrep.targets.push({target:'',adjust:''});
+    return state.iapPrep;
+  }
+  function ipSaveSoon(){ clearTimeout(ipSaveTimer); ipSaveTimer = setTimeout(function(){ saveData(); }, 800); }
+  function ipRefs(){
+    return (state.reflections || []).filter(function(r){ return r.date >= IP_FROM; })
+      .sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+  }
+  function ipTracks(){
+    return (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).map(function(t){
+      var sess = t.sessionId ? state.schedule.find(function(s){ return s.id === t.sessionId; }) : null;
+      return { t:t, date:(sess && sess.date) || t.date || '', opp:(sess && sess.opponent) || t.opponent || '' };
+    }).filter(function(x){ return !x.date || x.date >= IP_FROM; });
+  }
+  function ipMatchLabel(date, opp){ return (opp ? 'vs ' + opp + ' · ' : '') + (date ? fmtDate(date) : 'match not linked yet'); }
+  function ipAvg(list){ return list.length ? list.reduce(function(a, b){ return a + b; }, 0) / list.length : null; }
+
+  var IP_TALK = {
+    call:'What did I see, and what did I say?',
+    nocall:'What stopped me, and what will I say next time?',
+    fwdpass:'Why did I choose that pass, and what did the press look like?',
+    turnover:'What option did I miss?',
+    cross:'How did I read the flight, and where did I take it?',
+    crossmiss:'What held me back? Did I stay on my line?',
+    bigsave:'How early was I set, and what did I see before the shot?',
+    save:'Was I set early and balanced?',
+    won1v1:'What made me big and brave?',
+    lost1v1:'What would an earlier set or start have changed?',
+    spill:'Was my set late, or my hands in the wrong place?',
+    position:'Where should I have been?',
+    error:'What did I see, and what would I do differently?'
+  };
+
+  var IP_GOAL_OK = ['bigsave', 'save', 'won1v1'];
+  var IP_GOAL_BAD = ['lost1v1', 'spill', 'position', 'error'];
+  var IP_CRITERIA = {
+    ifa1:{ ok:'Clear vocal organisation of the back line, calling early for the ball.', bad:'Quiet or late communication that caused defensive confusion.' },
+    ifa2:{ ok:'Calm under pressure, switching play to exploit the far-side overload.', bad:'Forcing the pass back into pressure on the same side.' },
+    ifa3:{ ok:'Brave, decisive claim at full extension, through bodies.', bad:'Misjudging the flight or staying pinned on the line.' },
+    goal:{ ok:'Early set stance, then a clean catch or reaction save.', bad:'Late set, still moving or flat-footed when the shot is released.' }
+  };
+  var IP_HUDL_RULES = 'Share the playlist with Kiera by Monday 14 Dec. Set coach access to Can View or Can Contribute and tag it with the player label Lily Norbury. Clips are for internal development only and must never be posted on social media.';
+  var IP_AREAS = [
+    { key:'ifa1', ifa:'ifa1', title:'IFA 1 · Communication & Team Connection',
+      succ:function(e){ return e.ifa === 'ifa1' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa1' && e.delta < 0; } },
+    { key:'ifa2', ifa:'ifa2', title:'IFA 2 · Distribution Range & Pass Selection',
+      succ:function(e){ return e.ifa === 'ifa2' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa2' && e.delta < 0; } },
+    { key:'ifa3', ifa:'ifa3', title:'IFA 3 · Cross Taking & Aerial Dominance',
+      succ:function(e){ return e.ifa === 'ifa3' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa3' && e.delta < 0; } },
+    { key:'goal', ifa:null, title:'Dominate the Goal · Set Stance',
+      succ:function(e){ return IP_GOAL_OK.indexOf(e.key) > -1; }, learn:function(e){ return IP_GOAL_BAD.indexOf(e.key) > -1; } }
+  ];
+
+  function ipPickDistinct(list, n){
+    var picked = [], used = {};
+    list.forEach(function(it){
+      var k = it.date + '|' + it.opp;
+      if(picked.length < n && !used[k]){ picked.push(it); used[k] = true; }
+    });
+    list.forEach(function(it){ if(picked.length < n && picked.indexOf(it) < 0) picked.push(it); });
+    return picked;
+  }
+
+  function ipClips(){
+    var tracks = ipTracks();
+    var matchRefs = ipRefs().filter(function(r){ return r.type === 'match'; });
+    var rows = [], gaps = 0;
+    IP_AREAS.forEach(function(area){
+      var succ = [], learn = [];
+      tracks.forEach(function(m){
+        var off = m.t.videoOffsetSec || 0;
+        (m.t.events || []).forEach(function(e){
+          var clock = fmtClock(off + (e.t || 0)) + (off ? '' : ' *');
+          var item = { date:m.date, opp:m.opp, clock:clock, key:e.key, label:e.label, delta:e.delta };
+          if(area.succ(e)) succ.push(item); else if(area.learn(e)) learn.push(item);
+        });
+      });
+      succ.sort(function(a, b){ return (b.delta - a.delta) || (a.date < b.date ? 1 : -1); });
+      learn.sort(function(a, b){ return (a.delta - b.delta) || (a.date < b.date ? 1 : -1); });
+      function fill(kind, want, list){
+        var got = ipPickDistinct(list, want);
+        got.forEach(function(it){
+          rows.push({ area:area.title, akey:area.key, type:kind, match:ipMatchLabel(it.date, it.opp), clock:it.clock, note:it.label + ' — ' + (IP_TALK[it.key] || '') });
+        });
+        var need = want - got.length;
+        if(need > 0 && area.ifa){
+          var fb = matchRefs.filter(function(r){
+            return getLinkedIfas(r).indexOf(area.ifa) > -1 && ipSafe(kind === 'Success' ? r.wentWell : r.evenBetterIf);
+          }).sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+          fb.slice(0, need).forEach(function(r){
+            rows.push({ area:area.title, akey:area.key, type:kind, match:ipMatchLabel(r.date, r.opponent), clock:'find it', note:truncate(ipSafe(kind === 'Success' ? r.wentWell : r.evenBetterIf), 150) });
+            need--;
+          });
+        }
+        for(var i = 0; i < need; i++){
+          gaps++;
+          rows.push({ area:area.title, akey:area.key, type:kind, match:'Not found yet', clock:'—', note:'No logged moment yet. Use Match Tracker or rewatch a match and pick one.' });
+        }
+      }
+      fill('Success', 2, succ);
+      fill('Learning', 1, learn);
+    });
+    return { rows:rows, gaps:gaps, trackedCount:tracks.length };
+  }
+
+  function ipStandards(){
+    var refs = ipRefs(), out = {};
+    ATTR_KEYS.forEach(function(k){
+      var vals = refs.map(function(r){ return r.attributes ? Number(r.attributes[k]) : NaN; }).filter(function(v){ return v >= 1 && v <= 5; });
+      (state.weeklyReviews || []).forEach(function(w){
+        if(w.weekStart >= '2026-07-27' && w.standards && Number(w.standards[k]) >= 1 && Number(w.standards[k]) <= 5) vals.push(Number(w.standards[k]));
+      });
+      out[k] = vals.length ? { avg:ipAvg(vals).toFixed(1), n:vals.length } : null;
+    });
+    return out;
+  }
+  // Chelsea's 100-point recovery system (CFCWA Recovery Guidance). The app's check-in has six habits;
+  // the contrast shower (5 points) shares a tick with mobility, so it is not scored separately.
+  var IP_RECOVERY_POINTS = { sleep:30, mealAfter:30, snackAfter:20, hydration:20, screens:10, mobility:10 };
+  function ipRecoveryBand(score){
+    if(score >= 100) return 'Excellent';
+    if(score >= 80) return 'Good';
+    if(score >= 60) return 'Fair';
+    if(score >= 40) return 'Poor';
+    if(score >= 20) return 'Very poor';
+    return 'Critical';
+  }
+  function ipRecovery(){
+    var logs = (state.recoveryLogs || []).filter(function(r){ return (r.forDate || '') >= IP_FROM; });
+    var scores = logs.map(function(l){
+      var t = 0;
+      Object.keys(IP_RECOVERY_POINTS).forEach(function(k){ if(l.checklist && l.checklist[k]) t += IP_RECOVERY_POINTS[k]; });
+      return t;
+    });
+    var avg = scores.length ? Math.round(ipAvg(scores)) : null;
+    return { n:logs.length, score:avg, band: avg === null ? '' : ipRecoveryBand(avg) };
+  }
+  function ipRatings(){
+    return ipRefs().filter(function(r){ return typeof r.overall === 'number' && !r.ratingEstimated; });
+  }
+  function ipIfaEvidence(){
+    var refs = ipRefs(), tracks = ipTracks();
+    return IDP_IFAS.map(function(ifa){
+      var quotes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1 && ipSafe(r.wentWell); })
+        .sort(function(a, b){ return ((b.overall || 0) - (a.overall || 0)) || (a.date < b.date ? 1 : -1); })
+        .slice(0, 3).map(function(r){ return { date:r.date, text:truncate(ipSafe(r.wentWell), 150) }; });
+      var moments = [];
+      tracks.forEach(function(m){
+        (m.t.events || []).forEach(function(e){ if(e.ifa === ifa.key && e.delta >= 0) moments.push({ date:m.date, opp:m.opp, label:e.label, delta:e.delta }); });
+      });
+      moments.sort(function(a, b){ return (b.delta - a.delta) || (a.date < b.date ? 1 : -1); });
+      var linked = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
+      var rt = linked.filter(function(r){ return typeof r.overall === 'number' && !r.ratingEstimated; }).map(function(r){ return r.overall; });
+      return { ifa:ifa, quotes:quotes, moments:moments.slice(0, 2), momentCount:moments.length, linkedCount:linked.length, avg: rt.length ? ipAvg(rt).toFixed(1) : null };
+    });
+  }
+  function ipDna(){
+    var tracks = ipTracks(), refs = ipRefs();
+    function count(keys){ var n = 0; tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(keys.indexOf(e.key) > -1) n++; }); }); return n; }
+    return {
+      brave: count(['brave', 'bounce']),
+      lead: count(['call']),
+      edge: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length
+    };
+  }
+  function ipGrowth(){
+    var r = ipRatings();
+    var a = r.filter(function(x){ return x.date < '2026-11-01'; }).map(function(x){ return x.overall; });
+    var b = r.filter(function(x){ return x.date >= '2026-11-01'; }).map(function(x){ return x.overall; });
+    return { first: a.length ? ipAvg(a).toFixed(1) : null, nFirst:a.length, later: b.length ? ipAvg(b).toFixed(1) : null, nLater:b.length };
+  }
+  function ipSuggestedTargets(){
+    var seen = {}, out = [];
+    ipRefs().slice().reverse().forEach(function(r){
+      var t = ipSafe(r.evenBetterIf);
+      var k = t.toLowerCase();
+      if(t && !seen[k] && out.length < 5){ seen[k] = true; out.push(truncate(t, 90)); }
+    });
+    return out;
+  }
+  function ipGoalNotes(){
+    var out = [];
+    (state.weeklyReviews || []).slice().sort(function(a, b){ return a.weekStart < b.weekStart ? 1 : -1; }).forEach(function(w){
+      (w.goalProgress || []).forEach(function(g){ var s = ipSafe(g); if(s && out.length < 3) out.push(s); });
+    });
+    return out;
+  }
+  function ipSuggestedQuestions(){
+    var out = [];
+    (state.weeklyReviews || []).slice().sort(function(a, b){ return a.weekStart < b.weekStart ? 1 : -1; }).forEach(function(w){
+      (w.iapTalkingPoints || []).forEach(function(g){ var s = ipSafe(g); if(s && out.length < 3) out.push(s); });
+    });
+    return out;
+  }
+  var IP_QUESTION_STARTERS = [
+    'What do I need to show in form, fitness and training to be considered for the U16 European Tours?',
+    'What would you like to see from me in the second half of the season?',
+    'Which of my IFAs should I keep, change or replace for January to May?'
+  ];
+
+
+  function openIapPrep(){ IP_TAB = 'hudl'; ipRender(); }
+
+  function ipRender(){
+    var tabs = [['hudl', 'Hudl clips'], ['xmas', 'Xmas cards'], ['brief', 'IAP briefing']];
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>IAP &amp; Xmas Prep</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="ip-head"><div class="ip-head-t">Lily Norbury · U15 Block 2</div><div class="ip-head-s">IAP review Tue 15 Dec 2026 · 18:50–19:10 · Hudl playlist due 14 Dec</div></div>' +
+      '<div class="ip-tabs">' + tabs.map(function(t){ return '<button type="button" class="ip-tab' + (IP_TAB === t[0] ? ' on' : '') + '" data-ip-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div id="ip-body">' + ipTabHtml() + '</div>' +
+      '<button type="button" class="btn ip-export" id="ip-export-btn">Export IAP Prep PDF</button>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.querySelectorAll('.ip-tab').forEach(function(b){
+      b.addEventListener('click', function(){ IP_TAB = b.getAttribute('data-ip-tab'); ipRender(); });
+    });
+    document.getElementById('ip-export-btn').addEventListener('click', ipExportPdf);
+    ipWireInputs();
+  }
+
+  function ipWireInputs(){
+    document.querySelectorAll('.ip-target, .ip-adjust').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var i = parseInt(inp.getAttribute('data-i'), 10);
+        ipPrepState().targets[i][inp.classList.contains('ip-target') ? 'target' : 'adjust'] = inp.value;
+        ipSaveSoon();
+      });
+    });
+    document.querySelectorAll('.ip-sugg').forEach(function(b){
+      b.addEventListener('click', function(){
+        var tg = ipPrepState().targets;
+        var slot = tg.findIndex(function(t){ return !t.target; });
+        if(slot < 0){ return; }
+        tg[slot].target = b.getAttribute('data-text');
+        saveData(); ipRender();
+      });
+    });
+    document.querySelectorAll('.ip-q').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        state.iapDiscussionPoints = state.iapDiscussionPoints || ['', '', ''];
+        state.iapDiscussionPoints[parseInt(inp.getAttribute('data-i'), 10)] = inp.value;
+        ipSaveSoon();
+      });
+    });
+  }
+
+  function ipTabHtml(){
+    if(IP_TAB === 'xmas') return ipXmasHtml();
+    if(IP_TAB === 'brief') return ipBriefHtml();
+    return ipHudlHtml();
+  }
+
+  function ipHudlHtml(){
+    var c = ipClips();
+    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of the 4 focus areas.</div>';
+    var last = '';
+    c.rows.forEach(function(r){
+      if(r.area !== last){
+        html += '<div class="section-label">' + escapeHtml(r.area) + '</div>';
+        var cr = IP_CRITERIA[r.akey]; if(cr){ html += '<div class="hint" style="margin:-4px 0 4px;"><b>Success:</b> ' + escapeHtml(cr.ok) + '<br><b>Learning:</b> ' + escapeHtml(cr.bad) + '</div>'; }
+        last = r.area;
+      }
+      html += '<div class="card ip-clip ' + (r.type === 'Success' ? 'ok' : 'learn') + '">' +
+        '<div class="ip-clip-top"><span class="ip-chip">' + r.type + '</span><span class="ip-clock">' + (r.clock === '—' ? '—' : '▶ ' + escapeHtml(r.clock)) + '</span></div>' +
+        '<div class="ip-clip-match">' + escapeHtml(r.match) + '</div>' +
+        '<div class="ip-clip-note">' + escapeHtml(r.note) + '</div></div>';
+    });
+    html += '<div class="hint" style="margin-top:10px;">' +
+      (c.trackedCount === 0 ? 'No tracked matches yet, so clips come from journal notes only. ' : c.trackedCount + ' tracked match' + (c.trackedCount === 1 ? '' : 'es') + ' used. ') +
+      (c.gaps ? c.gaps + ' clip' + (c.gaps === 1 ? ' is' : 's are') + ' still missing. ' : 'All 12 clips have a candidate. ') +
+      IP_HUDL_RULES + ' Times are Hudl video times. A * means the Hudl offset has not been set for that match (Tracker, then the match review), so it is the match clock. “find it” means the moment came from a journal note with no time, so rewatch that match. Set stance is not tracked directly, so the Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).</div>';
+    return html;
+  }
+
+  function ipXmasHtml(){
+    var st = ipStandards(), rec = ipRecovery(), rt = ipRatings(), tracks = ipTracks(), ev = ipIfaEvidence();
+    var avg = rt.length ? ipAvg(rt.map(function(r){ return r.overall; })).toFixed(1) : null;
+    var stdRows = ATTR_KEYS.map(function(k){
+      return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + (st[k] ? st[k].avg + ' / 5' : '—') + '</div></div>';
+    }).join('');
+    var card1 = '<div class="card ip-card"><div class="ip-card-t">Card 1 · My first-half numbers</div>' + stdRows +
+      '<div class="journal-detail-row"><div class="k">Recovery score</div><div class="v">' + (rec.score === null ? '—' : rec.score + ' · ' + rec.band) + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Average session rating</div><div class="v">' + (avg ? avg + ' / 5' : '—') + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Sessions in my journal</div><div class="v">' + ipRefs().length + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Matches tracked</div><div class="v">' + tracks.length + '</div></div>' +
+      '<div class="hint" style="margin-top:8px;">July to December. Recovery score is my average on Chelsea\'s 100-point system' + (rec.n ? ' (' + rec.n + ' check-ins)' : '') + '; 100+ is Excellent, 80-99 Good, 60-79 Fair. Standards averages only count sessions I scored.</div></div>';
+    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 2 · My progress on my 3 IFAs</div>' + ev.map(function(e){
+      var q = e.quotes.length ? e.quotes.map(function(x){ return '<div class="ip-quote">“' + escapeHtml(x.text) + '”<span> ' + escapeHtml(fmtDate(x.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes linked yet.</div>';
+      var m = e.moments.map(function(x){ return '<div class="ip-moment">▶ ' + escapeHtml(ipMatchLabel(x.date, x.opp)) + ' — ' + escapeHtml(x.label) + '</div>'; }).join('');
+      return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + '</div>' + q + m + '</div>';
+    }).join('') + '</div>';
+    var tg = ipPrepState().targets, sugg = ipSuggestedTargets(), goals = ipGoalNotes();
+    var card3 = '<div class="card ip-card"><div class="ip-card-t">Card 3 · My IFAs for January to May 2027</div><div class="hint" style="margin-bottom:8px;">Chelsea asks for adjustments to my 3 IFAs or new ones for the second half of the season.</div>' +
+      [0, 1, 2].map(function(i){
+        return '<div class="field"><label>IFA ' + (i + 1) + ' for Jan to May</label><input type="text" class="ip-target" data-i="' + i + '" value="' + escapeHtml(tg[i].target) + '" placeholder="Keep, adjust or a new focus area">' +
+          '<input type="text" class="ip-adjust" data-i="' + i + '" value="' + escapeHtml(tg[i].adjust) + '" placeholder="What I will change to get there" style="margin-top:6px;"></div>';
+      }).join('') +
+      (sugg.length ? '<div class="hint" style="margin-bottom:6px;">Ideas from things I said I want to work on (tap to add):</div><div class="ip-suggs">' + sugg.map(function(s){ return '<button type="button" class="ip-sugg" data-text="' + escapeHtml(s) + '">' + escapeHtml(s) + '</button>'; }).join('') + '</div>' : '') +
+      (goals.length ? '<div class="hint" style="margin:10px 0 4px;">Goal notes from my catch-ups:</div>' + goals.map(function(g){ return '<div class="ip-moment">' + escapeHtml(g) + '</div>'; }).join('') : '') +
+      '</div>';
+    return card1 + card2 + card3;
+  }
+
+  function ipBriefHtml(){
+    var ev = ipIfaEvidence(), dna = ipDna(), gr = ipGrowth(), idp = getIdpState();
+    var dq = state.iapDiscussionPoints || ['', '', ''], sq = ipSuggestedQuestions();
+    var ph = sq.concat(IP_QUESTION_STARTERS);
+    var statusWord = function(k){ return String((idp.ifaStatuses && idp.ifaStatuses[k]) || 'on_track').replace(/_/g, ' '); };
+    var growth = (gr.first && gr.later) ? 'Average session rating ' + gr.first + ' (Aug–Oct) to ' + gr.later + ' (Nov onwards).' :
+      (gr.first || gr.later) ? 'Average session rating ' + (gr.first || gr.later) + ' so far.' : 'Not enough rated sessions yet for a trend.';
+    return '<div class="card ip-card"><div class="ip-card-t">Lily Norbury · U15 Block 2 IAP Review Briefing</div>' +
+      '<div class="hint">Tue 15 Dec 2026 · 18:50–19:10 · with Kiera, Josh and Seb · Block 2 theme: LEAD</div>' +
+      '<div class="section-label">Mid-season progress</div><div class="ip-quote" style="margin-top:0;">' + escapeHtml(growth) + '</div>' +
+      ev.map(function(e){
+        var q = e.quotes[0] ? '“' + e.quotes[0].text + '”' : 'No notes linked yet.';
+        return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + ' <span class="ip-chip">' + escapeHtml(statusWord(e.ifa.key)) + '</span></div>' +
+          '<div class="ip-moment">' + e.linkedCount + ' linked session' + (e.linkedCount === 1 ? '' : 's') + (e.avg ? ' · average ' + e.avg + '/5' : '') + (e.momentCount ? ' · ' + e.momentCount + ' good match moment' + (e.momentCount === 1 ? '' : 's') : '') + '</div>' +
+          '<div class="ip-quote">' + escapeHtml(q) + '</div></div>';
+      }).join('') +
+      '<div class="section-label">Chelsea GK DNA</div>' +
+      '<div class="hint" style="margin-bottom:6px;">Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.</div>' +
+      '<div class="journal-detail-row"><div class="k">Brave</div><div class="v">' + dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's') + ' tracked</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Leading</div><div class="v">' + dna.lead + ' good call' + (dna.lead === 1 ? '' : 's') + ' tracked</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Edge</div><div class="v">Named her own next step in ' + dna.edge + ' sessions</div></div>' +
+      '<div class="section-label">Questions I want to ask Josh and Seb</div>' +
+      [0, 1, 2].map(function(i){ return '<div class="field"><input type="text" class="ip-q" data-i="' + i + '" value="' + escapeHtml(dq[i] || '') + '" placeholder="' + escapeHtml(ph[i] || 'My question') + '"></div>'; }).join('') +
+      '</div>';
+  }
+
+  function ipExportPdf(){
+    if(!(window.jspdf && window.jspdf.jsPDF)){ alert('The PDF tool has not loaded. Check the connection and try again.'); return; }
+    var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
+    var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), mx = 15, y = 0;
+    function safe(s){
+      return String(s == null ? '' : s).replace(/→/g, '->').replace(/[▶✓●○]/g, '').replace(/·/g, '-')
+        .replace(/[^\x20-\x7E -ÿ–—‘’“”…]/g, '');
+    }
+    function need(n){ if(y + n > H - 14){ doc.addPage(); y = 18; } }
+    function band(title, sub){
+      doc.setFillColor(3, 70, 148); doc.rect(0, 0, W, 24, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(safe(title), mx, 11);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text(safe(sub), mx, 18.5);
+      y = 32;
+    }
+    function head(t){ need(10); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(3, 70, 148); doc.text(safe(t), mx, y); y += 5.5; }
+    function para(t, o){
+      o = o || {};
+      doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize(o.size || 9.5);
+      var c = o.color || [50, 60, 80]; doc.setTextColor(c[0], c[1], c[2]);
+      doc.splitTextToSize(safe(t), W - mx * 2 - (o.indent || 0)).forEach(function(l){ need(5); doc.text(l, mx + (o.indent || 0), y); y += o.lh || 4.6; });
+    }
+    function line(k, v){
+      need(5); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(90, 100, 120); doc.text(safe(k), mx + 2, y);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 30, 50); doc.text(safe(v), mx + 62, y); y += 5;
+    }
+    var date = new Date().toLocaleDateString('en-GB');
+
+    // 1 · Hudl clips
+    var c = ipClips();
+    band('Hudl playlist: Lily Norbury + IAP1', '12 clips: 2 successful + 1 learning for each focus area · due 14 Dec 2026');
+    var cols = [{ w:36, t:'Focus area' }, { w:19, t:'Clip type' }, { w:38, t:'Match & date' }, { w:15, t:'Hudl time' }, { w:72, t:'Key note / talking point' }];
+    function tHead(){
+      need(8); doc.setFillColor(225, 235, 250); doc.rect(mx, y - 4, W - mx * 2, 6.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(3, 70, 148);
+      var x = mx + 1; cols.forEach(function(cc){ doc.text(cc.t, x, y); x += cc.w; }); y += 5;
+    }
+    tHead();
+    c.rows.forEach(function(r){
+      var cells = [r.area.replace(' · ', ': '), r.type, r.match, r.clock, r.note];
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      var lines = cells.map(function(t, i){ return doc.splitTextToSize(safe(t), cols[i].w - 2); });
+      var n = Math.max.apply(null, lines.map(function(l){ return l.length; }));
+      if(y + n * 3.9 + 3 > H - 14){ doc.addPage(); y = 18; tHead(); }
+      doc.setTextColor(40, 50, 70);
+      var x = mx + 1;
+      lines.forEach(function(l, i){ l.forEach(function(t, j){ doc.text(t, x, y + j * 3.9); }); x += cols[i].w; });
+      y += n * 3.9 + 1.5; doc.setDrawColor(220, 225, 235); doc.line(mx, y - 1, W - mx, y - 1); y += 1.5;
+    });
+    y += 2;
+    para(IP_HUDL_RULES, { size:8, color:[3, 70, 148], lh:3.8 });
+    para('What each clip should show: ' + IP_AREAS.map(function(a){ return a.title.split(' · ')[0] + ' - success: ' + IP_CRITERIA[a.key].ok + ' Learning: ' + IP_CRITERIA[a.key].bad; }).join('  '), { size:8, color:[90, 100, 120], lh:3.8 });
+    para('Times are Hudl video times. An asterisk means the Hudl offset has not been set for that match, so the time is the match clock. "find it" means rewatch that match to find the moment. Set stance is not tracked directly, so Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).', { size:8, color:[110, 120, 140], lh:3.8 });
+
+    // 2 · Xmas cards (player only)
+    doc.addPage(); y = 0;
+    var st = ipStandards(), rec = ipRecovery(), rt = ipRatings(), ev = ipIfaEvidence(), tg = ipPrepState().targets;
+    band('My mid-season review', 'Lily Norbury · U15 · presented by me, on my own');
+    head('Card 1 - My first-half numbers (July to December)');
+    ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], st[k] ? st[k].avg + ' / 5' : '—'); });
+    line('Recovery score (100-point)', rec.score === null ? '—' : rec.score + ' - ' + rec.band);
+    line('Average session rating', rt.length ? ipAvg(rt.map(function(r){ return r.overall; })).toFixed(1) + ' / 5' : '—');
+    y += 3;
+    head('Card 2 - IFA breakthroughs & evidence');
+    ev.forEach(function(e){
+      para(e.ifa.title, { bold:true, color:[30, 55, 100] });
+      if(!e.quotes.length && !e.moments.length) para('Nothing linked yet.', { indent:3, color:[140, 140, 150] });
+      e.quotes.forEach(function(q){ para('"' + q.text + '" (' + fmtDate(q.date) + ')', { indent:3 }); });
+      e.moments.forEach(function(m){ para('Match moment: ' + ipMatchLabel(m.date, m.opp) + ' - ' + m.label, { indent:3, color:[3, 70, 148] }); });
+      y += 1.5;
+    });
+    y += 2;
+    head('Card 3 - My IFAs for January to May 2027: adjusted or new');
+    var anyT = false;
+    tg.forEach(function(t, i){
+      if(!t.target && !t.adjust) return; anyT = true;
+      para((i + 1) + '. ' + (t.target || '...'), { bold:true });
+      if(t.adjust) para('What I will change: ' + t.adjust, { indent:4 });
+    });
+    if(!anyT) para('Not filled in yet.', { color:[140, 140, 150] });
+
+    // 3 · Joint briefing (one page)
+    doc.addPage(); y = 0;
+    var gr = ipGrowth(), dna = ipDna(), idp = getIdpState();
+    band('Lily Norbury - U15 Block 2 IAP Review Briefing', '15 Dec 2026 · 18:50-19:10 · Kiera, Josh and Seb · Block 2 theme: LEAD');
+    head('Mid-season progress');
+    para((gr.first && gr.later) ? 'Average session rating ' + gr.first + ' (Aug-Oct) to ' + gr.later + ' (Nov onwards).' : (gr.first || gr.later) ? 'Average session rating ' + (gr.first || gr.later) + ' so far.' : 'Not enough rated sessions yet for a trend.');
+    y += 1;
+    ev.forEach(function(e){
+      var s = String((idp.ifaStatuses && idp.ifaStatuses[e.ifa.key]) || 'on_track').replace(/_/g, ' ');
+      para(e.ifa.title + '  [' + s + ']', { bold:true, color:[30, 55, 100] });
+      para(e.linkedCount + ' linked session(s)' + (e.avg ? ', average ' + e.avg + '/5' : '') + (e.momentCount ? ', ' + e.momentCount + ' good match moment(s)' : ''), { indent:3 });
+      if(e.quotes[0]) para('"' + truncate(e.quotes[0].text, 110) + '"', { indent:3, color:[90, 100, 120] });
+    });
+    y += 2; head('Chelsea GK DNA');
+    line('Brave', dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's'));
+    line('Leading', dna.lead + ' good call' + (dna.lead === 1 ? '' : 's'));
+    line('Edge', 'named her own next step in ' + dna.edge + ' sessions');
+    para('Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.', { size:8, color:[110, 120, 140], lh:3.8 });
+    y += 3; head('Questions Lily wants to ask Josh and Seb');
+    var dq = (state.iapDiscussionPoints || []).filter(function(p){ return p && p.trim(); });
+    if(!dq.length) para('Not filled in yet.', { color:[140, 140, 150] });
+    dq.slice(0, 3).forEach(function(p, i){ para((i + 1) + '. ' + p, { indent:2 }); });
+
+    var n = doc.internal.getNumberOfPages();
+    for(var p = 1; p <= n; p++){
+      doc.setPage(p); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 170);
+      doc.text('Lily\'s GK Journal ' + APP_VERSION + '  -  generated ' + date + '  -  page ' + p + ' of ' + n, mx, H - 8);
+    }
+    doc.save('lily-iap-xmas-prep.pdf');
+  }
+
+  (function(){
+    var b = document.getElementById('open-iap-prep-btn');
+    if(b) b.addEventListener('click', openIapPrep);
+  })();
 
 
   function getIdpTimelineStage(){
@@ -1649,6 +2154,7 @@
     if(syl){
       html += '<div class="syllabus-primary">' + escapeHtml(syl.primaryTheme) + '</div>' +
         (syl.secondaryTheme && syl.secondaryTheme !== syl.primaryTheme ? '<div class="syllabus-secondary">Secondary: ' + escapeHtml(syl.secondaryTheme) + '</div>' : '') +
+        (syl.projected ? '<div class="hint" style="margin-top:4px;">Planned from the 6-week cycle</div>' : '') +
         (syl.focusSkills && syl.focusSkills.length ?
           '<details class="hudl-step" style="margin-top:10px;"><summary>Focus Skills</summary>' +
             '<ul class="pde-list">' + syl.focusSkills.map(function(s){ return '<li>' + escapeHtml(s) + '</li>'; }).join('') + '</ul>' +
@@ -2632,6 +3138,7 @@
       weekHtml = '<div class="card" style="margin-top:12px;"><div class="section-label" style="margin:0 0 6px;">This week</div>' +
         '<div class="card-title" style="font-size:16px;">' + escapeHtml(syl.primaryTheme) + '</div>' +
         (syl.secondaryTheme && syl.secondaryTheme !== syl.primaryTheme ? '<div class="card-meta">Then: ' + escapeHtml(syl.secondaryTheme) + '</div>' : '') +
+        (syl.projected ? '<div class="card-meta">Planned from the 6-week cycle</div>' : '') +
         ((syl.focusSkills && syl.focusSkills.length) ? '<div class="eng-char">' + syl.focusSkills.map(escapeHtml).join(' · ') + '</div>' : '') +
       '</div>';
     }
@@ -3424,6 +3931,8 @@
       '- Write in Lily\'s voice (first person), kind and honest, no pressure, short plain phrases.',
       '- Do NOT include any gym sessions or classroom/analysis sessions — only training sessions and matches.',
       '- Ratings are 1 to 5 (1 = rubbish, 3 = okay, 5 = brilliant). Use the number Lily gave. If she described the session without a number, pick the closest and set "ratingEstimated": true.',
+      '- OPTIONAL: if Lily scored herself on the 5 Standards (tactical, technical, psych, physical, social) in the chat, add them as "standards" (1 to 5). Only if she said them. Otherwise leave "standards" out.',
+      '- OPTIONAL: "goalProgress" = what she said about her personal goals this week (short phrases). "iapTalkingPoints" = up to 3 things she said she wants to raise with the coaches at her IAP review. Leave out if not mentioned.',
       '- "ifas" are the Chelsea Focus Areas the session touched; "england" are the England goalkeeper characteristic ids it touched. Only include those that clearly fit.',
       '- Reply with ONE JSON block only, no other text.',
       '',
@@ -3443,6 +3952,9 @@
       '{',
       '  "weekStart": "' + weekStartIso + '",',
       '  "summary": "2-4 sentences about the week in Lily\'s voice",',
+      '  "standards": { "tactical": 4, "technical": 4, "psych": 3, "physical": 4, "social": 4 },',
+      '  "goalProgress": ["short phrase"],',
+      '  "iapTalkingPoints": ["short question or point"],',
       '  "sessions": [',
       '    { "date": "YYYY-MM-DD", "rating": 4, "ratingEstimated": false,',
       '      "wentWell": ["short first-person phrase"], "workOn": "one thing to work on",',
@@ -3553,6 +4065,17 @@
     var skills = Array.isArray(nw.focusSkills) ? nw.focusSkills.map(String).filter(Boolean).slice(0, 6) : [];
     var focuses = (Array.isArray(nw.sessionFocus) ? nw.sessionFocus : []).filter(function(f){ return f && f.date && f.focus; });
     var summary = data.summary ? String(data.summary) : '';
+    var stdIn = {};
+    ATTR_KEYS.forEach(function(k){ var v = data.standards ? parseInt(data.standards[k], 10) : NaN; if(v >= 1 && v <= 5) stdIn[k] = v; });
+    var hasStd = Object.keys(stdIn).length > 0;
+    var goalIn = (Array.isArray(data.goalProgress) ? data.goalProgress : []).map(String).filter(Boolean).slice(0, 5);
+    var talkIn = (Array.isArray(data.iapTalkingPoints) ? data.iapTalkingPoints : []).map(String).filter(Boolean).slice(0, 3);
+    var extraHtml = (hasStd || goalIn.length || talkIn.length)
+      ? '<div class="section-label">Also from the catch-up</div><div class="card">' +
+          (hasStd ? '<div class="eng-char" style="margin-top:0;">5 Standards: ' + ATTR_KEYS.filter(function(k){ return stdIn[k]; }).map(function(k){ return ATTR_LABELS[k] + ' ' + stdIn[k]; }).join(' · ') + '</div>' : '') +
+          goalIn.map(function(g){ return '<div class="eng-char">Goal: ' + escapeHtml(g) + '</div>'; }).join('') +
+          talkIn.map(function(g){ return '<div class="eng-char">For the IAP: ' + escapeHtml(g) + '</div>'; }).join('') +
+        '</div>' : '';
 
     var rowsHtml = rows.map(function(r, i){
       return '<div class="card" style="margin-top:8px;" data-wr-row="' + i + '">' +
@@ -3571,6 +4094,7 @@
       '<div class="modal-header"><h2>Check the review</h2><button class="modal-close" id="close-modal">×</button></div>' +
       (summary ? '<div class="card"><div class="section-label" style="margin:0 0 6px;">Week summary</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(summary) + '</div></div>' : '') +
       (rowsHtml ? '<div class="section-label">Sessions</div>' + rowsHtml : '<div class="hint">No sessions to add.</div>') +
+      extraHtml +
       ((p1 || skills.length || focuses.length)
         ? '<div class="section-label">Next week (w/c ' + escapeHtml(fmtDate(nextIso)) + ')</div><div class="card">' +
             (p1 ? '<div class="eng-char" style="margin-top:0;">Block focus: ' + escapeHtml(p1) + (p2 ? ' then ' + escapeHtml(p2) : '') + '</div>' : '') +
@@ -3619,7 +4143,7 @@
         state.schedule.forEach(function(s){ if(s.date === f.date && (s.type === 'training' || s.type === 'match')){ s.focus = String(f.focus); } });
       });
       state.weeklyReviews = (state.weeklyReviews || []).filter(function(w){ return w.weekStart !== weekIso; });
-      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now() });
+      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now(), standards: hasStd ? stdIn : null, goalProgress: goalIn, iapTalkingPoints: talkIn });
       saveData();
       closeModal();
       switchView('today');
@@ -4182,6 +4706,20 @@
     });
   }
 
+  // Goals conceded per match: a goals figure typed into a match entry wins; otherwise the
+  // Match Tracker's 'Goal conceded' + 'Error led to a goal' taps for that match.
+  function trackerGoalsConceded(t){ return (t.events || []).filter(function(e){ return e.key === 'goal' || e.key === 'error'; }).length; }
+  function collectMatchGoals(refs){
+    var out = [], seen = {};
+    refs.forEach(function(r){
+      if(r.type === 'match' && typeof r.goalsConceded === 'number'){ out.push(r.goalsConceded); if(r.sessionId) seen[r.sessionId] = true; }
+    });
+    (state.matchTracks || []).forEach(function(t){
+      if(t.status === 'done' && !(t.sessionId && seen[t.sessionId])){ out.push(trackerGoalsConceded(t)); }
+    });
+    return out;
+  }
+
   function renderProgress(){
     var refs = sortByDate(state.reflections);
     var statsEl = document.getElementById('progress-stats');
@@ -4192,13 +4730,14 @@
     var matchRefsWithGoals = refs.filter(function(r){ return r.type === 'match' && typeof r.goalsConceded === 'number'; });
     var matchCount = refs.filter(function(r){ return r.type === 'match'; }).length;
     var matchScheduled = state.schedule.filter(function(s){ return s.type === 'match' && s.date <= todayStr; }).length;
-    var cleanSheets = matchRefsWithGoals.filter(function(r){ return r.goalsConceded === 0; }).length;
-    var totalConceded = matchRefsWithGoals.reduce(function(a, r){ return a + r.goalsConceded; }, 0);
+    var matchGoalList = collectMatchGoals(refs);
+    var cleanSheets = matchGoalList.filter(function(g){ return g === 0; }).length;
+    var totalConceded = matchGoalList.reduce(function(a, g){ return a + g; }, 0);
     var feltAtFault = refs.reduce(function(a, r){
       if(!r.concededGoals) return a;
       return a + r.concededGoals.filter(function(g){ return g.couldDoDifferently === 'yes'; }).length;
     }, 0);
-    var rated = refs.filter(function(r){ return typeof r.overall === 'number'; });
+    var rated = refs.filter(function(r){ return typeof r.overall === 'number' && !r.ratingEstimated; });
     var goodCount = rated.filter(function(r){ return r.overall >= 4; }).length;
     // Run Rate: total of every "How'd It Go, Honestly?" score / total of those entries —
     // the honest average, not just a headcount of sessions logged.
@@ -4209,14 +4748,14 @@
     // Training/Matches show "logged / scheduled so far" rather than a bare count — a
     // raw "18" reads as 18 real sessions' worth of detail when it might really be
     // 18 out of 30 training days that actually got a reflection written.
-    var trainingStatNum = trainingScheduled > 0 ? (trainingCount + ' / ' + trainingScheduled) : String(trainingCount);
-    var matchStatNum = matchScheduled > 0 ? (matchCount + ' / ' + matchScheduled) : String(matchCount);
+    var trainingStatNum = String(trainingCount);
+    var matchStatNum = String(matchCount);
 
     statsEl.innerHTML =
       '<div class="stat-card"><div class="stat-num">' + refs.length + '</div><div class="stat-label">Total Entries</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + runRate + (rated.length > 0 ? '<span style="font-size:0.5em;">/5</span>' : '') + '</div><div class="stat-label">Run Rate (' + rated.length + ' scored)</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + trainingStatNum + '</div><div class="stat-label">Training Logged</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + matchStatNum + '</div><div class="stat-label">Matches Logged</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + trainingStatNum + '</div><div class="stat-label">Training Sessions</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + matchStatNum + '</div><div class="stat-label">Matches</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + goodCount + ' / ' + rated.length + '</div><div class="stat-label">Felt Good or Great</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + totalConceded + '</div><div class="stat-label">Goals Conceded</div></div>' +
