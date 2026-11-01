@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v49.1 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v50 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -618,6 +618,9 @@
     background:rgba(255,128,128,0.1); border:1px solid rgba(255,128,128,0.4); border-radius:10px;
     padding:13px 15px; font-size:13px; line-height:1.55; color:var(--text); margin-bottom:16px;
   }
+  .week-head{margin:16px 2px 4px;padding:8px 10px;border-left:3px solid var(--cyan);cursor:pointer}
+  .week-head-t{font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;color:var(--text)}
+  .week-head-s{font-size:12px;color:var(--text-dim);margin-top:2px}
   .ip-head{background:#034694;color:#fff;border-radius:12px;padding:14px;margin:0 0 12px}
   .ip-head-t{font-weight:700;font-size:16px}
   .ip-head-s{font-size:12px;opacity:.9;margin-top:3px}
@@ -700,14 +703,17 @@
 
   <!-- PROGRESS VIEW -->
   <div class="gk-view hidden" id="view-progress">
-    <div class="section-label">Overview</div>
+    <div class="section-label">Season Overview</div>
     <div class="stat-grid" id="progress-stats"></div>
 
-    <div class="section-label">Temperature Check</div>
+    <div class="section-label">Weekly Temperature Check</div>
     <div class="card" id="temp-gauge-wrap"></div>
 
+    <div class="section-label">Week By Week</div>
+    <div id="progress-week-list"></div>
+
     <div class="section-label">Linked To My Focus Areas</div>
-    <div class="hint" style="margin-bottom:0;">How many entries relate to each IFA so far — tap one to see them.</div>
+    <div class="hint" style="margin-bottom:0;">How many weeks touched each IFA so far. Tap one to see the evidence.</div>
     <div id="progress-ifa-links"></div>
 
     <div class="section-label">My Story So Far</div>
@@ -797,8 +803,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v49.1';
+  var APP_VERSION = 'v50';
   var CHANGELOG = [
+    { version:'v50', notes:'Progress is now weekly. The overview and temperature check work by week (weeks reviewed, average week, good weeks, best week), with a week-by-week list and a tap-through page for each week. Every earlier daily entry is rolled up into its week automatically, so nothing is lost. The Journal groups entries under a week header, and the focus-area links count weeks rather than entries.' },
     { version:'v49.1', notes:'Coach feedback from the player review with Seb and Kiera is now in the app: praised for distribution and team confidence; work on unusual saves and close-range box positioning; the coach liked Lily tracking her IFAs in the app. It shows in the IAP briefing, the Xmas cards and the PDF, feeds the ideas for next-half targets, and is included in the weekly review prompt. New coach feedback can be added in the IAP briefing tab.' },
     { version:'v49', notes:'Built from Chelsea\'s own documents: the weekly themes now continue the 6-week cycle to 14 Dec (marked as planned until Seb confirms), Lily\'s three IFAs use the exact wording from her IDP, and the IAP & Xmas Prep uses Chelsea\'s 100-point recovery score, the clip criteria for each focus area, the Hudl sharing rules, the Block 2 LEAD theme and the BLUE definitions. The Xmas cards now cover July to December and ask for adjusted or new IFAs for January to May.' },
     { version:'v48', notes:'New IAP & Xmas Prep (Standards tab): a Hudl 12-clip playlist helper built from Match Tracker moments, three player-only Xmas review cards, and a one-page IAP briefing, with an Export IAP Prep PDF button. Nothing England-related ever appears in it. Progress no longer shows "logged / scheduled" counts, ignores estimated ratings in the averages, and counts goals and clean sheets from Match Tracker. The weekly review can now also carry the 5 Standards scores, goal progress and IAP talking points.' },
@@ -4615,7 +4622,14 @@
 
     var items = combined.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).reverse();
 
+    var lastWk = '';
+    var weekMap = {};
+    buildWeeks().forEach(function(w){ weekMap[w.weekStart] = w; });
     list.innerHTML = items.map(function(entry){
+      var wk = entry.date ? weekOf(entry.date) : '';
+      var wkHead = '';
+      if(wk && wk !== lastWk){ lastWk = wk; wkHead = weekHeaderHtml(weekMap[wk], wk); }
+      return wkHead + (function(){
       if(entry.kind === 'photo'){
         var s = entry.ref;
         return '<div class="card pressable" data-photo-journal-id="' + s.id + '">' +
@@ -4651,7 +4665,11 @@
         (r.theme ? '<div class="theme-chip">' + escapeHtml(r.theme) + '</div>' : '') +
         (linkedSession && linkedSession.photo ? '<div class="card-photo-chip" style="margin-top:10px;"><img src="' + linkedSession.photo + '" alt=""> Photo attached</div>' : '') +
       '</div>';
+      })();
     }).join('');
+    list.querySelectorAll('[data-week-head]').forEach(function(h){
+      h.addEventListener('click', function(){ openWeekDetail(h.getAttribute('data-week-head')); });
+    });
 
     list.querySelectorAll('[data-reflection-id]').forEach(function(card){
       card.addEventListener('click', function(){
@@ -4770,56 +4788,189 @@
     return out;
   }
 
+  // ---------- Weekly progress (v50) ----------
+  // The app now works by the week (3 training sessions, 2 gym, classroom, a game or individual
+  // session), so Progress and the Journal group everything by Monday-to-Sunday week. Older daily
+  // entries are rolled up into weeks automatically; nothing is lost or rewritten.
+  var weekTempShowAll = false;
+  var weekListShowAll = false;
+  function weekOf(iso){ return toIsoDate(mondayOf(new Date(iso + 'T00:00:00'))); }
+  function weekRangeLabel(ws){
+    var e = new Date(ws + 'T00:00:00'); e.setDate(e.getDate() + 6);
+    return fmtDate(ws) + ' to ' + fmtDate(toIsoDate(e));
+  }
+  function weekDotClass(avg){ return 'r' + Math.max(1, Math.min(5, Math.round(avg))); }
+
+  function buildWeeks(){
+    var map = {};
+    function get(k){ return map[k] || (map[k] = { weekStart:k, refs:[], tracks:[], review:null }); }
+    (state.reflections || []).forEach(function(r){ if(r.date) get(weekOf(r.date)).refs.push(r); });
+    (state.matchTracks || []).forEach(function(t){
+      if(t.status !== 'done') return;
+      var sess = t.sessionId ? state.schedule.find(function(s){ return s.id === t.sessionId; }) : null;
+      var d = (sess && sess.date) || t.date;
+      if(d) get(weekOf(d)).tracks.push(t);
+    });
+    (state.weeklyReviews || []).forEach(function(w){ if(w.weekStart) get(w.weekStart).review = w; });
+    return Object.keys(map).sort().map(function(k){
+      var w = map[k];
+      w.refs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+      w.rated = w.refs.filter(function(r){ return typeof r.overall === 'number' && r.type !== 'gym'; });
+      w.avg = w.rated.length ? w.rated.reduce(function(a, r){ return a + r.overall; }, 0) / w.rated.length : null;
+      w.estimated = w.rated.some(function(r){ return r.ratingEstimated; });
+      w.sessions = w.refs.filter(function(r){ return r.type === 'training' || r.type === 'match'; }).length;
+      var matchIds = {};
+      w.refs.forEach(function(r){ if(r.type === 'match') matchIds[r.sessionId || r.id] = true; });
+      w.tracks.forEach(function(t){ matchIds[t.sessionId || t.id] = true; });
+      w.matches = Object.keys(matchIds).length;
+      var gyms = w.refs.filter(function(r){ return r.type === 'gym'; });
+      w.gymTotal = gyms.length;
+      w.gymDone = gyms.filter(function(r){ return r.gymCompleted !== false; }).length;
+      var goals = [], seen = {};
+      w.refs.forEach(function(r){ if(r.type === 'match' && typeof r.goalsConceded === 'number'){ goals.push(r.goalsConceded); if(r.sessionId) seen[r.sessionId] = true; } });
+      w.tracks.forEach(function(t){ if(!(t.sessionId && seen[t.sessionId])) goals.push(trackerGoalsConceded(t)); });
+      w.goals = goals;
+      var ifaMap = {};
+      w.refs.forEach(function(r){ getLinkedIfas(r).forEach(function(i){ ifaMap[i] = true; }); });
+      w.ifas = Object.keys(ifaMap).sort();
+      w.trackerAvg = w.tracks.length ? w.tracks.reduce(function(a, t){ return a + trackerFinalRating(t); }, 0) / w.tracks.length : null;
+      var best = w.rated.slice().sort(function(a, b){ return (b.overall - a.overall) || (a.date < b.date ? 1 : -1); })[0];
+      var went = best ? (best.wentWell || best.evidence || '') : '';
+      var work = ''; w.refs.forEach(function(r){ if(r.evenBetterIf) work = r.evenBetterIf; });
+      w.summary = (w.review && w.review.summary) ? w.review.summary : '';
+      w.went = went; w.work = work;
+      return w;
+    }).filter(function(w){ return w.refs.length || w.tracks.length || w.review; });
+  }
+
+  function weekMetaText(w){
+    var bits = [];
+    if(w.sessions) bits.push(w.sessions + ' session' + (w.sessions === 1 ? '' : 's'));
+    if(w.matches) bits.push(w.matches + ' match' + (w.matches === 1 ? '' : 'es'));
+    if(w.gymTotal) bits.push('gym ' + w.gymDone + '/' + w.gymTotal);
+    return bits.join(' · ') || 'Nothing rated';
+  }
+  function weekAvgText(w){ return w.avg === null ? '—' : (w.estimated ? '~' : '') + w.avg.toFixed(1); }
+  function weekHeaderHtml(w, ws){
+    return '<div class="week-head" data-week-head="' + ws + '"><div class="week-head-t">Week of ' + escapeHtml(fmtDate(ws)) + '</div>' +
+      '<div class="week-head-s">' + escapeHtml(w ? weekMetaText(w) : '') + (w && w.avg !== null ? ' · ' + weekAvgText(w) + '/5' : '') + ' · tap for the week</div></div>';
+  }
+
+  function describeWeekTrend(scored){
+    if(scored.length < 4) return null;
+    var mid = Math.floor(scored.length / 2);
+    function avg(list){ return list.reduce(function(a, w){ return a + w.avg; }, 0) / list.length; }
+    var e = avg(scored.slice(0, mid)), l = avg(scored.slice(mid)), d = l - e;
+    var verb = d >= 0.3 ? 'climbing' : (d <= -0.3 ? 'dipping' : 'holding steady');
+    return 'Pattern: ' + verb + '. Earlier weeks averaged ' + e.toFixed(1) + '/5, recent weeks ' + l.toFixed(1) + '/5.';
+  }
+
+  function renderWeekTemp(weeks){
+    var wrap = document.getElementById('temp-gauge-wrap');
+    if(!wrap) return;
+    var scored = weeks.filter(function(w){ return w.avg !== null; });
+    if(!scored.length){ wrap.innerHTML = '<div class="hint">Nothing rated yet. This fills in after each weekly catch-up.</div>'; return; }
+    var visible = weekTempShowAll ? scored : scored.slice(-12);
+    var toggle = scored.length > 12 ? '<button type="button" class="btn-link" id="week-temp-toggle" style="margin-left:8px;">' + (weekTempShowAll ? 'Show recent 12' : 'Show all ' + scored.length) + '</button>' : '';
+    var trend = describeWeekTrend(scored);
+    wrap.innerHTML =
+      '<div class="hint" style="margin-bottom:10px;">One dot per week (the average of that week\'s rated sessions). ' + (weekTempShowAll || scored.length <= 12 ? 'All ' + scored.length + ' weeks.' : 'Latest 12 of ' + scored.length + ' weeks.') + toggle + '</div>' +
+      '<div class="temp-gauge">' + visible.map(function(w, i){ return '<div class="temp-dot ' + weekDotClass(w.avg) + '" data-idx="' + i + '"></div>'; }).join('') + '</div>' +
+      '<div class="temp-legend"><span>Tough week</span><span>Brilliant week</span></div>' +
+      (trend ? '<div class="hint" style="margin-top:8px;">' + escapeHtml(trend) + '</div>' : '') +
+      '<div class="temp-caption hint" id="temp-caption">Tap a dot to see the week</div>';
+    var t = document.getElementById('week-temp-toggle');
+    if(t) t.addEventListener('click', function(){ weekTempShowAll = !weekTempShowAll; renderWeekTemp(weeks); });
+    wrap.querySelectorAll('.temp-dot').forEach(function(dot){
+      dot.addEventListener('click', function(){
+        wrap.querySelectorAll('.temp-dot').forEach(function(d){ d.classList.remove('active'); });
+        dot.classList.add('active');
+        var w = visible[parseInt(dot.getAttribute('data-idx'), 10)];
+        var cap = document.getElementById('temp-caption');
+        cap.innerHTML = escapeHtml('Week of ' + fmtDate(w.weekStart) + ' · ' + weekMetaText(w) + ' · ' + weekAvgText(w) + '/5') + ' &nbsp;<span class="temp-caption-link" id="temp-caption-link">See the week →</span>';
+        document.getElementById('temp-caption-link').addEventListener('click', function(){ openWeekDetail(w.weekStart); });
+      });
+    });
+  }
+
+  function renderWeekList(weeks){
+    var wrap = document.getElementById('progress-week-list');
+    if(!wrap) return;
+    if(!weeks.length){ wrap.innerHTML = '<div class="hint">No weeks yet.</div>'; return; }
+    var all = weeks.slice().reverse();
+    var shown = weekListShowAll ? all : all.slice(0, 6);
+    wrap.innerHTML = shown.map(function(w){
+      var line = w.summary || (w.went ? 'Went well: ' + w.went : '');
+      return '<div class="card pressable" data-week="' + w.weekStart + '" style="margin-top:8px;">' +
+        '<div class="card-top"><div><div class="card-title" style="font-size:14px;">Week of ' + escapeHtml(fmtDate(w.weekStart)) + '</div>' +
+        '<div class="card-meta">' + escapeHtml(weekMetaText(w)) + (w.goals.length ? ' · conceded ' + w.goals.reduce(function(a, g){ return a + g; }, 0) : '') + '</div></div>' +
+        (w.avg !== null ? '<div class="rating-pill ' + weekDotClass(w.avg) + '">' + weekAvgText(w) + '</div>' : '') + '</div>' +
+        (line ? '<div class="card-focus">' + escapeHtml(truncate(line, 130)) + '</div>' : '') +
+        (w.ifas.length ? '<div>' + w.ifas.map(function(k){ return '<span class="theme-chip">' + escapeHtml(k.toUpperCase().replace('IFA', 'IFA ')) + '</span>'; }).join(' ') + '</div>' : '') +
+        '</div>';
+    }).join('') + (all.length > 6 ? '<button type="button" class="btn btn-ghost" id="week-list-toggle" style="margin-top:8px;">' + (weekListShowAll ? 'Show fewer weeks' : 'Show earlier weeks (' + (all.length - 6) + ')') + '</button>' : '');
+    wrap.querySelectorAll('[data-week]').forEach(function(c){ c.addEventListener('click', function(){ openWeekDetail(c.getAttribute('data-week')); }); });
+    var tg = document.getElementById('week-list-toggle');
+    if(tg) tg.addEventListener('click', function(){ weekListShowAll = !weekListShowAll; renderWeekList(weeks); });
+  }
+
+  function openWeekDetail(ws){
+    var w = buildWeeks().find(function(x){ return x.weekStart === ws; });
+    if(!w) return;
+    var rows = w.refs.map(function(r){
+      var pill = r.type === 'gym'
+        ? '<div class="rating-pill ' + (r.gymCompleted === false ? 'r1' : 'r5') + '">' + (r.gymCompleted === false ? '✗' : '✓') + '</div>'
+        : (typeof r.overall === 'number' ? '<div class="rating-pill ' + ratingClass(r.overall) + '">' + r.overall + '</div>' : '');
+      var txt = r.type === 'gym' ? (r.gymFocus || 'Gym session') : (r.wentWell || r.evidence || r.action || '');
+      return '<div class="card pressable" data-wk-ref="' + r.id + '" style="margin-top:8px;"><div class="card-top"><div><div class="card-title" style="font-size:14px;">' + escapeHtml(reflectionDisplayTitle(r)) + '</div>' +
+        '<div class="card-meta">' + escapeHtml(fmtDate(r.date)) + ' · ' + r.type + '</div></div>' + pill + '</div>' +
+        (txt ? '<div class="card-focus">' + escapeHtml(truncate(txt, 120)) + '</div>' : '') + '</div>';
+    }).join('');
+    var tracks = w.tracks.map(function(t){
+      var sess = t.sessionId ? state.schedule.find(function(s){ return s.id === t.sessionId; }) : null;
+      return '<div class="eng-char">Match Tracker: ' + escapeHtml((sess && sess.opponent ? 'vs ' + sess.opponent + ' ' : '') + trackerFinalRating(t).toFixed(1) + ' rating, ' + trackerGoalsConceded(t) + ' conceded') + '</div>';
+    }).join('');
+    var std = w.review && w.review.standards ? ATTR_KEYS.filter(function(k){ return w.review.standards[k]; }).map(function(k){ return ATTR_LABELS[k] + ' ' + w.review.standards[k]; }).join(' · ') : '';
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>Week of ' + escapeHtml(fmtDate(ws)) + '</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="hint" style="margin-bottom:10px;">' + escapeHtml(weekRangeLabel(ws)) + ' · ' + escapeHtml(weekMetaText(w)) + (w.avg !== null ? ' · average ' + weekAvgText(w) + '/5' : '') + '</div>' +
+      (w.summary ? '<div class="card"><div class="section-label" style="margin:0 0 6px;">The week in a few words</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(w.summary) + '</div></div>' : '') +
+      ((tracks || std || w.ifas.length) ? '<div class="card" style="margin-top:8px;">' + tracks + (std ? '<div class="eng-char">5 Standards: ' + escapeHtml(std) + '</div>' : '') +
+        (w.ifas.length ? '<div class="eng-char">Focus areas touched: ' + w.ifas.map(function(k){ var f = IDP_IFAS.find(function(x){ return x.key === k; }); return escapeHtml(f ? f.title.replace(/^IFA \d — /, '') : k); }).join(' · ') + '</div>' : '') + '</div>' : '') +
+      '<div class="section-label">Sessions</div>' + (rows || '<div class="hint">No sessions in the journal for this week.</div>')
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    modalContent.querySelectorAll('[data-wk-ref]').forEach(function(c){
+      c.addEventListener('click', function(){ openReflectionDetail(c.getAttribute('data-wk-ref')); });
+    });
+  }
+
   function renderProgress(){
-    var refs = sortByDate(state.reflections);
+    var weeks = buildWeeks();
+    var scored = weeks.filter(function(w){ return w.avg !== null; });
     var statsEl = document.getElementById('progress-stats');
-    var todayStr = todayIso();
-
-    var trainingCount = refs.filter(function(r){ return r.type === 'training'; }).length;
-    var trainingScheduled = state.schedule.filter(function(s){ return s.type === 'training' && s.date <= todayStr; }).length;
-    var matchRefsWithGoals = refs.filter(function(r){ return r.type === 'match' && typeof r.goalsConceded === 'number'; });
-    var matchCount = refs.filter(function(r){ return r.type === 'match'; }).length;
-    var matchScheduled = state.schedule.filter(function(s){ return s.type === 'match' && s.date <= todayStr; }).length;
-    var matchGoalList = collectMatchGoals(refs);
-    var cleanSheets = matchGoalList.filter(function(g){ return g === 0; }).length;
-    var totalConceded = matchGoalList.reduce(function(a, g){ return a + g; }, 0);
-    var feltAtFault = refs.reduce(function(a, r){
-      if(!r.concededGoals) return a;
-      return a + r.concededGoals.filter(function(g){ return g.couldDoDifferently === 'yes'; }).length;
-    }, 0);
-    var rated = refs.filter(function(r){ return typeof r.overall === 'number' && !r.ratingEstimated; });
-    var goodCount = rated.filter(function(r){ return r.overall >= 4; }).length;
-    // Run Rate: total of every "How'd It Go, Honestly?" score / total of those entries —
-    // the honest average, not just a headcount of sessions logged.
-    var runRate = rated.length > 0
-      ? (rated.reduce(function(a, r){ return a + r.overall; }, 0) / rated.length).toFixed(1)
-      : '—';
-
-    // Training/Matches show "logged / scheduled so far" rather than a bare count — a
-    // raw "18" reads as 18 real sessions' worth of detail when it might really be
-    // 18 out of 30 training days that actually got a reflection written.
-    var trainingStatNum = String(trainingCount);
-    var matchStatNum = String(matchCount);
-
+    var avgWeek = scored.length ? (scored.reduce(function(a, w){ return a + w.avg; }, 0) / scored.length).toFixed(1) : '—';
+    var good = scored.filter(function(w){ return w.avg >= 4; }).length;
+    var best = scored.slice().sort(function(a, b){ return b.avg - a.avg || (a.weekStart < b.weekStart ? 1 : -1); })[0];
+    var sessions = weeks.reduce(function(a, w){ return a + w.sessions; }, 0);
+    var matches = weeks.reduce(function(a, w){ return a + w.matches; }, 0);
+    var goals = []; weeks.forEach(function(w){ goals = goals.concat(w.goals); });
+    var clean = goals.filter(function(g){ return g === 0; }).length;
+    var conceded = goals.reduce(function(a, g){ return a + g; }, 0);
+    function card(n, l){ return '<div class="stat-card"><div class="stat-num">' + n + '</div><div class="stat-label">' + l + '</div></div>'; }
     statsEl.innerHTML =
-      '<div class="stat-card"><div class="stat-num">' + refs.length + '</div><div class="stat-label">Total Entries</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + runRate + (rated.length > 0 ? '<span style="font-size:0.5em;">/5</span>' : '') + '</div><div class="stat-label">Run Rate (' + rated.length + ' scored)</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + trainingStatNum + '</div><div class="stat-label">Training Sessions</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + matchStatNum + '</div><div class="stat-label">Matches</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + cleanSheets + '</div><div class="stat-label">Clean Sheets</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + goodCount + ' / ' + rated.length + '</div><div class="stat-label">Felt Good or Great</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + totalConceded + '</div><div class="stat-label">Goals Conceded</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + feltAtFault + '</div><div class="stat-label">Felt At Fault</div></div>';
-
-    renderTempGauge(refs);
+      card(scored.length, 'Weeks Reviewed') +
+      card(avgWeek + (scored.length ? '<span style="font-size:0.5em;">/5</span>' : ''), 'Average Week') +
+      card(good + ' / ' + scored.length, 'Good Or Great Weeks') +
+      card(best ? '<span style="font-size:0.6em;">' + escapeHtml(fmtDate(best.weekStart)) + '</span>' : '—', 'Best Week') +
+      card(sessions, 'Sessions') +
+      card(matches, 'Matches') +
+      card(clean, 'Clean Sheets') +
+      card(conceded, 'Goals Conceded');
+    renderWeekTemp(weeks);
+    renderWeekList(weeks);
     renderProgressIfaLinks();
-
-    // Form Over Time / Standards / By Theme removed 2026-08-20 (v27.2) — too score-heavy
-    // for now. The functions themselves are unchanged; uncomment these three lines
-    // (and restore their HTML containers above the STANDARDS VIEW comment) to bring back.
-    // drawChart(refs.filter(function(r){ return typeof r.overall === 'number'; }));
-    // renderAttrAverages(refs);
-    // renderThemeAverages(refs);
   }
 
   // Progress-tab view of the same Focus Area linkage shown on Standards — so the
@@ -4829,7 +4980,9 @@
     var wrap = document.getElementById('progress-ifa-links');
     if(!wrap) return;
     wrap.innerHTML = IDP_IFAS.map(function(ifa){
-      var count = state.reflections.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; }).length;
+      var wkSeen = {};
+      state.reflections.forEach(function(r){ if(r.date && getLinkedIfas(r).indexOf(ifa.key) > -1) wkSeen[weekOf(r.date)] = true; });
+      var count = Object.keys(wkSeen).length;
       return '<div class="card pressable" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;" data-progress-ifa="' + ifa.key + '">' +
         '<div style="font-family:\'Oswald\',sans-serif; font-weight:600; font-size:13.5px; color:var(--text);">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</div>' +
         '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;"><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--lime);">' + count + '</span><span style="font-size:11px; color:var(--text-faint);">linked →</span></div>' +
