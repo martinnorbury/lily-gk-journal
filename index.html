@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v55 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v56 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -449,6 +449,13 @@
   .trk-big.minus{background:var(--red); color:#2A0000;}
   .trk-opts{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0;}
   .trk-opt{padding:16px 10px; border-radius:12px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--text); font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; text-align:left; cursor:pointer; line-height:1.25;}
+  .trk-areas{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0;}
+  .trk-area{padding:30px 8px; border-radius:16px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--text); font-family:'Oswald',sans-serif; font-weight:700; font-size:19px; line-height:1.15; cursor:pointer;}
+  .trk-opt.good{border-color:#4CC27A; background:rgba(76,194,122,0.14);}
+  .trk-opt.bad{border-color:var(--red); background:rgba(255,92,92,0.12);}
+  .trk-detail{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0 0;}
+  .trk-chip{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--text-dim,var(--text)); font-size:13px; cursor:pointer;}
+  .trk-chip.on{background:var(--accent,#034694); color:#fff; border-color:transparent;}
   .trk-opt small{display:block; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); margin-top:5px; font-weight:400;}
   .trk-flash{min-height:20px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--lime); text-align:center;}
   .trk-row{display:flex; gap:8px; margin-top:8px;}
@@ -802,8 +809,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v55';
+  var APP_VERSION = 'v56';
   var CHANGELOG = [
+    { version:'v56', notes:'Match Tracker works in levels. Tap an area (shot-stopping, 1v1, crosses, distribution, positioning, voice and mindset), then tap what happened. It is recorded at that moment, and you can add an optional detail (penalty, free kick, corner, goal kick and so on) with one more tap, or just carry on. Old tracked matches are unchanged.' },
     { version:'v55', notes:'The + button for adding a daily entry is gone. Fixed: a week with a photo but no written entry was being left out of the Journal, so photos like the one from 7 Oct never showed. Re-importing the weekly Chelsea PDF no longer wipes a session\'s photo (or its link to a reflection). Photos now show on each week card in the Journal (small thumbnails and a count), so a photo attached to a session is visible straight away instead of only inside the week page.' },
     { version:'v54', notes:'Tapping a session on Today or the Schedule no longer opens the daily Quick Log. It now shows a calm read-only page (when, where, coach, theme, plan) with buttons to see the week, see what was noted, or edit the session details.' },
     { version:'v53', notes:'The Journal is now weekly only: one card per week showing the whole week together (training, gym, classroom and match counts, the week score, what went well, what to work on, the match result and the focus areas). Tap a week for everything in it. The individual sessions are tucked away inside each week for editing. The daily list is gone from the Journal.' },
@@ -2684,8 +2692,27 @@
     { key:'bounce',    label:'Bounced back after a mistake',   delta:0.2 },
     { key:'sethigh',   label:'Set early and high',             delta:0.2 },
     { key:'alive',     label:'Alive early, trusted anticipation', delta:0.3 },
-    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.5, ifa:'ifa3' }
+    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.5, ifa:'ifa3' },
+    { key:'longpass',  label:'Long ball / goal kick finds target', delta:0.3, ifa:'ifa2' }
   ];
+
+  // v56: the tracker works in levels. Tap 1 = area, tap 2 = what happened (recorded at once), tap 3 = optional detail.
+  var TRACKER_AREAS = [
+    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['goal','spill','error'],
+      detail:['Open play','Penalty','Free kick','Corner','Close range','Long range'] },
+    { key:'one',   label:'1v1 / close',     good:['won1v1'],                              bad:['lost1v1'],
+      detail:['Through ball','Breakaway','Cut-back','Rebound'] },
+    { key:'cross', label:'Crosses & high balls', good:['cross','readcross'],              bad:['crossmiss','rushed'],
+      detail:['Corner','Free kick','Open play','Set piece delivery'] },
+    { key:'dist',  label:'Distribution',    good:['fwdpass','longpass'],                  bad:['turnover'],
+      detail:['Goal kick','Throw','Short pass','Long ball','Under pressure'] },
+    { key:'pos',   label:'Positioning & sweeping', good:['sethigh','alive','sweep'],      bad:['setlow','position'],
+      detail:['Open play','Counter','Set piece','Back-pass'] },
+    { key:'comm',  label:'Voice & mindset', good:['call','brave','bounce'],               bad:['nocall'],
+      detail:['To the defence','To the team','Under pressure'] }
+  ];
+  function trackerOpt(key){ return TRACKER_PLUS.concat(TRACKER_MINUS).find(function(o){ return o.key === key; }); }
+
   var TRACKER_MINUS = [
     { key:'goal',      label:'Goal conceded',                  delta:-0.3 },
     { key:'error',     label:'Error led to a goal',            delta:-0.8 },
@@ -2702,7 +2729,7 @@
   var trackerTimer = null;
   var trackerSaveTimer = null;
   var trackerWake = null;
-  var trackerOverlayState = { pick:null, flash:'' };
+  var trackerOverlayState = { pick:null, area:null, detailFor:-1, flash:'' };
 
   function findTrack(id){ return (state.matchTracks || []).find(function(t){ return t.id === id; }); }
   function trackerClamp(r){ return Math.max(1, Math.min(10, Math.round(r * 100) / 100)); }
@@ -2906,7 +2933,7 @@
 
   // --- Live screen ---
   function openTrackerLive(id){
-    trackerOverlayState.pick = null;
+    trackerOverlayState.pick = null; trackerOverlayState.area = null; trackerOverlayState.detailFor = -1;
     trackerOverlayState.flash = '';
     trackerKeepAwake();
     renderTrackerLive(id);
@@ -2923,21 +2950,25 @@
     if(track.status === 'ready'){
       main = '<button type="button" class="btn btn-primary" id="trk-kickoff" style="padding:34px 10px; font-size:26px; margin:14px 0;">Kick Off</button>' +
         '<div class="hint">Tap at the moment the match kicks off. The clock then runs straight through without stopping, just like the video.</div>';
-    } else if(trackerOverlayState.pick){
-      var list = trackerOverlayState.pick === 'plus' ? TRACKER_PLUS : TRACKER_MINUS;
-      main = '<div class="hint" style="margin:12px 0 0;">' + (trackerOverlayState.pick === 'plus' ? 'What was good?' : 'What wasn\'t?') + '</div>' +
-        '<div class="trk-opts">' + list.map(function(o){
-          return '<button type="button" class="trk-opt" data-opt="' + o.key + '">' + escapeHtml(o.label) + '<small>' + fmtDelta(o.delta) + '</small></button>';
-        }).join('') + '</div>' +
-        '<button type="button" class="btn btn-ghost" id="trk-cancel-pick">Cancel</button>';
+    } else if(trackerOverlayState.area){
+      var ar = TRACKER_AREAS.find(function(a){ return a.key === trackerOverlayState.area; });
+      function optBtn(k, cls){ var o = trackerOpt(k); return '<button type="button" class="trk-opt ' + cls + '" data-opt="' + o.key + '">' + escapeHtml(o.label) + '<small>' + fmtDelta(o.delta) + '</small></button>'; }
+      main = '<div class="hint" style="margin:12px 0 0;">' + escapeHtml(ar.label) + ' — what happened?</div>' +
+        '<div class="trk-opts">' + ar.good.map(function(k){ return optBtn(k, 'good'); }).join('') + '</div>' +
+        '<div class="trk-opts">' + ar.bad.map(function(k){ return optBtn(k, 'bad'); }).join('') + '</div>' +
+        '<button type="button" class="btn btn-ghost" id="trk-cancel-pick">Back</button>';
     } else {
-      main = '<div class="trk-bigrow">' +
-        '<button type="button" class="trk-big plus" id="trk-plus">+<small>GOOD</small></button>' +
-        '<button type="button" class="trk-big minus" id="trk-minus">−<small>NOT GOOD</small></button>' +
-      '</div>';
+      var lastIdx = trackerOverlayState.detailFor;
+      var lastEv = lastIdx >= 0 ? track.events[lastIdx] : null;
+      var lastArea = lastEv ? TRACKER_AREAS.find(function(a){ return a.good.indexOf(lastEv.key) >= 0 || a.bad.indexOf(lastEv.key) >= 0; }) : null;
+      var detailRow = (lastEv && lastArea) ? '<div class="trk-detail"><span class="hint" style="margin:0;">Add detail (optional):</span>' +
+        lastArea.detail.map(function(d){ return '<button type="button" class="trk-chip' + (lastEv.detail === d ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') + '</div>' : '';
+      main = detailRow + '<div class="trk-areas">' + TRACKER_AREAS.map(function(a){
+        return '<button type="button" class="trk-area" data-area="' + a.key + '">' + escapeHtml(a.label) + '</button>';
+      }).join('') + '</div>';
     }
     var controls = '';
-    if(track.status === 'live' && !trackerOverlayState.pick){
+    if(track.status === 'live' && !trackerOverlayState.area){
       controls = '<div class="trk-row">' +
         (!hasHT ? '<button type="button" class="btn btn-ghost" id="trk-ht">Half Time</button>'
                 : (!has2H ? '<button type="button" class="btn btn-ghost" id="trk-2h">Second Half Starts</button>' : '')) +
@@ -2946,7 +2977,7 @@
       '</div>';
     }
     var recent = track.events.slice(-3).reverse().map(function(e){
-      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '</span><span style="flex:1;">' + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + '</span><span class="d">' + fmtDelta(e.delta) + '</span></div>';
+      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '</span><span style="flex:1;">' + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</span><span class="d">' + fmtDelta(e.delta) + '</span></div>';
     }).join('');
 
     ov.innerHTML =
@@ -2977,17 +3008,28 @@
       trackerPersist(); saveData();
       renderTrackerLive(id);
     });
-    var pl = q('#trk-plus'); if(pl) pl.addEventListener('click', function(){ trackerOverlayState.pick = 'plus'; renderTrackerLive(id); });
-    var mi = q('#trk-minus'); if(mi) mi.addEventListener('click', function(){ trackerOverlayState.pick = 'minus'; renderTrackerLive(id); });
-    var cp = q('#trk-cancel-pick'); if(cp) cp.addEventListener('click', function(){ trackerOverlayState.pick = null; renderTrackerLive(id); });
+    ov.querySelectorAll('.trk-area').forEach(function(btn){
+      btn.addEventListener('click', function(){ trackerOverlayState.area = btn.getAttribute('data-area'); trackerOverlayState.detailFor = -1; renderTrackerLive(id); });
+    });
+    var cp = q('#trk-cancel-pick'); if(cp) cp.addEventListener('click', function(){ trackerOverlayState.area = null; renderTrackerLive(id); });
     ov.querySelectorAll('.trk-opt').forEach(function(btn){
       btn.addEventListener('click', function(){
-        var list = trackerOverlayState.pick === 'plus' ? TRACKER_PLUS : TRACKER_MINUS;
-        var opt = list.find(function(o){ return o.key === btn.getAttribute('data-opt'); });
+        var opt = trackerOpt(btn.getAttribute('data-opt'));
         if(!opt) return;
         track.events.push({ t:trackerElapsed(track), sign: opt.delta >= 0 ? '+' : '-', key:opt.key, label:opt.label, delta:opt.delta, ifa:opt.ifa || null });
-        trackerOverlayState.pick = null;
+        trackerOverlayState.area = null;
+        trackerOverlayState.detailFor = track.events.length - 1;
         trackerOverlayState.flash = fmtDelta(opt.delta) + '  ' + opt.label + '  →  ' + trackerFinalRating(track).toFixed(1);
+        trackerPersist();
+        renderTrackerLive(id);
+      });
+    });
+    ov.querySelectorAll('.trk-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ev = track.events[trackerOverlayState.detailFor];
+        if(!ev) return;
+        var d = btn.getAttribute('data-detail');
+        ev.detail = (ev.detail === d) ? '' : d;
         trackerPersist();
         renderTrackerLive(id);
       });
@@ -3096,7 +3138,7 @@
       var e = row.e;
       var ifaTag = e.ifa ? ' <span class="eng-badge">' + escapeHtml(e.ifa.toUpperCase().replace('IFA', 'IFA ')) + '</span>' : '';
       return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
-        '<span style="flex:1;">' + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + ifaTag + '</span>' +
+        '<span style="flex:1;">' + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag + '</span>' +
         '<span class="d">' + fmtDelta(e.delta) + '<br>' + row.r.toFixed(1) + '</span></div>';
     }).join('');
 
