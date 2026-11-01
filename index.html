@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v49 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v49.1 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -797,8 +797,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v49';
+  var APP_VERSION = 'v49.1';
   var CHANGELOG = [
+    { version:'v49.1', notes:'Coach feedback from the player review with Seb and Kiera is now in the app: praised for distribution and team confidence; work on unusual saves and close-range box positioning; the coach liked Lily tracking her IFAs in the app. It shows in the IAP briefing, the Xmas cards and the PDF, feeds the ideas for next-half targets, and is included in the weekly review prompt. New coach feedback can be added in the IAP briefing tab.' },
     { version:'v49', notes:'Built from Chelsea\'s own documents: the weekly themes now continue the 6-week cycle to 14 Dec (marked as planned until Seb confirms), Lily\'s three IFAs use the exact wording from her IDP, and the IAP & Xmas Prep uses Chelsea\'s 100-point recovery score, the clip criteria for each focus area, the Hudl sharing rules, the Block 2 LEAD theme and the BLUE definitions. The Xmas cards now cover July to December and ask for adjusted or new IFAs for January to May.' },
     { version:'v48', notes:'New IAP & Xmas Prep (Standards tab): a Hudl 12-clip playlist helper built from Match Tracker moments, three player-only Xmas review cards, and a one-page IAP briefing, with an Export IAP Prep PDF button. Nothing England-related ever appears in it. Progress no longer shows "logged / scheduled" counts, ignores estimated ratings in the averages, and counts goals and clean sheets from Match Tracker. The weekly review can now also carry the 5 Standards scores, goal progress and IAP talking points.' },
     { version:'v47.1', notes:'Removed the last "Tap to log it" / "Tap to edit" wording from the Schedule cards. Sessions still open when tapped; nothing nags.' },
@@ -1515,10 +1516,11 @@
   }
   function ipSuggestedTargets(){
     var seen = {}, out = [];
+    ipFeedbackBy('workOn').forEach(function(f){ var t = ipSafe(f.text); if(t && !seen[t.toLowerCase()]){ seen[t.toLowerCase()] = true; out.push(t); } });
     ipRefs().slice().reverse().forEach(function(r){
       var t = ipSafe(r.evenBetterIf);
       var k = t.toLowerCase();
-      if(t && !seen[k] && out.length < 5){ seen[k] = true; out.push(truncate(t, 90)); }
+      if(t && !seen[k] && out.length < 6){ seen[k] = true; out.push(truncate(t, 90)); }
     });
     return out;
   }
@@ -1529,6 +1531,23 @@
     });
     return out;
   }
+  // Coach feedback (from player reviews). Seeded once from the review with Seb and Kiera.
+  function ipFeedback(){
+    if(!Array.isArray(state.coachFeedback)){
+      var src = 'Player review with Seb and Kiera';
+      state.coachFeedback = [
+        { id:'cf1', source:src, type:'praised', text:'Distribution' },
+        { id:'cf2', source:src, type:'praised', text:'Team confidence' },
+        { id:'cf3', source:src, type:'workOn',  text:'Unusual saves' },
+        { id:'cf4', source:src, type:'workOn',  text:'Close-range box positioning' },
+        { id:'cf5', source:src, type:'note',    text:'The coach liked that Lily uses the app to track her IFAs and session feedback.' }
+      ];
+    }
+    return state.coachFeedback.filter(function(f){ return f && ipSafe(f.text); });
+  }
+  function ipFeedbackBy(type){ return ipFeedback().filter(function(f){ return f.type === type; }); }
+  function ipFeedbackLine(type){ return ipFeedbackBy(type).map(function(f){ return ipSafe(f.text); }).join(', '); }
+
   function ipSuggestedQuestions(){
     var out = [];
     (state.weeklyReviews || []).slice().sort(function(a, b){ return a.weekStart < b.weekStart ? 1 : -1; }).forEach(function(w){
@@ -1580,6 +1599,16 @@
         saveData(); ipRender();
       });
     });
+    var fbAdd = document.getElementById('ip-fb-add');
+    if(fbAdd){
+      fbAdd.addEventListener('click', function(){
+        var txt = document.getElementById('ip-fb-text').value.trim();
+        if(!txt) return;
+        ipFeedback();
+        state.coachFeedback.push({ id:uid(), source:'Added ' + fmtDate(todayIso()), type:document.getElementById('ip-fb-type').value, text:txt });
+        saveData(); ipRender();
+      });
+    }
     document.querySelectorAll('.ip-q').forEach(function(inp){
       inp.addEventListener('input', function(){
         state.iapDiscussionPoints = state.iapDiscussionPoints || ['', '', ''];
@@ -1597,7 +1626,8 @@
 
   function ipHudlHtml(){
     var c = ipClips();
-    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of the 4 focus areas.</div>';
+    var wo = ipFeedbackLine('workOn');
+    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of the 4 focus areas.' + (wo ? ' The coaches asked her to work on ' + escapeHtml(wo.toLowerCase()) + ', so that is a good place to look for learning clips.' : '') + '</div>';
     var last = '';
     c.rows.forEach(function(r){
       if(r.area !== last){
@@ -1633,7 +1663,9 @@
       var q = e.quotes.length ? e.quotes.map(function(x){ return '<div class="ip-quote">“' + escapeHtml(x.text) + '”<span> ' + escapeHtml(fmtDate(x.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes linked yet.</div>';
       var m = e.moments.map(function(x){ return '<div class="ip-moment">▶ ' + escapeHtml(ipMatchLabel(x.date, x.opp)) + ' — ' + escapeHtml(x.label) + '</div>'; }).join('');
       return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + '</div>' + q + m + '</div>';
-    }).join('') + '</div>';
+    }).join('') +
+      (ipFeedbackBy('praised').length ? '<div class="ip-ifa"><div class="ip-ifa-t">What the coaches praised</div><div class="ip-moment">' + escapeHtml(ipFeedbackLine('praised')) + '</div></div>' : '') +
+      '</div>';
     var tg = ipPrepState().targets, sugg = ipSuggestedTargets(), goals = ipGoalNotes();
     var card3 = '<div class="card ip-card"><div class="ip-card-t">Card 3 · My IFAs for January to May 2027</div><div class="hint" style="margin-bottom:8px;">Chelsea asks for adjustments to my 3 IFAs or new ones for the second half of the season.</div>' +
       [0, 1, 2].map(function(i){
@@ -1641,6 +1673,7 @@
           '<input type="text" class="ip-adjust" data-i="' + i + '" value="' + escapeHtml(tg[i].adjust) + '" placeholder="What I will change to get there" style="margin-top:6px;"></div>';
       }).join('') +
       (sugg.length ? '<div class="hint" style="margin-bottom:6px;">Ideas from things I said I want to work on (tap to add):</div><div class="ip-suggs">' + sugg.map(function(s){ return '<button type="button" class="ip-sugg" data-text="' + escapeHtml(s) + '">' + escapeHtml(s) + '</button>'; }).join('') + '</div>' : '') +
+      (ipFeedbackBy('workOn').length ? '<div class="hint" style="margin:10px 0 4px;">The coaches asked me to work on: ' + escapeHtml(ipFeedbackLine('workOn')) + '</div>' : '') +
       (goals.length ? '<div class="hint" style="margin:10px 0 4px;">Goal notes from my catch-ups:</div>' + goals.map(function(g){ return '<div class="ip-moment">' + escapeHtml(g) + '</div>'; }).join('') : '') +
       '</div>';
     return card1 + card2 + card3;
@@ -1667,6 +1700,14 @@
       '<div class="journal-detail-row"><div class="k">Brave</div><div class="v">' + dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's') + ' tracked</div></div>' +
       '<div class="journal-detail-row"><div class="k">Leading</div><div class="v">' + dna.lead + ' good call' + (dna.lead === 1 ? '' : 's') + ' tracked</div></div>' +
       '<div class="journal-detail-row"><div class="k">Edge</div><div class="v">Named her own next step in ' + dna.edge + ' sessions</div></div>' +
+      '<div class="section-label">What the coaches said</div>' +
+      ipFeedback().map(function(f){
+        var k = f.type === 'praised' ? 'Praised' : (f.type === 'workOn' ? 'Work on' : 'Note');
+        return '<div class="journal-detail-row"><div class="k">' + k + '</div><div class="v">' + escapeHtml(ipSafe(f.text)) + '</div></div>';
+      }).join('') +
+      '<div class="field" style="margin-top:8px;"><select id="ip-fb-type"><option value="praised">Praised</option><option value="workOn">Work on</option><option value="note">Note</option></select>' +
+      '<input type="text" id="ip-fb-text" placeholder="Add something a coach said" style="margin-top:6px;"></div>' +
+      '<button type="button" class="btn btn-ghost" id="ip-fb-add">Add coach feedback</button>' +
       '<div class="section-label">Questions I want to ask Josh and Seb</div>' +
       [0, 1, 2].map(function(i){ return '<div class="field"><input type="text" class="ip-q" data-i="' + i + '" value="' + escapeHtml(dq[i] || '') + '" placeholder="' + escapeHtml(ph[i] || 'My question') + '"></div>'; }).join('') +
       '</div>';
@@ -1743,6 +1784,7 @@
       e.moments.forEach(function(m){ para('Match moment: ' + ipMatchLabel(m.date, m.opp) + ' - ' + m.label, { indent:3, color:[3, 70, 148] }); });
       y += 1.5;
     });
+    if(ipFeedbackBy('praised').length){ para('What the coaches praised: ' + ipFeedbackLine('praised'), { bold:true, color:[30, 55, 100] }); }
     y += 2;
     head('Card 3 - My IFAs for January to May 2027: adjusted or new');
     var anyT = false;
@@ -1752,6 +1794,7 @@
       if(t.adjust) para('What I will change: ' + t.adjust, { indent:4 });
     });
     if(!anyT) para('Not filled in yet.', { color:[140, 140, 150] });
+    if(ipFeedbackBy('workOn').length){ y += 1; para('The coaches asked me to work on: ' + ipFeedbackLine('workOn'), { color:[3, 70, 148] }); }
 
     // 3 · Joint briefing (one page)
     doc.addPage(); y = 0;
@@ -1771,6 +1814,10 @@
     line('Leading', dna.lead + ' good call' + (dna.lead === 1 ? '' : 's'));
     line('Edge', 'named her own next step in ' + dna.edge + ' sessions');
     para('Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.', { size:8, color:[110, 120, 140], lh:3.8 });
+    y += 3; head('What the coaches said');
+    if(ipFeedbackBy('praised').length) para('Praised: ' + ipFeedbackLine('praised'), { indent:2 });
+    if(ipFeedbackBy('workOn').length) para('Work on: ' + ipFeedbackLine('workOn'), { indent:2 });
+    ipFeedbackBy('note').slice(0, 2).forEach(function(f){ para(ipSafe(f.text), { indent:2, color:[90, 100, 120] }); });
     y += 3; head('Questions Lily wants to ask Josh and Seb');
     var dq = (state.iapDiscussionPoints || []).filter(function(p){ return p && p.trim(); });
     if(!dq.length) para('Not filled in yet.', { color:[140, 140, 150] });
@@ -3945,6 +3992,9 @@
       '',
       'ENGLAND CHARACTERISTICS (england ids):',
       engLines,
+      '',
+      'COACH FEEDBACK SO FAR (context only; use it to tag sessions where it clearly fits, never to invent):',
+      (ipFeedback().map(function(f){ return '- ' + (f.type === 'praised' ? 'Praised: ' : (f.type === 'workOn' ? 'Work on: ' : 'Note: ')) + ipSafe(f.text); }).join('\n') || '- (none yet)'),
       '',
       'CHELSEA THEMES (for nextWeek): ' + THEMES.join(' | '),
       '',
