@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v57 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v59 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -810,8 +810,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v57';
+  var APP_VERSION = 'v59';
   var CHANGELOG = [
+    { version:'v59', notes:'The Match Tracker now links itself to the match on today\'s date in the schedule (opponent included), and shows "Today\'s match" on the start screen. If there is no match today, or more than one, you still choose at the final whistle.' },
+    { version:'v58', notes:'Match Tracker now records only things that happened. Removed from live recording because they are review judgements: Cleared danger behind the line, Error led to a goal, Brave action, Bounced back, Good call and No call (the whole Voice & mindset area). Four areas remain: Shot-stopping, 1v1 / close range, Crosses & high balls, With the ball, plus GOAL CONCEDED and Clip. Old matches unchanged.' },
     { version:'v57', notes:'Match Tracker reworked after the first live test. GOAL CONCEDED is one tap on the main screen. Positioning and sweeping moved out of live recording (review only). Aerial now records Claimed, Punched, Came but missed or dropped, and Stayed. With the ball uses Chelsea\'s wording: Hands or Feet, then Play around, Play through, or Play over (into, onto, in behind), with an optional Short, Medium or Long. Ratings rebalanced: pass completed +0.1 to +0.2, turnover -0.3, cross claimed +0.3, missed -0.3. New Clip button marks a moment to find on the video. Old matches unchanged.' },
     { version:'v56', notes:'Match Tracker works in levels. Tap an area (shot-stopping, 1v1, crosses, distribution, positioning, voice and mindset), then tap what happened. It is recorded at that moment, and you can add an optional detail (penalty, free kick, corner, goal kick and so on) with one more tap, or just carry on. Old tracked matches are unchanged.' },
     { version:'v55', notes:'The + button for adding a daily entry is gone. Fixed: a week with a photo but no written entry was being left out of the Journal, so photos like the one from 7 Oct never showed. Re-importing the weekly Chelsea PDF no longer wipes a session\'s photo (or its link to a reflection). Photos now show on each week card in the Journal (small thumbnails and a count), so a photo attached to a session is visible straight away instead of only inside the week page.' },
@@ -2717,16 +2719,14 @@
 
   // v56: the tracker works in levels. Tap 1 = area, tap 2 = what happened (recorded at once), tap 3 = optional detail.
   var TRACKER_AREAS = [
-    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['goal','spill','error'],
+    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['goal','spill'],
       detail:['Open play','Penalty','Free kick','Corner','Close range','Long range'] },
-    { key:'one',   label:'Beyond the line / 1v1', good:['won1v1','sweep'],               bad:['lost1v1'],
+    { key:'one',   label:'1v1 / close range', good:['won1v1'],                          bad:['lost1v1'],
       detail:['Through ball','Breakaway','Cut-back','Rebound'] },
     { key:'cross', label:'Crosses & high balls', good:['cross','punch'],                 bad:['crossmiss'], neutral:['stayed'],
       detail:['Corner','Free kick','Open play','Set piece delivery'] },
     { key:'dist',  label:'With the ball',   good:[],                                     bad:['turnover'],
-      detail:['Short','Medium','Long'], detailBad:['Hands','Feet','Around','Through','Over'] },
-    { key:'comm',  label:'Voice & mindset', good:['call','brave','bounce'],               bad:['nocall'],
-      detail:['To the defence','To the team','Under pressure'] }
+      detail:['Short','Medium','Long'], detailBad:['Hands','Feet','Around','Through','Over'] }
   ];
   function trackerOpt(key){ return TRACKER_PLUS.concat(TRACKER_MINUS).find(function(o){ return o.key === key; }); }
 
@@ -2844,7 +2844,8 @@
       ? '<div class="hint" style="margin-bottom:10px;">' + (active.status === 'live' ? 'A match is in progress.' : 'A tracker is ready.') + '</div>' +
         '<button type="button" class="btn btn-primary" id="trk-resume-btn" data-trk-id="' + active.id + '">Resume Tracker</button>' +
         '<button type="button" class="btn btn-ghost" id="trk-discard-btn" data-trk-id="' + active.id + '" style="margin-top:8px; color:var(--red); border-color:rgba(255,128,128,0.3);">Discard This Tracker</button>'
-      : '<div class="hint" style="margin-bottom:10px;">Start at kick-off. Tap + or − through the match and pick a quick reason. Every moment is timed so it lines up with the Hudl video. At the final whistle you lock it in and link it to the match.</div>' +
+      : '<div class="hint" style="margin-bottom:10px;">Start at kick-off. Tap an area, then what happened. Every moment is timed so it lines up with the Hudl video. At the final whistle you lock it in and link it to the match.</div>' +
+        (todaysMatches().length === 1 ? '<div class="eng-char" style="margin:0 0 10px;"><b>Today\'s match:</b> ' + escapeHtml(todaysMatches()[0].opponent ? 'vs ' + todaysMatches()[0].opponent : todaysMatches()[0].title) + (todaysMatches()[0].time ? ' · ' + escapeHtml(todaysMatches()[0].time) : '') + ' — it will be linked for you.</div>' : '') +
         '<button type="button" class="btn btn-primary" id="trk-start-btn">Start Match Tracker</button>';
     var past = done.map(function(t){
       var c = trackerPillColors(trackerFinalRating(t));
@@ -2876,10 +2877,16 @@
   }
 
   // Straight to the live screen. The match is chosen at the final whistle, so nothing slows the start.
+  // The schedule already knows today's match, so a single match on today's date is linked automatically.
+  function todaysMatches(){
+    return (state.schedule || []).filter(function(s){ return s.type === 'match' && s.date === todayIso(); });
+  }
   function startTrackerNow(){
+    var tm = todaysMatches();
+    var auto = tm.length === 1 ? tm[0] : null;
     var track = {
-      id: uid(), sessionId: null, date: todayIso(),
-      opponent: '', baseline: TRACKER_BASELINE,
+      id: uid(), sessionId: auto ? auto.id : null, date: todayIso(),
+      opponent: auto ? (auto.opponent || '') : '', baseline: TRACKER_BASELINE,
       status: 'ready', startedAt: null, endedAt: null, locked: false,
       events: [], markers: [], videoOffsetSec: 0
     };
