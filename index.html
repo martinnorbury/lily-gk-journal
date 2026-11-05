@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v61 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v66 — 5 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -758,6 +758,7 @@
 
   <!-- STANDARDS VIEW -->
   <div class="gk-view hidden" id="view-standards">
+    <button class="btn btn-primary" id="open-evidence-btn" style="margin-bottom:8px;">Evidence: training and matches</button>
     <button class="btn btn-primary" id="open-iap-prep-btn" style="margin-bottom:12px;background:#034694;">IAP &amp; Xmas Review Prep</button>
     <div id="idp-wrap"></div>
     <div id="england-wrap"></div>
@@ -812,8 +813,13 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v61';
+  var APP_VERSION = 'v66';
   var CHANGELOG = [
+    { version:'v66', notes:'December pack. The Brave and Leading counts in the IAP briefing now include the review tags (Brave, Bounced back, Called early and clear, Took control), because the live buttons for them were removed in v58. Lily can pick a moment for her Hudl playlist as Success or Learning when she tags it as herself; her picks go first in the 12-clip list, then the app fills any gaps from the recorded moments as before. New IFA pages tab in IAP Prep: for each IFA, Chelsea\'s What, How and Who, the evidence counts, her chosen clips, and a Next step box in her own words.' },
+    { version:'v65', notes:'New Evidence page (Standards tab): each IFA with training notes and match moments side by side, each Standard with the weekly review ratings next to the match tag counts, and the open questions for the coaches. Questions can now be answered once the coach replies. Lily can tag moments herself (Tagging as: Martin or Lily) and the app lists where the two views differ. Counts only, no scores.' },
+    { version:'v64', notes:'Chelsea wording and sources. New fact event "Ball in behind" (Dominate the Space): came and cleared, stayed on line, or beaten. Each match can carry the Chelsea game label (Assertive, Balanced or Challenge), which you enter from what the club tells you. Review tags now also map to the Chelsea GK Profile attributes and BLUE behaviours from the GK Induction deck, shown as counts with video times on the match page. Sources are labelled: Chelsea (induction deck, Lily\'s IDP/IAP) versus Lily and Martin (this app).' },
+    { version:'v63', notes:'Review tags now cover all five Standards. New groups: Hands & footwork and Pass technique (Technical), and Reach & athleticism (Physical). The match page lists every Standard with the factual count of tagged moments and their video times, and says "nothing tagged yet" where there is no evidence, so nothing is inferred or scored.' },
+    { version:'v62', notes:'The Match Tracker now has two jobs: record what happened (live or from memory), then review it on the video. In a match review, tap any moment to add review tags: set and anticipation, decision, command and voice, mindset, and could it be prevented, plus Ask the coach and a short note. The match page shows the tags by Standard and by IFA, and the IAP Prep targets count them. The video time offset is set in the same review page.' },
     { version:'v61', notes:'Tidied the tracker so every item fits one place. Back-pass is no longer a separate event (it overlapped with With the ball): record what she did with the ball, then tag Back-pass pressed or not pressed. Recording a past game now asks which game, listing every earlier match in the schedule, so older games can be filled in from the recordings.' },
     { version:'v60', notes:'Record a past game from memory: same buttons, with a minute stepper instead of a running clock, and it links itself to the match from the last three days. New facts: Back-pass received (pressed or not pressed, then played it on, kicked long or lost it) and GK and defender both went. Goals can be tagged more than once (from a corner, from a cross, after a turnover, outside the box and so on). Every event has an Ask the coach flag, and the match review lists the questions for the coaches.' },
     { version:'v59', notes:'The Match Tracker now links itself to the match on today\'s date in the schedule (opponent included), and shows "Today\'s match" on the start screen. If there is no match today, or more than one, you still choose at the final whistle.' },
@@ -1441,6 +1447,10 @@
     return picked;
   }
 
+  function ipInArea(area, e){
+    if(area.ifa) return e.ifa === area.ifa || revIfaOf(e).indexOf(area.ifa) >= 0;
+    return IP_GOAL_OK.indexOf(e.key) > -1 || IP_GOAL_BAD.indexOf(e.key) > -1;
+  }
   function ipClips(){
     var tracks = ipTracks();
     var matchRefs = ipRefs().filter(function(r){ return r.type === 'match'; });
@@ -1452,7 +1462,9 @@
         (m.t.events || []).forEach(function(e){
           var clock = fmtClock(off + (e.t || 0)) + (off ? '' : ' *');
           var item = { date:m.date, opp:m.opp, clock:clock, key:e.key, label:e.label, delta:e.delta };
-          if(area.succ(e)) succ.push(item); else if(area.learn(e)) learn.push(item);
+          var mine = e.iapPick && ipInArea(area, e);
+          if(mine){ item.mine = true; if(e.iapPick === 'S'){ item.delta = 99; succ.push(item); } else { item.delta = -99; learn.push(item); } }
+          else if(area.succ(e)) succ.push(item); else if(area.learn(e)) learn.push(item);
         });
       });
       succ.sort(function(a, b){ return (b.delta - a.delta) || (a.date < b.date ? 1 : -1); });
@@ -1460,7 +1472,7 @@
       function fill(kind, want, list){
         var got = ipPickDistinct(list, want);
         got.forEach(function(it){
-          rows.push({ area:area.title, akey:area.key, type:kind, match:ipMatchLabel(it.date, it.opp), clock:it.clock, note:it.label + ' — ' + (IP_TALK[it.key] || '') });
+          rows.push({ area:area.title, akey:area.key, type:kind, match:ipMatchLabel(it.date, it.opp), clock:it.clock, mine:!!it.mine, note:it.label + (it.mine ? ' (Lily\'s pick)' : ' — ' + (IP_TALK[it.key] || '')) });
         });
         var need = want - got.length;
         if(need > 0 && area.ifa){
@@ -1537,9 +1549,10 @@
   function ipDna(){
     var tracks = ipTracks(), refs = ipRefs();
     function count(keys){ var n = 0; tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(keys.indexOf(e.key) > -1) n++; }); }); return n; }
+    function tagN(dim, val){ var n = 0; tracks.forEach(function(m){ n += revCount(m.t.events || [], dim, val); }); return n; }
     return {
-      brave: count(['brave', 'bounce']),
-      lead: count(['call']),
+      brave: count(['brave', 'bounce']) + tagN('mind', 'brave') + tagN('mind', 'bounce'),
+      lead: count(['call']) + tagN('comm', 'clear') + tagN('comm', 'control'),
       edge: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length
     };
   }
@@ -1604,11 +1617,12 @@
     var refs = ipRefs().filter(function(r){ return r.date >= IP_TARGET_SINCE; });
     var tracks = ipTracks().filter(function(m){ return m.date && m.date >= IP_TARGET_SINCE; });
     function cnt(keys){ var n = 0; tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(keys.indexOf(e.key) > -1) n++; }); }); return n; }
+    function tg(dim, val){ var n = 0; tracks.forEach(function(m){ n += revCount(m.t.events || [], dim, val); }); return n; }
     var stat = {
-      set:   function(){ return 'set early and high ' + cnt(['sethigh']) + ', set too low or late ' + cnt(['setlow']) + ', saves ' + cnt(['save', 'bigsave']); },
-      alive: function(){ return 'alive early ' + cnt(['alive']) + ', 1v1s won ' + cnt(['won1v1']) + ', beaten ' + cnt(['lost1v1']); },
-      cross: function(){ return 'claimed ' + cnt(['cross', 'readcross']) + ' (read the flight ' + cnt(['readcross']) + '), missed ' + cnt(['crossmiss']) + ', rushed out ' + cnt(['rushed']); },
-      mind:  function(){ return 'bounced back ' + cnt(['bounce']) + ' times, goals conceded ' + cnt(['goal', 'error']); }
+      set:   function(){ return 'set early and high ' + (cnt(['sethigh']) + tg('set', 'early_high')) + ', set too low or late ' + (cnt(['setlow']) + tg('set', 'late_low')) + ', saves ' + cnt(['save', 'bigsave']); },
+      alive: function(){ return 'alive early ' + (cnt(['alive']) + tg('set', 'alive')) + ', reacted late ' + tg('set', 'late_react') + ', 1v1s won ' + cnt(['won1v1']) + ', beaten ' + cnt(['lost1v1']); },
+      cross: function(){ return 'claimed ' + cnt(['cross', 'readcross']) + ' (read the flight ' + (cnt(['readcross']) + tg('decision', 'read')) + '), missed ' + cnt(['crossmiss']) + ', rushed out ' + (cnt(['rushed']) + tg('decision', 'rushed')); },
+      mind:  function(){ return 'bounced back ' + (cnt(['bounce']) + tg('mind', 'bounce')) + ' times, goals conceded ' + cnt(['goal', 'error']); }
     };
     return IP_TARGETS.map(function(t){
       var quotes = [], seen = {}, count = 0;
@@ -1647,11 +1661,12 @@
   function openIapPrep(){ IP_TAB = 'hudl'; ipRender(); }
 
   function ipRender(){
-    var tabs = [['hudl', 'Hudl clips'], ['xmas', 'Xmas cards'], ['brief', 'IAP briefing']];
+    var tabs = [['hudl', 'Hudl clips'], ['ifa', 'IFA pages'], ['xmas', 'Xmas cards'], ['brief', 'IAP briefing']];
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>IAP &amp; Xmas Prep</h2><button class="modal-close" id="close-modal">×</button></div>' +
-      '<div class="ip-head"><div class="ip-head-t">Lily Norbury · U15 Block 2</div><div class="ip-head-s">IAP review Tue 15 Dec 2026 · 18:50–19:10 · Hudl playlist due 14 Dec</div></div>' +
+      '<div class="ip-head"><div class="ip-head-t">Lily Norbury · U15 Block 2</div><div class="ip-head-s">IAP review Tue 15 Dec 2026 · 18:50–19:10 · Hudl playlist due 14 Dec</div>' +
+        '<div class="hint" style="margin:6px 0 0;">Sources. From Chelsea: Lily\'s IDP/IAP (the three IFAs and the dates) and the GK Induction deck (Standards, BLUE, syllabus). From Lily and Martin: everything recorded in this app (events, review tags, notes, ratings).</div></div>' +
       '<div class="ip-tabs">' + tabs.map(function(t){ return '<button type="button" class="ip-tab' + (IP_TAB === t[0] ? ' on' : '') + '" data-ip-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       '<div id="ip-body">' + ipTabHtml() + '</div>' +
       '<button type="button" class="btn ip-export" id="ip-export-btn">Export IAP Prep PDF</button>'
@@ -1665,6 +1680,9 @@
   }
 
   function ipWireInputs(){
+    document.querySelectorAll('[data-ifa-next]').forEach(function(t){
+      t.addEventListener('input', function(){ state.ifaNext = state.ifaNext || {}; state.ifaNext[t.getAttribute('data-ifa-next')] = t.value; ipSaveSoon(); });
+    });
     document.querySelectorAll('.ip-target, .ip-adjust').forEach(function(inp){
       inp.addEventListener('input', function(){
         var i = parseInt(inp.getAttribute('data-i'), 10);
@@ -1701,9 +1719,29 @@
   }
 
   function ipTabHtml(){
+    if(IP_TAB === 'ifa') return ipIfaPagesHtml();
     if(IP_TAB === 'xmas') return ipXmasHtml();
     if(IP_TAB === 'brief') return ipBriefHtml();
     return ipHudlHtml();
+  }
+
+  function ipIfaPagesHtml(){
+    var refs = ipRefs(), tracks = ipTracks(), clips = ipClips();
+    state.ifaNext = state.ifaNext || {};
+    return '<div class="hint" style="margin-bottom:8px;">One page per IFA: what, how and who are Chelsea\'s words from her IDP. Evidence is what Lily and Martin recorded in this app. Next is Lily\'s own.</div>' +
+      IDP_IFAS.map(function(ifa){
+        var notes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
+        var evN = 0, rvN = 0, games = 0;
+        tracks.forEach(function(m){ var any = false; (m.t.events || []).forEach(function(e){ if(e.ifa === ifa.key){ evN++; any = true; } if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvN++; any = true; } }); if(any) games++; });
+        var mine = clips.rows.filter(function(r){ return r.akey === ifa.key && r.mine; });
+        var q = notes.slice(-2).reverse().map(function(r){ var t = ipSafe(r.evidence || r.wentWell || r.action || ''); return t ? '<div class="eng-char">' + escapeHtml(fmtDate(r.date)) + ': ' + escapeHtml(truncate(t, 120)) + '</div>' : ''; }).join('');
+        return '<div class="card" style="margin-top:10px;"><div class="idp-ifa-title" style="font-size:14px;">' + escapeHtml(ifa.title) + '</div>' +
+          '<div class="card-meta" style="margin:2px 0 6px;">' + escapeHtml(ifa.tag) + ' · source: Chelsea IDP</div>' +
+          '<div class="eng-char"><b>What:</b> ' + escapeHtml(ifa.what) + '</div><div class="eng-char"><b>How:</b> ' + escapeHtml(ifa.how) + '</div><div class="eng-char"><b>Who:</b> ' + escapeHtml(ifa.who) + '</div>' +
+          '<div class="eng-char" style="margin-top:8px;"><b>Evidence</b> (this app): ' + notes.length + ' linked note' + (notes.length === 1 ? '' : 's') + ' · ' + evN + ' recorded match moment' + (evN === 1 ? '' : 's') + ' · ' + rvN + ' reviewed on video · ' + games + ' game' + (games === 1 ? '' : 's') + '</div>' + q +
+          (mine.length ? '<div class="eng-char"><b>Lily\'s chosen clips:</b> ' + mine.map(function(r){ return escapeHtml(r.type + ' ' + r.match + ' ▶ ' + r.clock); }).join('; ') + '</div>' : '<div class="eng-char" style="opacity:0.7;">No clips picked by Lily yet</div>') +
+          '<div class="field" style="margin-top:8px; margin-bottom:0;"><label>Next (Lily\'s own words)</label><textarea rows="2" data-ifa-next="' + ifa.key + '" placeholder="What I will work on next for this IFA">' + escapeHtml(state.ifaNext[ifa.key] || '') + '</textarea></div></div>';
+      }).join('');
   }
 
   function ipHudlHtml(){
@@ -1932,6 +1970,70 @@
     }
     doc.save('lily-iap-xmas-prep.pdf');
   }
+
+  // ---------- Evidence: training and matches side by side (v65). Counts and quotes only, no scoring. ----------
+  function openEvidence(){
+    var refs = ipRefs(), tracks = ipTracks();
+    function sec(t){ return '<div class="section-label" style="margin-top:16px;">' + t + '</div>'; }
+    function col(h, body){ return '<div style="flex:1; min-width:0;"><div class="card-meta" style="font-weight:600; margin-bottom:4px;">' + h + '</div>' + body + '</div>'; }
+    var ifaHtml = IDP_IFAS.map(function(ifa){
+      var notes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
+      var wk = {}; notes.forEach(function(r){ wk[weekOf(r.date)] = true; });
+      var quotes = notes.slice(-2).reverse().map(function(r){ var q = ipSafe(r.evidence || r.wentWell || r.action || ''); return q ? '<div class="eng-char">' + escapeHtml(fmtDate(r.date)) + ': ' + escapeHtml(truncate(q, 110)) + '</div>' : ''; }).join('');
+      var evCount = 0, rvCount = 0, games = 0;
+      tracks.forEach(function(m){
+        var any = false;
+        (m.t.events || []).forEach(function(e){
+          if(e.ifa === ifa.key){ evCount++; any = true; }
+          if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvCount++; any = true; }
+        });
+        if(any) games++;
+      });
+      return '<div class="card" style="margin-top:8px;"><div class="idp-ifa-title" style="font-size:13.5px;">' + escapeHtml(ifa.title) + '</div>' +
+        '<div class="card-meta" style="margin:4px 0 8px;">Chelsea IDP · ' + escapeHtml(ifa.tag) + ' · What: ' + escapeHtml(ifa.what) + '</div>' +
+        '<div style="display:flex; gap:12px;">' +
+          col('Training and notes (Lily / Martin)', '<div class="eng-char">' + notes.length + ' linked note' + (notes.length === 1 ? '' : 's') + ' across ' + Object.keys(wk).length + ' week' + (Object.keys(wk).length === 1 ? '' : 's') + '</div>' + quotes) +
+          col('Matches (tracker)', '<div class="eng-char">' + evCount + ' recorded moment' + (evCount === 1 ? '' : 's') + '</div><div class="eng-char">' + rvCount + ' reviewed on video</div><div class="eng-char">' + games + ' game' + (games === 1 ? '' : 's') + '</div>') +
+        '</div></div>';
+    }).join('');
+
+    // Standards: weekly review ratings (training side) next to match tag counts
+    var attr = {};
+    tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(!e.rev) return; REVIEW_DIMS.forEach(function(d){ var v = e.rev[d.k]; if(!v || !d.std) return; attr[d.std] = (attr[d.std] || 0) + 1; }); }); });
+    var wrs = (state.weeklyReviews || []).filter(function(w){ return w.standards; }).sort(function(a, b){ return a.weekStart < b.weekStart ? -1 : 1; });
+    var stdMap = { tactical:'Tactical', technical:'Technical', psych:'Psychological', physical:'Physical', social:'Social' };
+    var stdHtml = ATTR_KEYS.map(function(k){
+      var vals = wrs.filter(function(w){ return w.standards[k]; }).map(function(w){ return w.standards[k]; });
+      var trend = vals.length ? vals.slice(-6).join(' → ') : 'no weekly ratings yet';
+      return '<div class="card" style="margin-top:8px;"><div class="idp-ifa-title" style="font-size:13.5px;">' + stdMap[k] + '</div><div style="display:flex; gap:12px;">' +
+        col('Weekly review rating (out of 5)', '<div class="eng-char">' + escapeHtml(trend) + '</div>') +
+        col('Match review tags', '<div class="eng-char">' + (attr[stdMap[k]] || 0) + ' tagged moment' + ((attr[stdMap[k]] || 0) === 1 ? '' : 's') + '</div>') + '</div></div>';
+    }).join('');
+
+    // Questions
+    var qs = [];
+    tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(e.ask) qs.push({ opp:m.opp, date:m.date, e:e, off:m.t.videoOffsetSec || 0, recap:m.t.recap }); }); });
+    var open = qs.filter(function(q){ return !q.e.answer; }), done = qs.filter(function(q){ return q.e.answer; });
+    function qRow(q){ return '<div class="eng-char">' + (q.e.answer ? '✅ ' : '❓ ') + escapeHtml(fmtDate(q.date)) + (q.opp ? ' v ' + escapeHtml(q.opp) : '') + (q.recap ? '' : ' · video ' + fmtClock(q.off + q.e.t)) + ' · ' + escapeHtml(q.e.label) + (q.e.note ? ' — ' + escapeHtml(q.e.note) : '') + (q.e.answer ? '<br><span class="card-meta">Coach said: ' + escapeHtml(q.e.answer) + '</span>' : '') + '</div>'; }
+    var qHtml = qs.length ? '<div class="card" style="margin-top:8px;"><div class="card-meta" style="margin-bottom:4px;">' + open.length + ' open · ' + done.length + ' answered</div>' + open.concat(done).map(qRow).join('') + '</div>' : '<div class="hint">No questions flagged yet. In a match review, tap a moment and use Ask the coach.</div>';
+
+    // Differences
+    var diffs = []; tracks.forEach(function(m){ revDiffs(m.t).forEach(function(x){ diffs.push({ opp:m.opp, date:m.date, x:x }); }); });
+    var dHtml = diffs.length ? '<div class="card" style="margin-top:8px;">' + diffs.map(function(d){ return '<div class="eng-char">' + escapeHtml(fmtDate(d.date)) + (d.opp ? ' v ' + escapeHtml(d.opp) : '') + ' · ' + escapeHtml(d.x.label) + ' · ' + escapeHtml(d.x.dim) + ': Martin ' + escapeHtml(d.x.m) + ', Lily ' + escapeHtml(d.x.l) + '</div>'; }).join('') + '</div>' : '<div class="hint">Nothing yet. When Lily tags a moment as herself and it differs from yours, it shows here.</div>';
+
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>Evidence</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="hint" style="margin:0 0 4px;">Training and matches side by side, counts only, no scoring. IFA wording is from Chelsea\'s IDP. Everything counted comes from what Lily and Martin recorded in this app.</div>' +
+      sec('Her three IFAs') + ifaHtml + sec('The five Standards') + stdHtml +
+      sec('Questions for the coaches') + qHtml + sec('Where Martin and Lily see a moment differently') + dHtml
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+  }
+  (function(){
+    var eb = document.getElementById('open-evidence-btn');
+    if(eb) eb.addEventListener('click', openEvidence);
+  })();
 
   (function(){
     var b = document.getElementById('open-iap-prep-btn');
@@ -2706,6 +2808,9 @@
     { key:'longpass',  label:'Long ball / goal kick finds target', delta:0.3, ifa:'ifa2' },
     { key:'punch',     label:'Punched clear',                  delta:0.1, ifa:'ifa3' },
     { key:'stayed',    label:'Stayed on line (did not come)',  delta:0 },
+    { key:'bib_clear', label:'Ball in behind · came and cleared', delta:0.2 },
+    { key:'bib_stay',  label:'Ball in behind · stayed on line',   delta:0 },
+    { key:'bib_beat',  label:'Ball in behind · beaten',           delta:0 },
     { key:'clash',     label:'GK and defender both went / in each other\'s way', delta:0 },
     { key:'bp_p_on',   label:'Back-pass, pressed · played it on',    delta:0.1, ifa:'ifa2' },
     { key:'bp_p_long', label:'Back-pass, pressed · kicked long / cleared', delta:0, ifa:'ifa2' },
@@ -2735,11 +2840,108 @@
       detailGoal:['From a corner','From a cross','After a turnover','Outside the box','Free kick','Penalty','Second ball / not cleared'] },
     { key:'one',   label:'1v1 / close range', good:['won1v1'],                          bad:['lost1v1'],
       detail:['Through ball','Breakaway','Cut-back','Rebound'] },
+    { key:'space', label:'Ball in behind',  good:['bib_clear'],                          bad:[], neutral:['bib_stay','bib_beat'],
+      detail:['Through ball','Long ball over the top','Run in behind'] },
     { key:'cross', label:'Crosses & high balls', good:['cross','punch'],                 bad:['crossmiss'], neutral:['stayed','clash'],
       detail:['Corner','Free kick','Open play','Set piece delivery'] },
     { key:'dist',  label:'With the ball',   good:[],                                     bad:['turnover'],
       detail:['Short','Medium','Long','Back-pass: pressed','Back-pass: not pressed'], detailBad:['Hands','Feet','Around','Through','Over','Back-pass: pressed','Back-pass: not pressed'] }
   ];
+  // Review layer (added while watching the video). Five independent dimensions, one choice each, all optional.
+  var REVIEW_DIMS = [
+    { k:'set',      label:'Set & anticipation',   std:'Tactical',      opts:[['early_high','Set early & high'],['late_low','Set late or low'],['alive','Alive early'],['late_react','Reacted late']] },
+    { k:'decision', label:'Decision',             std:'Tactical',      opts:[['read','Read it & waited'],['right','Right option'],['rushed','Rushed'],['hesitated','Hesitated'],['wrong','Wrong option']] },
+    { k:'comm',     label:'Command & voice',      std:'Social',        opts:[['clear','Called early & clear'],['control','Took control'],['late','Late or no call'],['clash','Got in each other\'s way']] },
+    { k:'hands',    label:'Hands & footwork',     std:'Technical',     opts:[['clean','Clean hands'],['safe','Parried safely'],['spill','Spilled / fumbled'],['foot_good','Footwork good'],['foot_off','Footwork off']] },
+    { k:'pass',     label:'Pass technique',       std:'Technical',     opts:[['pass_good','Technique good (driven / lofted / curled)'],['pass_off','Technique off']] },
+    { k:'phys',     label:'Reach & athleticism',  std:'Physical',      opts:[['easy','Got there comfortably'],['just','Only just got there'],['beaten','Beaten for reach or pace'],['strong','Strong in the air / contact']] },
+    { k:'mind',     label:'Mindset',              std:'Psychological', opts:[['brave','Brave'],['composed','Composed'],['bounce','Bounced back'],['lost','Lost focus']] },
+    { k:'prevent',  label:'Could it be prevented?', std:null,          opts:[['yes','Yes'],['partly','Partly'],['no','Not much she could do']] }
+  ];
+  function revLabel(dim, val){ var d = REVIEW_DIMS.find(function(x){ return x.k === dim; }); var o = d && d.opts.find(function(x){ return x[0] === val; }); return o ? o[1] : ''; }
+  function revText(e){
+    if(!e.rev) return '';
+    return REVIEW_DIMS.map(function(d){ return e.rev[d.k] ? revLabel(d.k, e.rev[d.k]) : ''; }).filter(Boolean).join(' · ');
+  }
+  function revTextL(e){
+    if(!e.revL) return '';
+    return REVIEW_DIMS.map(function(d){ return e.revL[d.k] ? revLabel(d.k, e.revL[d.k]) : ''; }).filter(Boolean).join(' · ');
+  }
+  function revDiffs(track){
+    var out = [];
+    (track.events || []).forEach(function(e){
+      if(!e.rev || !e.revL) return;
+      REVIEW_DIMS.forEach(function(d){
+        if(e.rev[d.k] && e.revL[d.k] && e.rev[d.k] !== e.revL[d.k]){
+          out.push({ t:e.t, label:e.label, dim:d.label, m:revLabel(d.k, e.rev[d.k]), l:revLabel(d.k, e.revL[d.k]) });
+        }
+      });
+    });
+    return out;
+  }
+  function revCount(events, dim, val){ return events.filter(function(e){ return e.rev && e.rev[dim] === val; }).length; }
+  function revIfaOf(e){
+    var a = TRACKER_AREAS.find(function(x){ return x.good.indexOf(e.key) >= 0 || x.bad.indexOf(e.key) >= 0 || (x.neutral || []).indexOf(e.key) >= 0; });
+    var out = [];
+    if(e.rev && e.rev.comm) out.push('ifa1');
+    if(e.rev && (e.rev.decision || e.rev.set || e.rev.pass)){
+      if((a && a.key === 'dist') || e.ifa === 'ifa2' || /^d[hf]_|^bp_/.test(e.key)) out.push('ifa2');
+      if((a && a.key === 'cross') || e.ifa === 'ifa3') out.push('ifa3');
+    }
+    return out;
+  }
+  function trackerRevSummary(track){
+    var ev = (track.events || []).filter(function(e){ return e.rev; });
+    if(!ev.length) return '';
+    var byStd = {};
+    REVIEW_DIMS.forEach(function(d){ if(!d.std) return;
+      d.opts.forEach(function(o){
+        var hit = ev.filter(function(e){ return e.rev[d.k] === o[0]; });
+        if(hit.length){ (byStd[d.std] = byStd[d.std] || []).push(o[1] + ' ' + hit.length + ' (video ' + hit.map(function(e){ return fmtClock((track.videoOffsetSec || 0) + e.t); }).join(', ') + ')'); }
+      });
+    });
+    var stdLines = ['Tactical','Technical','Psychological','Physical','Social'].map(function(k){ return byStd[k] ? '<div class="eng-char"><b>' + k + ':</b> ' + escapeHtml(byStd[k].join(' · ')) + '</div>' : '<div class="eng-char" style="opacity:0.6;"><b>' + k + ':</b> nothing tagged yet</div>'; }).join('');
+    var ifaLines = IDP_IFAS.map(function(ifa){
+      var n = ev.filter(function(e){ return revIfaOf(e).indexOf(ifa.key) >= 0; }).length;
+      return n ? '<div class="eng-char"><b>' + escapeHtml(ifa.title) + ':</b> ' + n + ' reviewed moment' + (n === 1 ? '' : 's') + '</div>' : '';
+    }).join('');
+    var pv = ['yes','partly','no'].map(function(v){ var n = revCount(ev, 'prevent', v); return n ? revLabel('prevent', v) + ' ' + n : ''; }).filter(Boolean).join(' · ');
+    return '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Review tags (' + ev.length + ' of ' + track.events.length + ' moments reviewed)</div>' +
+      stdLines + ifaLines + (pv ? '<div class="eng-char"><b>Could it be prevented?</b> ' + escapeHtml(pv) + '</div>' : '') + '</div>';
+  }
+  // v64: Chelsea vocabulary. Attribute and BLUE NAMES are Chelsea's (GK Induction 26/27, slides 10 and 46).
+  // WHICH tag feeds WHICH attribute is the app's draft mapping, so it is labelled as such.
+  var CHELSEA_ATTRS = { Tactical:['Intelligent','Connected','Influential'], Technical:['Effective','Impactful','Consistent'],
+    Psychological:['Brave','Edge','Controlled','Committed','Independent'], Social:['Leader','Coachable','Team Player'],
+    Physical:['Explosive','Strong','Robust','Quick','Reactive','Presence'] };
+  var REV_ATTR = { set:'Intelligent', decision:'Intelligent', comm:'Leader', hands:'Effective', pass:'Impactful',
+    phys:'Reactive', 'phys:strong':'Strong', mind:'Controlled', 'mind:brave':'Brave', 'mind:bounce':'Brave' };
+  var REV_BLUE = { 'mind:brave':'Brave', 'mind:bounce':'Brave', 'comm:clear':'Lead', 'comm:control':'Lead', 'comm:late':'Lead', 'comm:clash':'Lead' };
+  function trackerChelseaLines(track){
+    var events = track.events || [], off = track.videoOffsetSec || 0;
+    var attr = {}, blue = {};
+    function vt(e){ return fmtClock(off + e.t); }
+    events.forEach(function(e){
+      if(e.rev){ REVIEW_DIMS.forEach(function(d){
+        var v = e.rev[d.k]; if(!v) return;
+        var a = REV_ATTR[d.k + ':' + v] || REV_ATTR[d.k];
+        if(a && d.std) (attr[a] = attr[a] || []).push(vt(e));
+        var b = REV_BLUE[d.k + ':' + v]; if(b) (blue[b] = blue[b] || []).push(vt(e));
+      }); }
+      if(/^bp_p_/.test(e.key)) (blue.Brave = blue.Brave || []).push(vt(e));
+      if(e.ask) (blue.Unite = blue.Unite || []).push(vt(e));
+    });
+    var any = Object.keys(attr).length || Object.keys(blue).length;
+    if(!any) return '';
+    var rows = Object.keys(CHELSEA_ATTRS).map(function(std){
+      var hit = CHELSEA_ATTRS[std].filter(function(a){ return attr[a]; }).map(function(a){ return a + ' ' + attr[a].length + ' (video ' + attr[a].join(', ') + ')'; });
+      return '<div class="eng-char"><b>' + std + ':</b> ' + (hit.length ? escapeHtml(hit.join(' · ')) : '<span style="opacity:0.6;">nothing tagged yet</span>') + '</div>';
+    }).join('');
+    var bl = ['Brave','Lead','Unite','Edge'].map(function(b){ return blue[b] ? b + ' ' + blue[b].length + ' (video ' + blue[b].join(', ') + ')' : ''; }).filter(Boolean).join(' · ');
+    return '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Chelsea GK Profile and BLUE</div>' + rows +
+      '<div class="eng-char"><b>BLUE:</b> ' + (bl ? escapeHtml(bl) : '<span style="opacity:0.6;">nothing yet</span>') + '</div>' +
+      '<div class="hint" style="margin:8px 0 0;">Counts only, no scores. Attribute and BLUE names: Chelsea GK Induction 26/27. Which tag feeds which attribute is this app\'s draft mapping, to check with the GK coaches. BLUE here: Brave = wanting the ball under pressure or being brave, Lead = communication, Unite = questions asked of the coaches.</div></div>';
+  }
   function trackerOpt(key){ return TRACKER_PLUS.concat(TRACKER_MINUS).find(function(o){ return o.key === key; }); }
 
   var TRACKER_MINUS = [
@@ -2974,7 +3176,7 @@
         '<div class="field"><label>How much did Lily play?</label><select id="trk-fin-played">' +
           [['full','Whole match'],['first','First half only'],['second','Second half only'],['part','Part of the match']].map(function(o){ return '<option value="' + o[0] + '"' + ((track.played || 'full') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
         '</select></div>' +
-        (relink ? '' : '<div class="hint" style="margin:0;">Locking it in saves every moment and its time. Nothing can be added or changed after this, but you can link it to a different match later.</div>') +
+        (relink ? '' : '<div class="hint" style="margin:0;">Locking it in saves every moment and its time. Moments cannot be added or changed after this, but you can still review and tag them on the video, and link the game to a different match later.</div>') +
       '</div>' +
       '<button type="button" class="btn btn-primary" id="trk-fin-go" style="margin-top:14px;">' + (relink ? 'Save Link' : 'Lock It In') + '</button>';
     function q(sel){ return ov.querySelector(sel); }
@@ -3071,7 +3273,7 @@
       '</div>';
     }
     var recent = track.events.slice(-3).reverse().map(function(e){
-      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '</span><span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</span><span class="d">' + fmtDelta(e.delta) + '</span></div>';
+      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '</span><span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta > 0 ? '▲ ' : (e.delta < 0 ? '▼ ' : '• ')) + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</span><span class="d">' + fmtDelta(e.delta) + '</span></div>';
     }).join('');
 
     ov.innerHTML =
@@ -3221,6 +3423,62 @@
     return svg;
   }
 
+  // Tag one moment while watching the video. Everything is optional; each tap saves.
+  function renderTrackerTag(id, idx, fromLive){
+    var track = findTrack(id);
+    var ev = track && track.events[idx];
+    if(!ev){ openTrackerReview(id, fromLive); return; }
+    var ov = trackerOverlayEl();
+    var by = trackerOverlayState.tagBy === 'L' ? 'L' : 'M';
+    var RK = by === 'L' ? 'revL' : 'rev';
+    ev[RK] = ev[RK] || {};
+    var R = ev[RK];
+    var offset = track.videoOffsetSec || 0;
+    ov.innerHTML =
+      '<div class="trk-top"><button type="button" class="trk-mini" id="tg-back">Done</button><div class="trk-title">Review this moment</div><span style="width:60px;"></span></div>' +
+      '<div class="card"><div class="card-title" style="font-size:15px;">' + escapeHtml(ev.label) + (ev.detail ? ' · ' + escapeHtml(ev.detail) : '') + '</div>' +
+      '<div class="card-meta">' + (track.recap ? 'Minute ' + Math.round(ev.t / 60) : 'Match ' + fmtClock(ev.t)) + ' · video ' + fmtClock(offset + ev.t) + (offset ? '' : ' (set the video time first for an exact clip)') + '</div></div>' +
+      '<div class="trk-detail" style="margin-top:12px;"><span class="hint" style="margin:0;">Tagging as:</span>' +
+        '<button type="button" class="trk-chip' + (by === 'M' ? ' on' : '') + '" data-by="M">Martin</button><button type="button" class="trk-chip' + (by === 'L' ? ' on' : '') + '" data-by="L">Lily</button></div>' +
+      REVIEW_DIMS.map(function(d){
+        return '<div class="section-label" style="margin-top:14px;">' + escapeHtml(d.label) + (d.std ? ' <span class="card-meta" style="text-transform:none;">· ' + d.std + '</span>' : '') + '</div>' +
+          '<div class="trk-detail">' + d.opts.map(function(o){
+            return '<button type="button" class="trk-chip' + (R[d.k] === o[0] ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>';
+          }).join('') + '</div>';
+      }).join('') +
+      (by === 'L' ? '<div class="section-label" style="margin-top:14px;">My Hudl playlist <span class="card-meta" style="text-transform:none;">· Lily\'s own pick for the Dec playlist</span></div>' +
+        '<div class="trk-detail"><button type="button" class="trk-chip' + (ev.iapPick === 'S' ? ' on' : '') + '" data-pick="S">⭐ Success clip</button><button type="button" class="trk-chip' + (ev.iapPick === 'L' ? ' on' : '') + '" data-pick="L">📘 Learning clip</button></div>' : '') +
+      '<div class="section-label" style="margin-top:14px;">For the coach</div>' +
+      '<div class="trk-detail"><button type="button" class="trk-chip' + (ev.ask ? ' on' : '') + '" id="tg-ask">❓ Ask the coach</button></div>' +
+      '<div class="field" style="margin-top:10px;"><label>Question or note (optional)</label><textarea id="tg-note" rows="2" placeholder="e.g. Who should take the ball here?">' + escapeHtml(ev.note || '') + '</textarea></div>' +
+      '<button type="button" class="btn btn-primary" id="tg-done" style="margin-top:12px;">Done</button>';
+    function finish(){ ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); openTrackerReview(id, fromLive); }
+    ov.querySelectorAll('[data-dim]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-dim'), v = b.getAttribute('data-val');
+        if(R[k] === v) delete R[k]; else R[k] = v;
+        ev.note = (ov.querySelector('#tg-note').value || '').trim();
+        saveData(); renderTrackerTag(id, idx, fromLive);
+      });
+    });
+    ov.querySelectorAll('[data-pick]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var v = b.getAttribute('data-pick');
+        if(ev.iapPick === v) delete ev.iapPick; else ev.iapPick = v;
+        ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
+      });
+    });
+    ov.querySelectorAll('[data-by]').forEach(function(b){
+      b.addEventListener('click', function(){
+        ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData();
+        trackerOverlayState.tagBy = b.getAttribute('data-by'); renderTrackerTag(id, idx, fromLive);
+      });
+    });
+    ov.querySelector('#tg-ask').addEventListener('click', function(){ ev.ask = !ev.ask; ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive); });
+    ov.querySelector('#tg-back').addEventListener('click', finish);
+    ov.querySelector('#tg-done').addEventListener('click', finish);
+  }
+
   function openTrackerReview(id, fromLive){
     var track = findTrack(id);
     if(!track){ closeTrackerOverlay(); return; }
@@ -3261,20 +3519,23 @@
       }
       var e = row.e;
       var ifaTag = e.ifa ? ' <span class="eng-badge">' + escapeHtml(e.ifa.toUpperCase().replace('IFA', 'IFA ')) + '</span>' : '';
-      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
-        '<span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag + '</span>' +
+      var rvTxt = revText(e);
+      return '<div class="trk-ev" data-rv="' + ev.indexOf(e) + '" style="cursor:pointer;"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
+        '<span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta > 0 ? '▲ ' : (e.delta < 0 ? '▼ ' : '• ')) + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag +
+          (rvTxt ? '<br><span class="card-meta" style="color:var(--cyan);">Review: ' + escapeHtml(rvTxt) + '</span>' : '') + (revTextL(e) ? '<br><span class="card-meta" style="color:var(--lime);">Lily\'s view: ' + escapeHtml(revTextL(e)) + '</span>' : '') + (e.answer ? '<br><span class="card-meta">✅ Coach: ' + escapeHtml(e.answer) + '</span>' : '') + (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</span>' +
         '<span class="d">' + fmtDelta(e.delta) + '<br>' + row.r.toFixed(1) + '</span></div>';
     }).join('');
 
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="trk-close">Close</button>' +
-        '<div class="trk-title">' + (track.opponent ? 'vs ' + escapeHtml(track.opponent) : 'Match') + ' · ' + escapeHtml(fmtDate(track.date)) + '</div>' +
+        '<div class="trk-title">' + (track.opponent ? 'vs ' + escapeHtml(track.opponent) : 'Match') + ' · ' + escapeHtml(fmtDate(track.date)) + (track.ctx ? ' · ' + ({A:'Assertive',B:'Balanced',C:'Challenge'}[track.ctx] || '') : '') + '</div>' +
         (track.status !== 'done' ? '<button type="button" class="trk-mini" id="trk-back-live">Back to Live</button>' : '<span style="width:60px;"></span>') + '</div>' +
       '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">' + (track.status === 'done' ? 'Final rating' : 'Rating so far') + '</div></div>' + trackerBadgeHtml(final) + '</div>' +
       '<div class="card">' + trackerChartSvg(track) +
         '<div class="hint trk-caption" style="margin:8px 0 0; text-align:center;">Tap a ▲ or ▼ to see what it was</div></div>' +
       (ev.some(function(e){ return e.ask; }) ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Questions for the coaches</div>' +
-        ev.filter(function(e){ return e.ask; }).map(function(e){ return '<div class="eng-char">' + (track.recap ? '' : fmtClock(e.t) + ' · ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</div>'; }).join('') + '</div>' : '') +
+        ev.map(function(e, i){ return e.ask ? '<div class="eng-char" data-ans="' + i + '" style="cursor:pointer;">' + (e.answer ? '✅ ' : '❓ ') + (track.recap ? '' : fmtClock(e.t) + ' · ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + (e.note ? ' — ' + escapeHtml(e.note) : '') + (e.answer ? '<br><span class="card-meta">Coach said: ' + escapeHtml(e.answer) + '</span>' : '<br><span class="card-meta">Tap to record the coach\'s answer</span>') + '</div>' : ''; }).join('') + '</div>' : '') +
+      (revDiffs(track).length ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Where you and Lily see it differently</div>' + revDiffs(track).map(function(x){ return '<div class="eng-char">' + (track.recap ? '' : fmtClock(x.t) + ' · ') + escapeHtml(x.label) + ' · ' + escapeHtml(x.dim) + ': Martin ' + escapeHtml(x.m) + ', Lily ' + escapeHtml(x.l) + '</div>'; }).join('') + '<div class="hint" style="margin:8px 0 0;">Worth watching together and asking the coach. Neither view is the right one.</div></div>' : '') +
       '<div class="card" style="margin-top:10px;">' +
         '<div class="card-title" style="font-size:14px;">The game in numbers</div>' +
         '<div class="eng-char">Started ' + track.baseline.toFixed(1) + ' · Finished ' + final.toFixed(1) + ' · Highest ' + high.toFixed(1) + ' · Lowest ' + low.toFixed(1) + '</div>' +
@@ -3288,7 +3549,11 @@
         '<div class="field" style="margin-bottom:6px;"><label>Hudl video time when you tapped Kick Off (mm:ss)</label><input type="text" id="trk-offset" value="' + fmtClock(offset) + '" placeholder="0:00"></div>' +
         '<div class="hint" style="margin:0;">Enter where in the Hudl video you tapped Kick Off (for a second-half-only game, where the half Lily plays starts), and the blue ▶ times below become the exact moment to jump to.</div>' +
       '</div>' +
-      '<div class="section-label">Moment by moment</div>' +
+      '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Chelsea game label</div>' +
+        '<div class="trk-detail">' + [['A','Assertive'],['B','Balanced'],['C','Challenge']].map(function(c){ return '<button type="button" class="trk-chip' + (track.ctx === c[0] ? ' on' : '') + '" data-ctx="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
+        '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
+      trackerRevSummary(track) + trackerChelseaLines(track) +
+      '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
       (timeline || '<div class="hint">No moments recorded yet.</div>') +
       ('<button type="button" class="btn btn-ghost" id="trk-delete" style="margin-top:20px; color:var(--red); border-color:rgba(255,128,128,0.3);">Delete This Tracker</button>');
 
@@ -3296,6 +3561,26 @@
     q('#trk-close').addEventListener('click', closeTrackerOverlay);
     var bl = q('#trk-back-live'); if(bl) bl.addEventListener('click', function(){ renderTrackerLive(id); });
     var rl = q('#trk-relink'); if(rl) rl.addEventListener('click', function(){ renderTrackerFinish(id, true); });
+    ov.querySelectorAll('[data-rv]').forEach(function(row){
+      row.addEventListener('click', function(){ renderTrackerTag(id, parseInt(row.getAttribute('data-rv'), 10), fromLive); });
+    });
+    ov.querySelectorAll('[data-ans]').forEach(function(row){
+      row.addEventListener('click', function(){
+        var e2 = ev[parseInt(row.getAttribute('data-ans'), 10)];
+        var a = prompt('What did the coach say? (leave empty to clear)', e2.answer || '');
+        if(a === null) return;
+        e2.answer = a.trim(); if(!e2.answer) delete e2.answer; else e2.answeredOn = new Date().toISOString().slice(0, 10);
+        saveData(); openTrackerReview(id, fromLive);
+      });
+    });
+    ov.querySelectorAll('[data-ctx]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var c = b.getAttribute('data-ctx');
+        track.ctx = (track.ctx === c) ? '' : c;
+        saveData();
+        openTrackerReview(id, fromLive);
+      });
+    });
     var off = q('#trk-offset');
     off.addEventListener('change', function(){
       track.videoOffsetSec = parseClock(off.value);
