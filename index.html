@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v66 — 5 Nov 2026 -->
+<!-- Lily GK Journal — v67 — 5 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -813,8 +813,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v66';
+  var APP_VERSION = 'v67';
   var CHANGELOG = [
+    { version:'v67', notes:'Audit fixes. Edge now counts Lily\'s own ownership: the Hudl clips she picked, the weekly reviews completed and the next steps she named. The August ratings (Tactical 3.3, Technical 4.0, Psychological 2.8, Physical 3.8, Social 3.5) are stored as her starting baseline and shown beside her current averages. The four Oct targets are labelled Seb, Josh & Kiera Feedback (Oct 2 Review). The written IAP is labelled as her three IDP IFAs, with the fourth Hudl area noted as playlist only. The privacy filter also catches national camp, international duty, SGP camp and similar. Attribute tags are described as self-reflection tags, not a Chelsea staff assessment.' },
     { version:'v66', notes:'December pack. The Brave and Leading counts in the IAP briefing now include the review tags (Brave, Bounced back, Called early and clear, Took control), because the live buttons for them were removed in v58. Lily can pick a moment for her Hudl playlist as Success or Learning when she tags it as herself; her picks go first in the 12-clip list, then the app fills any gaps from the recorded moments as before. New IFA pages tab in IAP Prep: for each IFA, Chelsea\'s What, How and Who, the evidence counts, her chosen clips, and a Next step box in her own words.' },
     { version:'v65', notes:'New Evidence page (Standards tab): each IFA with training notes and match moments side by side, each Standard with the weekly review ratings next to the match tag counts, and the open questions for the coaches. Questions can now be answered once the coach replies. Lily can tag moments herself (Tagging as: Martin or Lily) and the app lists where the two views differ. Counts only, no scores.' },
     { version:'v64', notes:'Chelsea wording and sources. New fact event "Ball in behind" (Dominate the Space): came and cleared, stayed on line, or beaten. Each match can carry the Chelsea game label (Assertive, Balanced or Challenge), which you enter from what the club tells you. Review tags now also map to the Chelsea GK Profile attributes and BLUE behaviours from the GK Induction deck, shown as counts with video times on the match page. Sources are labelled: Chelsea (induction deck, Lily\'s IDP/IAP) versus Lily and Martin (this app).' },
@@ -1371,7 +1372,9 @@
   // that mentions England / the FA is dropped (ipSafe) so nothing private can leak.
   var IP_FROM = '2026-07-01';
   var IP_TAB = 'hudl';
-  var IP_PRIVATE_RE = /england|lioness|three lions|\bFA\b|st\.? george|\bSGP\b/i;
+  var IP_PRIVATE_RE = /england|lioness|three lions|\bFA\b|st\.? george|\bSGP\b|national (camp|team|squad|duty|call)|international (duty|camp|squad|call|selection|trial)|\bwu1[5-7]\b|\bu1[5-7]s? (camp|squad) (with|for) england|talent pathway|future lioness|\bIDP\b[^.]*\bnational\b/i;
+  var AUG_BASELINE = { tactical:3.3, technical:4.0, psych:2.8, physical:3.8, social:3.5 };
+  var IP_OCT_LABEL = 'Seb, Josh & Kiera Feedback (Oct 2 Review)';
   var ipSaveTimer = null;
   function ipSafe(s){ s = String(s == null ? '' : s).trim(); return (!s || IP_PRIVATE_RE.test(s)) ? '' : s; }
   function ipPrepState(){
@@ -1553,7 +1556,9 @@
     return {
       brave: count(['brave', 'bounce']) + tagN('mind', 'brave') + tagN('mind', 'bounce'),
       lead: count(['call']) + tagN('comm', 'clear') + tagN('comm', 'control'),
-      edge: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length
+      edgeNotes: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length,
+      edgePicks: tracks.reduce(function(a, m){ return a + (m.t.events || []).filter(function(e){ return e.iapPick; }).length; }, 0),
+      edgeReviews: (state.weeklyReviews || []).filter(function(w){ return w.weekStart >= weekOf(IP_FROM); }).length
     };
   }
   function ipWeeks(){ var from = weekOf(IP_FROM); return buildWeeks().filter(function(w){ return w.weekStart >= from && w.avg !== null; }); }
@@ -1728,7 +1733,7 @@
   function ipIfaPagesHtml(){
     var refs = ipRefs(), tracks = ipTracks(), clips = ipClips();
     state.ifaNext = state.ifaNext || {};
-    return '<div class="hint" style="margin-bottom:8px;">One page per IFA: what, how and who are Chelsea\'s words from her IDP. Evidence is what Lily and Martin recorded in this app. Next is Lily\'s own.</div>' +
+    return '<div class="hint" style="margin-bottom:8px;">One page per IFA (her three IFAs from the IDP: Communication, Distribution, Crosses): what, how and who are Chelsea\'s words from her IDP. Evidence is what Lily and Martin recorded in this app. Next is Lily\'s own.</div>' +
       IDP_IFAS.map(function(ifa){
         var notes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
         var evN = 0, rvN = 0, games = 0;
@@ -1747,7 +1752,7 @@
   function ipHudlHtml(){
     var c = ipClips();
     var wo = ipFeedbackBy('workOn').slice(0, 3).map(function(f){ return ipSafe(f.text); }).join('; ');
-    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of the 4 focus areas.' + (wo ? ' The coaches asked her to work on: ' + escapeHtml(wo) + '. That is a good place to look for learning clips.' : '') + '</div>';
+    var html = '<div class="hint" style="margin-bottom:10px;">Playlist name in Hudl: <b>Lily Norbury + IAP1</b>. Kiera asks for 12 clips: 2 successful and 1 learning example for each of 4 themes. Lily\'s written IAP and IDP have 3 IFAs (IFA 1 Communication, IFA 2 Distribution, IFA 3 Crosses); the fourth theme, Dominate the Goal, is for the playlist only.' + (wo ? ' The coaches asked her to work on: ' + escapeHtml(wo) + '. That is a good place to look for learning clips.' : '') + '</div>';
     var last = '';
     c.rows.forEach(function(r){
       if(r.area !== last){
@@ -1772,7 +1777,7 @@
     var wks = ipWeeks();
     var avg = wks.length ? ipAvg(wks.map(function(w){ return w.avg; })).toFixed(1) : null;
     var stdRows = ATTR_KEYS.map(function(k){
-      return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + (st[k] ? st[k].avg + ' / 5' : '—') + '</div></div>';
+      return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + (st[k] ? st[k].avg + ' / 5' : '—') + ' <span class="card-meta">(Aug ' + AUG_BASELINE[k].toFixed(1) + ')</span></div></div>';
     }).join('');
     var card1 = '<div class="card ip-card"><div class="ip-card-t">Card 1 · My first-half numbers</div>' + stdRows +
       '<div class="journal-detail-row"><div class="k">Recovery score</div><div class="v">' + (rec.score === null ? '—' : rec.score + ' · ' + rec.band) + '</div></div>' +
@@ -1781,12 +1786,12 @@
       '<div class="journal-detail-row"><div class="k">Sessions in my journal</div><div class="v">' + ipRefs().length + '</div></div>' +
       '<div class="journal-detail-row"><div class="k">Matches tracked</div><div class="v">' + tracks.length + '</div></div>' +
       '<div class="hint" style="margin-top:8px;">July to December. Recovery score is my average on Chelsea\'s 100-point system' + (rec.n ? ' (' + rec.n + ' check-ins)' : '') + '; 100+ is Excellent, 80-99 Good, 60-79 Fair. Standards averages only count the sessions or weeks I scored.</div></div>';
-    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 2 · My 3 IFAs and the 2 Oct targets</div>' + ev.map(function(e){
+    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 2 · My 3 IFAs and Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ev.map(function(e){
       var q = e.quotes.length ? e.quotes.map(function(x){ return '<div class="ip-quote">“' + escapeHtml(x.text) + '”<span> ' + escapeHtml(fmtDate(x.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes linked yet.</div>';
       var m = e.moments.map(function(x){ return '<div class="ip-moment">▶ ' + escapeHtml(ipMatchLabel(x.date, x.opp)) + ' — ' + escapeHtml(x.label) + '</div>'; }).join('');
       return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + '</div>' + q + m + '</div>';
     }).join('') +
-      '<div class="ip-ifa"><div class="ip-ifa-t">My progress on the 2 Oct targets</div>' + ipTargetEvidence().map(function(t){
+      '<div class="ip-ifa"><div class="ip-ifa-t">Seb, Josh &amp; Kiera Feedback (Oct 2 Review): my progress</div>' + ipTargetEvidence().map(function(t){
         return '<div class="ip-moment"><b>' + escapeHtml(t.title) + '</b>' + (t.stat ? ' · ' + escapeHtml(t.stat) : '') + '</div>' +
           (t.quotes.length ? t.quotes.map(function(q){ return '<div class="ip-quote">“' + escapeHtml(q.text) + '”<span> ' + escapeHtml(fmtDate(q.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes since 2 Oct yet.</div>');
       }).join('') + '</div>' +
@@ -1821,14 +1826,14 @@
           '<div class="ip-moment">' + e.linkedCount + ' linked session' + (e.linkedCount === 1 ? '' : 's') + (e.avg ? ' · average ' + e.avg + '/5' : '') + (e.momentCount ? ' · ' + e.momentCount + ' good match moment' + (e.momentCount === 1 ? '' : 's') : '') + '</div>' +
           '<div class="ip-quote">' + escapeHtml(q) + '</div></div>';
       }).join('') +
-      '<div class="section-label">The 2 Oct targets</div>' + ipTargetEvidence().map(function(t){
+      '<div class="section-label">Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ipTargetEvidence().map(function(t){
         return '<div class="journal-detail-row"><div class="k">' + escapeHtml(t.title) + '</div><div class="v">' + (t.count ? t.count + ' note' + (t.count === 1 ? '' : 's') : 'no notes yet') + (t.stat ? ' · ' + escapeHtml(t.stat) : '') + '</div></div>';
       }).join('') +
       '<div class="section-label">Chelsea GK DNA</div>' +
       '<div class="hint" style="margin-bottom:6px;">Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.</div>' +
       '<div class="journal-detail-row"><div class="k">Brave</div><div class="v">' + dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's') + ' tracked</div></div>' +
       '<div class="journal-detail-row"><div class="k">Leading</div><div class="v">' + dna.lead + ' good call' + (dna.lead === 1 ? '' : 's') + ' tracked</div></div>' +
-      '<div class="journal-detail-row"><div class="k">Edge</div><div class="v">Named her own next step in ' + dna.edge + ' sessions</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Edge</div><div class="v">' + (dna.edgeNotes + dna.edgePicks + dna.edgeReviews) + ' ownership actions: ' + dna.edgeNotes + ' next steps she named, ' + dna.edgePicks + ' Hudl clips she picked, ' + dna.edgeReviews + ' weekly reviews completed</div></div>' +
       '<div class="section-label">What the coaches said</div>' +
       ipFeedback().map(function(f){
         var k = f.type === 'praised' ? 'Praised' : (f.type === 'workOn' ? 'Work on' : 'Note');
@@ -1893,6 +1898,7 @@
     });
     y += 2;
     para(IP_HUDL_RULES, { size:8, color:[3, 70, 148], lh:3.8 });
+    para('Lily\'s written IAP has 3 IFAs: IFA 1 Communication, IFA 2 Distribution, IFA 3 Crosses. The fourth playlist theme, Dominate the Goal, is for the Hudl clips only.', { size:8, color:[110, 120, 140], lh:3.8 });
     para('What each clip should show: ' + IP_AREAS.map(function(a){ return a.title.split(' · ')[0] + ' - success: ' + IP_CRITERIA[a.key].ok + ' Learning: ' + IP_CRITERIA[a.key].bad; }).join('  '), { size:8, color:[90, 100, 120], lh:3.8 });
     para('Times are Hudl video times. An asterisk means the Hudl offset has not been set for that match, so the time is the match clock. "find it" means rewatch that match to find the moment. Set stance is not tracked directly, so Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).', { size:8, color:[110, 120, 140], lh:3.8 });
 
@@ -1901,13 +1907,14 @@
     var st = ipStandards(), rec = ipRecovery(), rt = ipRatings(), ev = ipIfaEvidence(), tg = ipPrepState().targets;
     band('My mid-season review', 'Lily Norbury · U15 · presented by me, on my own');
     head('Card 1 - My first-half numbers (July to December)');
-    ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], st[k] ? st[k].avg + ' / 5' : '—'); });
+    ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], (st[k] ? st[k].avg + ' / 5' : '-') + '  (Aug ' + AUG_BASELINE[k].toFixed(1) + ')'); });
+    para('Aug = my own ratings in my journal in August, my starting point. My July IDP ratings were blank.', { size:8, color:[110, 120, 140], lh:3.8 });
     line('Recovery score (100-point)', rec.score === null ? '—' : rec.score + ' - ' + rec.band);
     var wksP = ipWeeks();
     line('Average week score', wksP.length ? ipAvg(wksP.map(function(w){ return w.avg; })).toFixed(1) + ' / 5' : '—');
     line('Weeks reviewed', String(wksP.length));
     y += 3;
-    head('Card 2 - My 3 IFAs and the 2 Oct targets');
+    head('Card 2 - My 3 IFAs and ' + IP_OCT_LABEL);
     ev.forEach(function(e){
       para(e.ifa.title, { bold:true, color:[30, 55, 100] });
       if(!e.quotes.length && !e.moments.length) para('Nothing linked yet.', { indent:3, color:[140, 140, 150] });
@@ -1915,7 +1922,7 @@
       e.moments.forEach(function(m){ para('Match moment: ' + ipMatchLabel(m.date, m.opp) + ' - ' + m.label, { indent:3, color:[3, 70, 148] }); });
       y += 1.5;
     });
-    para('My progress on the 2 Oct targets', { bold:true, color:[30, 55, 100] });
+    para(IP_OCT_LABEL + ': my progress', { bold:true, color:[30, 55, 100] });
     ipTargetEvidence().forEach(function(t){
       para(t.title + (t.stat ? ' - ' + t.stat : ''), { indent:3, bold:true });
       if(!t.quotes.length) para('No notes since 2 Oct yet.', { indent:6, color:[140, 140, 150] });
@@ -1947,12 +1954,13 @@
       para(e.linkedCount + ' linked session(s)' + (e.avg ? ', average ' + e.avg + '/5' : '') + (e.momentCount ? ', ' + e.momentCount + ' good match moment(s)' : ''), { indent:3 });
       if(e.quotes[0]) para('"' + truncate(e.quotes[0].text, 110) + '"', { indent:3, color:[90, 100, 120] });
     });
-    y += 2; head('The 2 Oct targets');
+    y += 2; head(IP_OCT_LABEL);
     ipTargetEvidence().forEach(function(t){ para(t.title + ': ' + (t.count ? t.count + ' note' + (t.count === 1 ? '' : 's') : 'no notes yet') + (t.stat ? ' - ' + t.stat : ''), { indent:2 }); });
     y += 2; head('Chelsea GK DNA');
     line('Brave', dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's'));
     line('Leading', dna.lead + ' good call' + (dna.lead === 1 ? '' : 's'));
-    line('Edge', 'named her own next step in ' + dna.edge + ' sessions');
+    line('Edge', (dna.edgeNotes + dna.edgePicks + dna.edgeReviews) + ' ownership actions');
+    para('Edge counts: ' + dna.edgeNotes + ' next steps she named, ' + dna.edgePicks + ' Hudl clips she picked herself, ' + dna.edgeReviews + ' weekly reviews completed.', { size:8, color:[110, 120, 140], lh:3.8, indent:2 });
     para('Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.', { size:8, color:[110, 120, 140], lh:3.8 });
     y += 3; head('What the coaches said');
     if(ipFeedbackBy('praised').length) para('Praised: ' + ipFeedbackLine('praised'), { indent:2 });
@@ -2004,7 +2012,7 @@
     var stdMap = { tactical:'Tactical', technical:'Technical', psych:'Psychological', physical:'Physical', social:'Social' };
     var stdHtml = ATTR_KEYS.map(function(k){
       var vals = wrs.filter(function(w){ return w.standards[k]; }).map(function(w){ return w.standards[k]; });
-      var trend = vals.length ? vals.slice(-6).join(' → ') : 'no weekly ratings yet';
+      var trend = 'Aug ' + AUG_BASELINE[k].toFixed(1) + (vals.length ? ' → ' + vals.slice(-6).join(' → ') : ' (no weekly ratings yet)');
       return '<div class="card" style="margin-top:8px;"><div class="idp-ifa-title" style="font-size:13.5px;">' + stdMap[k] + '</div><div style="display:flex; gap:12px;">' +
         col('Weekly review rating (out of 5)', '<div class="eng-char">' + escapeHtml(trend) + '</div>') +
         col('Match review tags', '<div class="eng-char">' + (attr[stdMap[k]] || 0) + ' tagged moment' + ((attr[stdMap[k]] || 0) === 1 ? '' : 's') + '</div>') + '</div></div>';
@@ -2024,7 +2032,7 @@
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Evidence</h2><button class="modal-close" id="close-modal">×</button></div>' +
-      '<div class="hint" style="margin:0 0 4px;">Training and matches side by side, counts only, no scoring. IFA wording is from Chelsea\'s IDP. Everything counted comes from what Lily and Martin recorded in this app.</div>' +
+      '<div class="hint" style="margin:0 0 4px;">Training and matches side by side, counts only, no scoring. IFA wording is from Chelsea\'s IDP. Everything counted comes from what Lily and Martin recorded in this app, and review tags are their own self-reflection tags, not a Chelsea staff assessment.</div>' +
       sec('Her three IFAs') + ifaHtml + sec('The five Standards') + stdHtml +
       sec('Questions for the coaches') + qHtml + sec('Where Martin and Lily see a moment differently') + dHtml
     );
@@ -2930,6 +2938,7 @@
       }); }
       if(/^bp_p_/.test(e.key)) (blue.Brave = blue.Brave || []).push(vt(e));
       if(e.ask) (blue.Unite = blue.Unite || []).push(vt(e));
+      if(e.iapPick) (blue.Edge = blue.Edge || []).push(vt(e));
     });
     var any = Object.keys(attr).length || Object.keys(blue).length;
     if(!any) return '';
@@ -2938,9 +2947,9 @@
       return '<div class="eng-char"><b>' + std + ':</b> ' + (hit.length ? escapeHtml(hit.join(' · ')) : '<span style="opacity:0.6;">nothing tagged yet</span>') + '</div>';
     }).join('');
     var bl = ['Brave','Lead','Unite','Edge'].map(function(b){ return blue[b] ? b + ' ' + blue[b].length + ' (video ' + blue[b].join(', ') + ')' : ''; }).filter(Boolean).join(' · ');
-    return '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Chelsea GK Profile and BLUE</div>' + rows +
+    return '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Self-reflection tags, using Chelsea\'s attribute names</div>' + rows +
       '<div class="eng-char"><b>BLUE:</b> ' + (bl ? escapeHtml(bl) : '<span style="opacity:0.6;">nothing yet</span>') + '</div>' +
-      '<div class="hint" style="margin:8px 0 0;">Counts only, no scores. Attribute and BLUE names: Chelsea GK Induction 26/27. Which tag feeds which attribute is this app\'s draft mapping, to check with the GK coaches. BLUE here: Brave = wanting the ball under pressure or being brave, Lead = communication, Unite = questions asked of the coaches.</div></div>';
+      '<div class="hint" style="margin:8px 0 0;">These are Lily\'s and Martin\'s own self-reflection tags, not a Chelsea staff assessment. Counts only, no scores. Attribute and BLUE names come from the Chelsea GK Induction 26/27; which tag feeds which attribute is this app\'s own mapping. BLUE here: Brave = wanting the ball under pressure or being brave, Lead = communication, Unite = questions asked of the coaches, Edge = clips Lily picked herself.</div></div>';
   }
   function trackerOpt(key){ return TRACKER_PLUS.concat(TRACKER_MINUS).find(function(o){ return o.key === key; }); }
 
