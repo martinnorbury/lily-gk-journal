@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v59 — 1 Nov 2026 -->
+<!-- Lily GK Journal — v61 — 1 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -451,6 +451,8 @@
   .trk-opt{padding:16px 10px; border-radius:12px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--text); font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; text-align:left; cursor:pointer; line-height:1.25;}
   .trk-areas{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0;}
   .trk-area{padding:30px 8px; border-radius:16px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--text); font-family:'Oswald',sans-serif; font-weight:700; font-size:19px; line-height:1.15; cursor:pointer;}
+  .trk-minute{display:flex; gap:5px; padding:0 4px; font-size:13px; align-items:center; justify-content:center; margin:12px 0 0;}
+  .trk-minval{font-family:'Oswald',sans-serif; font-size:22px; min-width:46px; text-align:center;}
   .trk-goal{width:100%; padding:22px 8px; margin:12px 0 0; border-radius:16px; border:none; background:var(--red); color:#2A0000; font-family:'Oswald',sans-serif; font-weight:700; font-size:22px; letter-spacing:0.04em; cursor:pointer;}
   .trk-opt.good{border-color:#4CC27A; background:rgba(76,194,122,0.14);}
   .trk-opt.bad{border-color:var(--red); background:rgba(255,92,92,0.12);}
@@ -810,8 +812,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v59';
+  var APP_VERSION = 'v61';
   var CHANGELOG = [
+    { version:'v61', notes:'Tidied the tracker so every item fits one place. Back-pass is no longer a separate event (it overlapped with With the ball): record what she did with the ball, then tag Back-pass pressed or not pressed. Recording a past game now asks which game, listing every earlier match in the schedule, so older games can be filled in from the recordings.' },
+    { version:'v60', notes:'Record a past game from memory: same buttons, with a minute stepper instead of a running clock, and it links itself to the match from the last three days. New facts: Back-pass received (pressed or not pressed, then played it on, kicked long or lost it) and GK and defender both went. Goals can be tagged more than once (from a corner, from a cross, after a turnover, outside the box and so on). Every event has an Ask the coach flag, and the match review lists the questions for the coaches.' },
     { version:'v59', notes:'The Match Tracker now links itself to the match on today\'s date in the schedule (opponent included), and shows "Today\'s match" on the start screen. If there is no match today, or more than one, you still choose at the final whistle.' },
     { version:'v58', notes:'Match Tracker now records only things that happened. Removed from live recording because they are review judgements: Cleared danger behind the line, Error led to a goal, Brave action, Bounced back, Good call and No call (the whole Voice & mindset area). Four areas remain: Shot-stopping, 1v1 / close range, Crosses & high balls, With the ball, plus GOAL CONCEDED and Clip. Old matches unchanged.' },
     { version:'v57', notes:'Match Tracker reworked after the first live test. GOAL CONCEDED is one tap on the main screen. Positioning and sweeping moved out of live recording (review only). Aerial now records Claimed, Punched, Came but missed or dropped, and Stayed. With the ball uses Chelsea\'s wording: Hands or Feet, then Play around, Play through, or Play over (into, onto, in behind), with an optional Short, Medium or Long. Ratings rebalanced: pass completed +0.1 to +0.2, turnover -0.3, cross claimed +0.3, missed -0.3. New Clip button marks a moment to find on the video. Old matches unchanged.' },
@@ -2701,7 +2705,14 @@
     { key:'readcross', label:'Waited, read the flight, claimed', delta:0.5, ifa:'ifa3' },
     { key:'longpass',  label:'Long ball / goal kick finds target', delta:0.3, ifa:'ifa2' },
     { key:'punch',     label:'Punched clear',                  delta:0.1, ifa:'ifa3' },
-    { key:'stayed',    label:'Stayed on line (did not come)',  delta:0 }
+    { key:'stayed',    label:'Stayed on line (did not come)',  delta:0 },
+    { key:'clash',     label:'GK and defender both went / in each other\'s way', delta:0 },
+    { key:'bp_p_on',   label:'Back-pass, pressed · played it on',    delta:0.1, ifa:'ifa2' },
+    { key:'bp_p_long', label:'Back-pass, pressed · kicked long / cleared', delta:0, ifa:'ifa2' },
+    { key:'bp_p_lost', label:'Back-pass, pressed · lost it',         delta:-0.3, ifa:'ifa2' },
+    { key:'bp_f_on',   label:'Back-pass, not pressed · played it on', delta:0.1, ifa:'ifa2' },
+    { key:'bp_f_long', label:'Back-pass, not pressed · kicked long / cleared', delta:0, ifa:'ifa2' },
+    { key:'bp_f_lost', label:'Back-pass, not pressed · lost it',     delta:-0.3, ifa:'ifa2' }
   ];
   // Chelsea's In-Possession wording: play around / through / over (into, onto, in behind), by hands or feet.
   var DIST_TYPES = [
@@ -2719,14 +2730,15 @@
 
   // v56: the tracker works in levels. Tap 1 = area, tap 2 = what happened (recorded at once), tap 3 = optional detail.
   var TRACKER_AREAS = [
-    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['goal','spill'],
-      detail:['Open play','Penalty','Free kick','Corner','Close range','Long range'] },
+    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['goal','spill'], neutral:['clash'],
+      detail:['Open play','Penalty','Free kick','Corner','Close range','Long range'],
+      detailGoal:['From a corner','From a cross','After a turnover','Outside the box','Free kick','Penalty','Second ball / not cleared'] },
     { key:'one',   label:'1v1 / close range', good:['won1v1'],                          bad:['lost1v1'],
       detail:['Through ball','Breakaway','Cut-back','Rebound'] },
-    { key:'cross', label:'Crosses & high balls', good:['cross','punch'],                 bad:['crossmiss'], neutral:['stayed'],
+    { key:'cross', label:'Crosses & high balls', good:['cross','punch'],                 bad:['crossmiss'], neutral:['stayed','clash'],
       detail:['Corner','Free kick','Open play','Set piece delivery'] },
     { key:'dist',  label:'With the ball',   good:[],                                     bad:['turnover'],
-      detail:['Short','Medium','Long'], detailBad:['Hands','Feet','Around','Through','Over'] }
+      detail:['Short','Medium','Long','Back-pass: pressed','Back-pass: not pressed'], detailBad:['Hands','Feet','Around','Through','Over','Back-pass: pressed','Back-pass: not pressed'] }
   ];
   function trackerOpt(key){ return TRACKER_PLUS.concat(TRACKER_MINUS).find(function(o){ return o.key === key; }); }
 
@@ -2757,6 +2769,7 @@
   }
   function trackerFinalRating(track){ return trackerRatingAt(track, track.events.length); }
   function trackerElapsed(track){
+    if(track.recap) return Math.round((track.recapMin || 0) * 60);
     if(!track.startedAt) return 0;
     var end = track.status === 'done' && track.endedAt ? track.endedAt : Date.now();
     return Math.max(0, Math.floor((end - track.startedAt) / 1000));
@@ -2846,7 +2859,8 @@
         '<button type="button" class="btn btn-ghost" id="trk-discard-btn" data-trk-id="' + active.id + '" style="margin-top:8px; color:var(--red); border-color:rgba(255,128,128,0.3);">Discard This Tracker</button>'
       : '<div class="hint" style="margin-bottom:10px;">Start at kick-off. Tap an area, then what happened. Every moment is timed so it lines up with the Hudl video. At the final whistle you lock it in and link it to the match.</div>' +
         (todaysMatches().length === 1 ? '<div class="eng-char" style="margin:0 0 10px;"><b>Today\'s match:</b> ' + escapeHtml(todaysMatches()[0].opponent ? 'vs ' + todaysMatches()[0].opponent : todaysMatches()[0].title) + (todaysMatches()[0].time ? ' · ' + escapeHtml(todaysMatches()[0].time) : '') + ' — it will be linked for you.</div>' : '') +
-        '<button type="button" class="btn btn-primary" id="trk-start-btn">Start Match Tracker</button>';
+        '<button type="button" class="btn btn-primary" id="trk-start-btn">Start Match Tracker</button>' +
+        '<button type="button" class="btn btn-ghost" id="trk-recap-btn" style="margin-top:8px;">Record a past game from memory</button>';
     var past = done.map(function(t){
       var c = trackerPillColors(trackerFinalRating(t));
       return '<div class="card pressable" style="margin-top:8px;" data-trk-review-id="' + t.id + '">' +
@@ -2862,6 +2876,8 @@
   function wireTrackerCard(){
     var startBtn = document.getElementById('trk-start-btn');
     if(startBtn) startBtn.addEventListener('click', startTrackerNow);
+    var recapBtn = document.getElementById('trk-recap-btn');
+    if(recapBtn) recapBtn.addEventListener('click', startTrackerRecap);
     var discardBtn = document.getElementById('trk-discard-btn');
     if(discardBtn) discardBtn.addEventListener('click', function(){
       if(!confirm('Discard this tracker and everything recorded in it?')) return;
@@ -2880,6 +2896,41 @@
   // The schedule already knows today's match, so a single match on today's date is linked automatically.
   function todaysMatches(){
     return (state.schedule || []).filter(function(s){ return s.type === 'match' && s.date === todayIso(); });
+  }
+  // Record a game from memory afterwards: same buttons, but a minute stepper replaces the running clock.
+  function startTrackerRecap(){
+    var used = {};
+    (state.matchTracks || []).forEach(function(t){ if(t.sessionId) used[t.sessionId] = true; });
+    var matches = (state.schedule || []).filter(function(x){ return x.type === 'match' && x.date <= todayIso(); })
+      .sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>Which game?</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="card-meta" style="margin-bottom:10px;">Games already recorded are marked. Use the minute from the video or your memory.</div>' +
+      matches.map(function(x){
+        return '<div class="card pressable" data-recap-id="' + x.id + '" style="margin-top:8px;"><div class="card-title" style="font-size:14px;">' + escapeHtml(x.opponent ? 'vs ' + x.opponent : x.title) + '</div>' +
+          '<div class="card-meta">' + escapeHtml(fmtDate(x.date)) + (used[x.id] ? ' · already recorded' : '') + '</div></div>';
+      }).join('') +
+      '<button class="btn btn-ghost" id="recap-other" style="margin-top:12px;">Not in this list</button>'
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    function begin(sess){
+      closeModal();
+      var track = {
+        id: uid(), sessionId: sess ? sess.id : null, date: sess ? sess.date : todayIso(),
+        opponent: sess ? (sess.opponent || '') : '', baseline: TRACKER_BASELINE,
+        status: 'live', startedAt: Date.now(), endedAt: null, locked: false, recap: true, recapMin: 0,
+        events: [], markers: [], videoOffsetSec: 0
+      };
+      state.matchTracks = state.matchTracks || [];
+      state.matchTracks.push(track);
+      saveData();
+      openTrackerLive(track.id);
+    }
+    document.querySelectorAll('[data-recap-id]').forEach(function(c){
+      c.addEventListener('click', function(){ begin(state.schedule.find(function(x){ return x.id === c.getAttribute('data-recap-id'); })); });
+    });
+    document.getElementById('recap-other').addEventListener('click', function(){ begin(null); });
   }
   function startTrackerNow(){
     var tm = todaysMatches();
@@ -2904,7 +2955,7 @@
     var matches = state.schedule.filter(function(s){
       if(s.type !== 'match') return false;
       var diff = (new Date(s.date + 'T00:00:00') - new Date(todayIso() + 'T00:00:00')) / 86400000;
-      return diff >= -30 && diff <= 1;
+      return track.recap ? diff <= 1 : (diff >= -30 && diff <= 1);
     }).sort(function(a, b){ return a.date < b.date ? 1 : -1; });
     var used = {};
     (state.matchTracks || []).forEach(function(t){ if(t.id !== track.id && t.sessionId) used[t.sessionId] = true; });
@@ -2980,7 +3031,7 @@
       if(ar.key === 'dist' && !trackerOverlayState.sub){
         main = '<div class="hint" style="margin:12px 0 0;">With the ball — how?</div>' +
           '<div class="trk-opts"><button type="button" class="trk-opt good" data-sub="h">Hands<small>throw, roll, kick</small></button>' +
-          '<button type="button" class="trk-opt good" data-sub="f">Feet<small>pass, goal kick, back-pass</small></button></div>' +
+          '<button type="button" class="trk-opt good" data-sub="f">Feet<small>pass, goal kick</small></button></div>' +
           '<div class="trk-opts">' + optBtn('turnover', 'bad') + '</div>' +
           '<button type="button" class="btn btn-ghost" id="trk-cancel-pick">Back</button>';
       } else if(ar.key === 'dist'){
@@ -2998,26 +3049,29 @@
     } else {
       var lastIdx = trackerOverlayState.detailFor;
       var lastEv = lastIdx >= 0 ? track.events[lastIdx] : null;
-      var lastArea = lastEv ? TRACKER_AREAS.find(function(a){ return a.good.indexOf(lastEv.key) >= 0 || a.bad.indexOf(lastEv.key) >= 0 || (a.neutral || []).indexOf(lastEv.key) >= 0 || (a.key === 'dist' && /^d[hf]_/.test(lastEv.key)); }) : null;
-      var lastDetail = lastArea ? ((lastArea.key === 'dist' && lastEv.key === 'turnover') ? lastArea.detailBad : lastArea.detail) : [];
-      var detailRow = (lastEv && lastArea) ? '<div class="trk-detail"><span class="hint" style="margin:0;">' + (lastArea.key === 'dist' && lastEv.key !== 'turnover' ? 'Range (optional):' : 'Add detail (optional):') + '</span>' +
-        lastDetail.map(function(d){ return '<button type="button" class="trk-chip' + (lastEv.detail === d ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') + '</div>' : '';
-      main = detailRow + '<button type="button" class="trk-goal" data-opt="goal">GOAL CONCEDED</button>' + '<div class="trk-areas">' + TRACKER_AREAS.map(function(a){
+      var lastArea = lastEv ? TRACKER_AREAS.find(function(a){ return a.good.indexOf(lastEv.key) >= 0 || a.bad.indexOf(lastEv.key) >= 0 || (a.neutral || []).indexOf(lastEv.key) >= 0 || (a.key === 'dist' && /^(d[hf]_|bp_)/.test(lastEv.key)); }) : null;
+      var lastDetail = lastArea ? ((lastArea.key === 'dist' && lastEv.key === 'turnover') ? lastArea.detailBad : ((lastArea.key === 'shot' && lastEv.key === 'goal') ? lastArea.detailGoal : lastArea.detail)) : [];
+      var lastSet = lastEv ? (lastEv.details || (lastEv.detail ? lastEv.detail.split(' · ') : [])) : [];
+      var detailRow = (lastEv && lastArea) ? '<div class="trk-detail"><span class="hint" style="margin:0;">' + (lastArea.key === 'dist' && lastEv.key !== 'turnover' ? 'Range / back-pass? (optional):' : 'Add detail (optional):') + '</span>' +
+        lastDetail.map(function(d){ return '<button type="button" class="trk-chip' + (lastSet.indexOf(d) >= 0 ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') +
+        '<button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>' : '';
+      var minuteRow = track.recap ? '<div class="trk-minute"><span class="hint" style="margin:0;">Minute</span>' + [-10,-5,-1].map(function(n){ return '<button type="button" class="trk-chip" data-min="' + n + '">' + n + '</button>'; }).join('') + '<b class="trk-minval">' + (track.recapMin || 0) + '\'</b>' + [1,5,10].map(function(n){ return '<button type="button" class="trk-chip" data-min="' + n + '">+' + n + '</button>'; }).join('') + '</div>' : '';
+      main = minuteRow + detailRow + '<button type="button" class="trk-goal" data-opt="goal">GOAL CONCEDED</button>' + '<div class="trk-areas">' + TRACKER_AREAS.map(function(a){
         return '<button type="button" class="trk-area" data-area="' + a.key + '">' + escapeHtml(a.label) + '</button>';
       }).join('') + '</div>';
     }
     var controls = '';
     if(track.status === 'live' && !trackerOverlayState.area){
       controls = '<div class="trk-row">' +
-        (!hasHT ? '<button type="button" class="btn btn-ghost" id="trk-ht">Half Time</button>'
-                : (!has2H ? '<button type="button" class="btn btn-ghost" id="trk-2h">Second Half Starts</button>' : '')) +
-        '<button type="button" class="btn btn-ghost" id="trk-clip">⭐ Clip</button>' +
+        (track.recap ? '' : (!hasHT ? '<button type="button" class="btn btn-ghost" id="trk-ht">Half Time</button>'
+                : (!has2H ? '<button type="button" class="btn btn-ghost" id="trk-2h">Second Half Starts</button>' : ''))) +
+        (track.recap ? '' : '<button type="button" class="btn btn-ghost" id="trk-clip">⭐ Clip</button>') +
         '<button type="button" class="btn btn-ghost" id="trk-undo"' + (track.events.length || track.markers.some(function(m){ return m.clip; }) ? '' : ' disabled') + '>Undo Last</button>' +
-        '<button type="button" class="btn btn-ghost" id="trk-ft">Final Whistle / Lily Off</button>' +
+        '<button type="button" class="btn btn-ghost" id="trk-ft">' + (track.recap ? 'Done — save this match' : 'Final Whistle / Lily Off') + '</button>' +
       '</div>';
     }
     var recent = track.events.slice(-3).reverse().map(function(e){
-      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '</span><span style="flex:1;">' + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</span><span class="d">' + fmtDelta(e.delta) + '</span></div>';
+      return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '</span><span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</span><span class="d">' + fmtDelta(e.delta) + '</span></div>';
     }).join('');
 
     ov.innerHTML =
@@ -3062,6 +3116,7 @@
         track.events.push({ t:trackerElapsed(track), sign: opt.delta >= 0 ? '+' : '-', key:opt.key, label:opt.label, delta:opt.delta, ifa:opt.ifa || null });
         trackerOverlayState.area = null; trackerOverlayState.sub = null;
         trackerOverlayState.detailFor = track.events.length - 1;
+        if(track.recap){ var newEv = track.events[track.events.length - 1]; track.events.sort(function(a, b){ return a.t - b.t; }); trackerOverlayState.detailFor = track.events.indexOf(newEv); }
         trackerOverlayState.flash = fmtDelta(opt.delta) + '  ' + opt.label + '  →  ' + trackerFinalRating(track).toFixed(1);
         trackerPersist();
         renderTrackerLive(id);
@@ -3072,10 +3127,26 @@
         var ev = track.events[trackerOverlayState.detailFor];
         if(!ev) return;
         var d = btn.getAttribute('data-detail');
-        ev.detail = (ev.detail === d) ? '' : d;
+        var set = ev.details || (ev.detail ? ev.detail.split(' · ') : []);
+        var at = set.indexOf(d);
+        if(at >= 0) set.splice(at, 1); else set.push(d);
+        ev.details = set; ev.detail = set.join(' · ');
         trackerPersist();
         renderTrackerLive(id);
       });
+    });
+    ov.querySelectorAll('[data-min]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        track.recapMin = Math.max(0, Math.min(120, (track.recapMin || 0) + parseInt(btn.getAttribute('data-min'), 10)));
+        trackerPersist(); renderTrackerLive(id);
+      });
+    });
+    var askBtn = q('#trk-ask'); if(askBtn) askBtn.addEventListener('click', function(){
+      var ev = track.events[trackerOverlayState.detailFor];
+      if(!ev) return;
+      ev.ask = !ev.ask;
+      trackerPersist(); saveData();
+      renderTrackerLive(id);
     });
     var ht = q('#trk-ht'); if(ht) ht.addEventListener('click', function(){
       track.markers.push({ t:trackerElapsed(track), label:'Half time', n:track.events.length });
@@ -3191,7 +3262,7 @@
       var e = row.e;
       var ifaTag = e.ifa ? ' <span class="eng-badge">' + escapeHtml(e.ifa.toUpperCase().replace('IFA', 'IFA ')) + '</span>' : '';
       return '<div class="trk-ev"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
-        '<span style="flex:1;">' + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag + '</span>' +
+        '<span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta >= 0 ? '▲ ' : '▼ ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag + '</span>' +
         '<span class="d">' + fmtDelta(e.delta) + '<br>' + row.r.toFixed(1) + '</span></div>';
     }).join('');
 
@@ -3202,6 +3273,8 @@
       '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">' + (track.status === 'done' ? 'Final rating' : 'Rating so far') + '</div></div>' + trackerBadgeHtml(final) + '</div>' +
       '<div class="card">' + trackerChartSvg(track) +
         '<div class="hint trk-caption" style="margin:8px 0 0; text-align:center;">Tap a ▲ or ▼ to see what it was</div></div>' +
+      (ev.some(function(e){ return e.ask; }) ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Questions for the coaches</div>' +
+        ev.filter(function(e){ return e.ask; }).map(function(e){ return '<div class="eng-char">' + (track.recap ? '' : fmtClock(e.t) + ' · ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + '</div>'; }).join('') + '</div>' : '') +
       '<div class="card" style="margin-top:10px;">' +
         '<div class="card-title" style="font-size:14px;">The game in numbers</div>' +
         '<div class="eng-char">Started ' + track.baseline.toFixed(1) + ' · Finished ' + final.toFixed(1) + ' · Highest ' + high.toFixed(1) + ' · Lowest ' + low.toFixed(1) + '</div>' +
