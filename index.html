@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v67 — 5 Nov 2026 -->
+<!-- Lily GK Journal — v68 — 10 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -813,8 +813,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v67';
+  var APP_VERSION = 'v68';
   var CHANGELOG = [
+    { version:'v68', notes:'New My clips tab in IAP Prep: every clip in one list, newest first, with the Hudl video time, an Open in Hudl button (when the match has its Hudl link) and a Copy time button. The star clips Martin taps during a game, and the clips Lily picks when tagging, are both here. Any star clip can be put into the playlist: choose an IFA or theme and Success or Learning, and it goes into the 12-clip list ahead of the automatic picks.' },
     { version:'v67', notes:'Audit fixes. Edge now counts Lily\'s own ownership: the Hudl clips she picked, the weekly reviews completed and the next steps she named. The August ratings (Tactical 3.3, Technical 4.0, Psychological 2.8, Physical 3.8, Social 3.5) are stored as her starting baseline and shown beside her current averages. The four Oct targets are labelled Seb, Josh & Kiera Feedback (Oct 2 Review). The written IAP is labelled as her three IDP IFAs, with the fourth Hudl area noted as playlist only. The privacy filter also catches national camp, international duty, SGP camp and similar. Attribute tags are described as self-reflection tags, not a Chelsea staff assessment.' },
     { version:'v66', notes:'December pack. The Brave and Leading counts in the IAP briefing now include the review tags (Brave, Bounced back, Called early and clear, Took control), because the live buttons for them were removed in v58. Lily can pick a moment for her Hudl playlist as Success or Learning when she tags it as herself; her picks go first in the 12-clip list, then the app fills any gaps from the recorded moments as before. New IFA pages tab in IAP Prep: for each IFA, Chelsea\'s What, How and Who, the evidence counts, her chosen clips, and a Next step box in her own words.' },
     { version:'v65', notes:'New Evidence page (Standards tab): each IFA with training notes and match moments side by side, each Standard with the weekly review ratings next to the match tag counts, and the open questions for the coaches. Questions can now be answered once the coach replies. Lily can tag moments herself (Tagging as: Martin or Lily) and the app lists where the two views differ. Counts only, no scores.' },
@@ -1462,6 +1463,12 @@
       var succ = [], learn = [];
       tracks.forEach(function(m){
         var off = m.t.videoOffsetSec || 0;
+        (m.t.markers || []).forEach(function(mk){
+          if(mk.clip && mk.area === area.key && mk.type){
+            var it0 = { date:m.date, opp:m.opp, clock:fmtClock(off + (mk.t || 0)) + (off ? '' : ' *'), key:'clip', label:'Clip', mine:true, delta:(mk.type === 'S' ? 99 : -99) };
+            (mk.type === 'S' ? succ : learn).push(it0);
+          }
+        });
         (m.t.events || []).forEach(function(e){
           var clock = fmtClock(off + (e.t || 0)) + (off ? '' : ' *');
           var item = { date:m.date, opp:m.opp, clock:clock, key:e.key, label:e.label, delta:e.delta };
@@ -1666,7 +1673,7 @@
   function openIapPrep(){ IP_TAB = 'hudl'; ipRender(); }
 
   function ipRender(){
-    var tabs = [['hudl', 'Hudl clips'], ['ifa', 'IFA pages'], ['xmas', 'Xmas cards'], ['brief', 'IAP briefing']];
+    var tabs = [['hudl', 'Hudl clips'], ['clips', 'My clips'], ['ifa', 'IFA pages'], ['xmas', 'Xmas cards'], ['brief', 'IAP briefing']];
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>IAP &amp; Xmas Prep</h2><button class="modal-close" id="close-modal">×</button></div>' +
@@ -1685,6 +1692,22 @@
   }
 
   function ipWireInputs(){
+    document.querySelectorAll('[data-clip-copy]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = b.getAttribute('data-clip-copy');
+        function done(){ b.textContent = 'Copied ' + t; }
+        if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done, done); } else { done(); }
+      });
+    });
+    document.querySelectorAll('.ip-clip-assign').forEach(function(sel){
+      sel.addEventListener('change', function(){
+        var tr = (state.matchTracks || []).find(function(x){ return String(x.id) === sel.getAttribute('data-clip-tid'); });
+        var mk = tr && tr.markers[parseInt(sel.getAttribute('data-clip-mi'), 10)];
+        if(!mk) return;
+        if(!sel.value){ delete mk.area; delete mk.type; } else { var pr = sel.value.split('|'); mk.area = pr[0]; mk.type = pr[1]; }
+        saveData(); ipRender();
+      });
+    });
     document.querySelectorAll('[data-ifa-next]').forEach(function(t){
       t.addEventListener('input', function(){ state.ifaNext = state.ifaNext || {}; state.ifaNext[t.getAttribute('data-ifa-next')] = t.value; ipSaveSoon(); });
     });
@@ -1724,10 +1747,49 @@
   }
 
   function ipTabHtml(){
+    if(IP_TAB === 'clips') return ipClipsListHtml();
     if(IP_TAB === 'ifa') return ipIfaPagesHtml();
     if(IP_TAB === 'xmas') return ipXmasHtml();
     if(IP_TAB === 'brief') return ipBriefHtml();
     return ipHudlHtml();
+  }
+
+  // ---------- My clips (v68): every clip in one place with Hudl time and links ----------
+  function ipAllClips(){
+    var out = [];
+    ipTracks().forEach(function(m){
+      var off = m.t.videoOffsetSec || 0;
+      var sess = m.t.sessionId ? state.schedule.find(function(x){ return x.id === m.t.sessionId; }) : null;
+      var link = (sess && sess.hudlLink) || '';
+      (m.t.markers || []).forEach(function(mk, i){
+        if(mk.clip) out.push({ tid:m.t.id, mi:i, date:m.date, opp:m.opp, t:mk.t || 0, clock:fmtClock(off + (mk.t || 0)) + (off ? '' : ' *'), link:link, kind:'marker', label:'Star clip', area:mk.area || '', type:mk.type || '' });
+      });
+      (m.t.events || []).forEach(function(e){
+        if(e.iapPick) out.push({ tid:m.t.id, date:m.date, opp:m.opp, t:e.t || 0, clock:fmtClock(off + (e.t || 0)) + (off ? '' : ' *'), link:link, kind:'pick', label:e.label, type:e.iapPick });
+      });
+    });
+    out.sort(function(a, b){ return (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.t - b.t)); });
+    return out;
+  }
+  function ipClipsListHtml(){
+    var list = ipAllClips();
+    var html = '<div class="hint" style="margin-bottom:8px;">Every clip in one place. Open in Hudl takes you to the match, then jump to the time shown. A star clip is one tapped during the game; a Lily pick is a moment she chose when tagging. Put a star clip in the playlist by choosing a theme and Success or Learning.</div>';
+    if(!list.length) return html + '<div class="hint">No clips yet. Tap the star during a game, or tag a moment as Lily and pick Success or Learning.</div>';
+    var opts = '<option value="">Not in the playlist</option>' + IP_AREAS.map(function(a){
+      return '<option value="' + a.key + '|S">' + escapeHtml(a.title) + ' · Success</option><option value="' + a.key + '|L">' + escapeHtml(a.title) + ' · Learning</option>';
+    }).join('');
+    return html + list.map(function(c, n){
+      var cur = c.kind === 'marker' && c.area && c.type ? c.area + '|' + c.type : '';
+      return '<div class="card ip-clip ' + (c.type === 'S' ? 'ok' : (c.type === 'L' ? 'learn' : '')) + '">' +
+        '<div class="ip-clip-top"><span class="ip-chip">' + (c.kind === 'pick' ? 'Lily\'s pick · ' + (c.type === 'S' ? 'Success' : 'Learning') : '⭐ Star clip') + '</span><span class="ip-clock">▶ ' + escapeHtml(c.clock) + '</span></div>' +
+        '<div class="ip-clip-match">' + escapeHtml(ipMatchLabel(c.date, c.opp)) + '</div>' +
+        (c.kind === 'pick' ? '<div class="ip-clip-note">' + escapeHtml(c.label) + '</div>' : '') +
+        '<div style="display:flex; gap:6px; margin-top:6px;">' +
+          (c.link ? '<a class="btn btn-ghost" style="flex:1; text-align:center; padding:8px;" href="' + escapeHtml(c.link) + '" target="_blank" rel="noopener">Open in Hudl</a>' : '<span class="hint" style="flex:1; margin:0;">No Hudl link on this match yet</span>') +
+          '<button type="button" class="btn btn-ghost" style="flex:1; padding:8px;" data-clip-copy="' + escapeHtml(c.clock.replace(' *', '')) + '">Copy time</button></div>' +
+        (c.kind === 'marker' ? '<select class="ip-clip-assign" style="margin-top:6px; width:100%;" data-clip-tid="' + escapeHtml(String(c.tid)) + '" data-clip-mi="' + c.mi + '">' + opts.replace('value="' + cur + '"', 'value="' + cur + '" selected') + '</select>' : '') +
+        '</div>';
+    }).join('') + '<div class="hint" style="margin-top:10px;">A * means the Hudl offset is not set for that match yet, so the time is the match clock.</div>';
   }
 
   function ipIfaPagesHtml(){
