@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v70 — 10 Nov 2026 -->
+<!-- Lily GK Journal — v71 — 10 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -430,6 +430,17 @@
     color:var(--text-dim); font-family:'Oswald',sans-serif; font-weight:600; font-size:13.5px; text-align:left; cursor:pointer;
   }
   .ifa-chip-toggle button.selected{background:rgba(212,255,61,0.1); border-color:var(--lime); color:var(--lime);}
+  .cfg-row{display:flex; gap:6px; align-items:center; margin:6px 0; flex-wrap:wrap;}
+  .cfg-row input, .cfg-add input, .cfg-sel{background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px; font-size:14px;}
+  .cfg-name{flex:1 1 140px; min-width:0;}
+  .cfg-areaname{font-weight:700;}
+  .cfg-pts{width:64px;}
+  .cfg-sel{padding:8px 4px;}
+  .cfg-fixed{flex:1 1 140px; font-size:14px;}
+  .cfg-grp{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin-top:8px;}
+  .cfg-add{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; align-items:center;}
+  .cfg-off{opacity:.45;}
+  .cfg-card{margin-top:8px;}
 
   .trk-overlay{position:fixed; top:0; left:0; right:0; bottom:0; z-index:9000; background:var(--bg); overflow-y:auto; padding:14px 14px 28px; -webkit-overflow-scrolling:touch;}
   .trk-overlay button{touch-action:manipulation; -webkit-user-select:none; user-select:none;}
@@ -813,8 +824,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v70';
+  var APP_VERSION = 'v71';
   var CHANGELOG = [
+    { version:'v71', notes:'The score is now only about stopping things and creating things; everything else is an event with no points. Saves +0.1 (good save +0.2 when you add it in review), big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2. Passes can be tagged with what they led to: started an attack +0.1, created a clear chance +0.2, assist +0.5. A goal is -0.5 and nothing else is taken off for the mistake that led to it. A mistake with no goal scores nothing unless you tick that an opposition chance followed (-0.2). IFAs are out of the score and are used only to link moments to the IFA pages. New Tracker settings screen (Match Tracker tab, bottom) to rename, add, hide and reorder areas and options, change any points, set an IFA tag per option and edit the pick lists; all games are re-scored when you change anything. New IFA tag on any single moment in the review screen, and an IFA filter on the review timeline. Goals now show how many she could do little about.' },
     { version:'v70', notes:'The match rating is back, with new rules. Points now come from three things only. (1) Stopping a goal-scoring chance scores plus: save +0.3, big save +0.5, won 1v1 +0.3, ball in behind cleared +0.3, cross claimed or punched +0.3. (2) A goal, or something Lily causes, scores minus: goal conceded -0.5, spilled -0.3, beaten in a 1v1 -0.3, came and missed -0.3, turnover -0.3. (3) Anything that moves one of her IFAs scores +0.3: passes through or over (into, onto, in behind) and claimed crosses. Short passes around score nothing. Every match, old and new, is re-scored on these rules. The score sits with two plain lines underneath, good actions and goals and mistakes, so the good work stays visible when a goal goes in. Counts stay on the match page.' },
     { version:'v69', notes:'Match Tracker rethink after the first full-game review. (1) No match rating any more: the 10-point score is hidden everywhere and replaced by plain counts (goals and how each arose, saves, crosses, balls in behind, and with-the-ball by where it started and whether she was pressed). (2) With the ball now asks four separate things: where the ball came from (back-pass, goal kick, free kick or offside, after a save or catch, opposition pass she got to first, other), pressed or not, who it went to (full-back, centre-back, midfielder, forward) and length. A turnover also records what she tried. (3) Goal conceded has one question, how the chance arose (corner, free kick, penalty, cross, ball in behind, after a save, second ball, after Lily\'s turnover, after a teammate\'s turnover, dribble into the box, long-range shot), plus a separate outside-the-box tick. The duplicate Goal button inside Shot-stopping is gone. (4) New review field: quality of the pass back. (5) Opponent names such as City Lionesses no longer trip the privacy filter. (6) After a match the reflection button is now optional and quieter.' },
     { version:'v68', notes:'New My clips tab in IAP Prep: every clip in one list, newest first, with the Hudl video time, an Open in Hudl button (when the match has its Hudl link) and a Copy time button. The star clips Martin taps during a game, and the clips Lily picks when tagging, are both here. Any star clip can be put into the playlist: choose an IFA or theme and Success or Learning, and it goes into the 12-clip list ahead of the automatic picks.' },
@@ -1446,11 +1458,11 @@
   var IP_HUDL_RULES = 'Share the playlist with Kiera by Monday 14 Dec. Set coach access to Can View or Can Contribute and tag it with the player label Lily Norbury. Clips are for internal development only and must never be posted on social media.';
   var IP_AREAS = [
     { key:'ifa1', ifa:'ifa1', title:'IFA 1 · Communication & Team Connection',
-      succ:function(e){ return e.ifa === 'ifa1' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa1' && e.delta < 0; } },
+      succ:function(e){ return evHasIfa(e, 'ifa1') && !evBad(e); }, learn:function(e){ return evHasIfa(e, 'ifa1') && evBad(e); } },
     { key:'ifa2', ifa:'ifa2', title:'IFA 2 · Distribution Range & Pass Selection',
-      succ:function(e){ return e.ifa === 'ifa2' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa2' && e.delta < 0; } },
+      succ:function(e){ return evHasIfa(e, 'ifa2') && !evBad(e); }, learn:function(e){ return evHasIfa(e, 'ifa2') && evBad(e); } },
     { key:'ifa3', ifa:'ifa3', title:'IFA 3 · Cross Taking & Aerial Dominance',
-      succ:function(e){ return e.ifa === 'ifa3' && e.delta >= 0; }, learn:function(e){ return e.ifa === 'ifa3' && e.delta < 0; } },
+      succ:function(e){ return evHasIfa(e, 'ifa3') && !evBad(e); }, learn:function(e){ return evHasIfa(e, 'ifa3') && evBad(e); } },
     { key:'goal', ifa:null, title:'Dominate the Goal · Set Stance & Anticipation',
       succ:function(e){ return IP_GOAL_OK.indexOf(e.key) > -1; }, learn:function(e){ return IP_GOAL_BAD.indexOf(e.key) > -1; } }
   ];
@@ -1466,7 +1478,7 @@
   }
 
   function ipInArea(area, e){
-    if(area.ifa) return e.ifa === area.ifa || revIfaOf(e).indexOf(area.ifa) >= 0;
+    if(area.ifa) return evHasIfa(e, area.ifa) || revIfaOf(e).indexOf(area.ifa) >= 0;
     return IP_GOAL_OK.indexOf(e.key) > -1 || IP_GOAL_BAD.indexOf(e.key) > -1;
   }
   function ipClips(){
@@ -1562,7 +1574,7 @@
         .slice(0, 3).map(function(r){ return { date:r.date, text:truncate(ipSafe(r.wentWell), 150) }; });
       var moments = [];
       tracks.forEach(function(m){
-        (m.t.events || []).forEach(function(e){ if(e.ifa === ifa.key && e.delta >= 0) moments.push({ date:m.date, opp:m.opp, label:e.label, delta:e.delta }); });
+        (m.t.events || []).forEach(function(e){ if(evHasIfa(e, ifa.key) && !evBad(e)) moments.push({ date:m.date, opp:m.opp, label:e.label, delta:e.delta }); });
       });
       moments.sort(function(a, b){ return (b.delta - a.delta) || (a.date < b.date ? 1 : -1); });
       var linked = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
@@ -1813,7 +1825,7 @@
       IDP_IFAS.map(function(ifa){
         var notes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
         var evN = 0, rvN = 0, games = 0;
-        tracks.forEach(function(m){ var any = false; (m.t.events || []).forEach(function(e){ if(e.ifa === ifa.key){ evN++; any = true; } if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvN++; any = true; } }); if(any) games++; });
+        tracks.forEach(function(m){ var any = false; (m.t.events || []).forEach(function(e){ if(evHasIfa(e, ifa.key)){ evN++; any = true; } if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvN++; any = true; } }); if(any) games++; });
         var mine = clips.rows.filter(function(r){ return r.akey === ifa.key && r.mine; });
         var q = notes.slice(-2).reverse().map(function(r){ var t = ipSafe(r.evidence || r.wentWell || r.action || ''); return t ? '<div class="eng-char">' + escapeHtml(fmtDate(r.date)) + ': ' + escapeHtml(truncate(t, 120)) + '</div>' : ''; }).join('');
         return '<div class="card" style="margin-top:10px;"><div class="idp-ifa-title" style="font-size:14px;">' + escapeHtml(ifa.title) + '</div>' +
@@ -2068,7 +2080,7 @@
       tracks.forEach(function(m){
         var any = false;
         (m.t.events || []).forEach(function(e){
-          if(e.ifa === ifa.key){ evCount++; any = true; }
+          if(evHasIfa(e, ifa.key)){ evCount++; any = true; }
           if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvCount++; any = true; }
         });
         if(any) games++;
@@ -2597,7 +2609,6 @@
         state.mindgymLogs = state.mindgymLogs || [];
         state.recoveryLogs = state.recoveryLogs || [];
         state.syllabusOverrides = state.syllabusOverrides || {};
-        (state.matchTracks || []).forEach(function(t){ (t.events || []).forEach(function(e){ var o = trackerOpt(e.key); if(o){ e.delta = o.delta; e.sign = o.delta >= 0 ? '+' : '-'; } }); });
         cacheLocally();
       }
       renderAll();
@@ -2878,39 +2889,39 @@
   // at kick-off and runs straight through (no pause) so every moment lines up with the video.
   var TRACKER_BASELINE = 6.0;
   var TRACKER_PLUS = [
-    { key:'save',      label:'Save',                           delta:0.3 },
+    { key:'save',      label:'Save',                           delta:0.1 },
     { key:'bigsave',   label:'Big save',                       delta:0.5 },
-    { key:'cross',     label:'Claimed a cross',                delta:0.3, ifa:'ifa3' },
-    { key:'won1v1',    label:'Won the 1v1',                    delta:0.3 },
-    { key:'fwdpass',   label:'Pass forward finds a team-mate', delta:0.3, ifa:'ifa2' },
-    { key:'brave',     label:'Brave action',                   delta:0.3 },
-    { key:'call',      label:'Good call / command',            delta:0.2, ifa:'ifa1' },
-    { key:'sweep',     label:'Cleared danger behind the line', delta:0.3 },
-    { key:'bounce',    label:'Bounced back after a mistake',   delta:0.2 },
-    { key:'sethigh',   label:'Set early and high',             delta:0.2 },
-    { key:'alive',     label:'Alive early, trusted anticipation', delta:0.3 },
-    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.3, ifa:'ifa3' },
-    { key:'longpass',  label:'Long ball / goal kick finds target', delta:0.3, ifa:'ifa2' },
-    { key:'punch',     label:'Punched clear',                  delta:0.3, ifa:'ifa3' },
+    { key:'cross',     label:'Claimed a cross',                delta:0.2, ifa:'ifa3' },
+    { key:'won1v1',    label:'Won the 1v1',                    delta:0.5 },
+    { key:'fwdpass',   label:'Pass forward finds a team-mate', delta:0, ifa:'ifa2' },
+    { key:'brave',     label:'Brave action',                   delta:0 },
+    { key:'call',      label:'Good call / command',            delta:0, ifa:'ifa1' },
+    { key:'sweep',     label:'Cleared danger behind the line', delta:0 },
+    { key:'bounce',    label:'Bounced back after a mistake',   delta:0 },
+    { key:'sethigh',   label:'Set early and high',             delta:0 },
+    { key:'alive',     label:'Alive early, trusted anticipation', delta:0 },
+    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.2, ifa:'ifa3' },
+    { key:'longpass',  label:'Long ball / goal kick finds target', delta:0, ifa:'ifa2' },
+    { key:'punch',     label:'Punched clear',                  delta:0, ifa:'ifa3' },
     { key:'stayed',    label:'Stayed on line (did not come)',  delta:0 },
-    { key:'bib_clear', label:'Ball in behind · came and cleared', delta:0.3 },
+    { key:'bib_clear', label:'Ball in behind · came and cleared', delta:0.2 },
     { key:'bib_stay',  label:'Ball in behind · stayed on line',   delta:0 },
     { key:'bib_beat',  label:'Ball in behind · beaten',           delta:0 },
     { key:'clash',     label:'GK and defender both went / in each other\'s way', delta:0 },
-    { key:'bp_p_on',   label:'Back-pass, pressed · played it on',    delta:0.1, ifa:'ifa2' },
+    { key:'bp_p_on',   label:'Back-pass, pressed · played it on',    delta:0, ifa:'ifa2' },
     { key:'bp_p_long', label:'Back-pass, pressed · kicked long / cleared', delta:0, ifa:'ifa2' },
-    { key:'bp_p_lost', label:'Back-pass, pressed · lost it',         delta:-0.3, ifa:'ifa2' },
-    { key:'bp_f_on',   label:'Back-pass, not pressed · played it on', delta:0.1, ifa:'ifa2' },
+    { key:'bp_p_lost', label:'Back-pass, pressed · lost it',         delta:0, ifa:'ifa2' },
+    { key:'bp_f_on',   label:'Back-pass, not pressed · played it on', delta:0, ifa:'ifa2' },
     { key:'bp_f_long', label:'Back-pass, not pressed · kicked long / cleared', delta:0, ifa:'ifa2' },
-    { key:'bp_f_lost', label:'Back-pass, not pressed · lost it',     delta:-0.3, ifa:'ifa2' }
+    { key:'bp_f_lost', label:'Back-pass, not pressed · lost it',     delta:0, ifa:'ifa2' }
   ];
   // Chelsea's In-Possession wording: play around / through / over (into, onto, in behind), by hands or feet.
   var DIST_TYPES = [
     { k:'around',  label:'Play around',        delta:0 },
-    { k:'through', label:'Play through',       delta:0.3 },
-    { k:'into',    label:'Over: into',         delta:0.3 },
-    { k:'onto',    label:'Over: onto',         delta:0.3 },
-    { k:'behind',  label:'Over: in behind',    delta:0.3 }
+    { k:'through', label:'Play through',       delta:0 },
+    { k:'into',    label:'Over: into',         delta:0 },
+    { k:'onto',    label:'Over: onto',         delta:0 },
+    { k:'behind',  label:'Over: in behind',    delta:0 }
   ];
   ['h','f'].forEach(function(m){
     DIST_TYPES.forEach(function(t){
@@ -2966,12 +2977,12 @@
   }
   function revCount(events, dim, val){ return events.filter(function(e){ return e.rev && e.rev[dim] === val; }).length; }
   function revIfaOf(e){
-    var a = TRACKER_AREAS.find(function(x){ return x.good.indexOf(e.key) >= 0 || x.bad.indexOf(e.key) >= 0 || (x.neutral || []).indexOf(e.key) >= 0; });
+    var a = trackerAreaOf(e.key);
     var out = [];
     if(e.rev && e.rev.comm) out.push('ifa1');
     if(e.rev && (e.rev.decision || e.rev.set || e.rev.pass)){
-      if((a && a.key === 'dist') || e.ifa === 'ifa2' || /^d[hf]_|^bp_/.test(e.key)) out.push('ifa2');
-      if((a && a.key === 'cross') || e.ifa === 'ifa3') out.push('ifa3');
+      if((a && a.key === 'dist') || evOptIfa(e) === 'ifa2' || /^d[hf]_|^bp_/.test(e.key)) out.push('ifa2');
+      if((a && a.key === 'cross') || evOptIfa(e) === 'ifa3') out.push('ifa3');
     }
     return out;
   }
@@ -3050,11 +3061,20 @@
       { f:'start', label:'Started from', opts:TK_START.map(function(x){ return [x, x]; }) },
       { f:'press', label:'Pressure', opts:TK_PRESS },
       { f:'to', label:'Who to', opts:TK_TO.map(function(x){ return [x, x]; }) },
-      { f:'len', label:'Length', opts:TK_LEN.map(function(x){ return [x, x]; }) } ];
+      { f:'len', label:'Length', opts:TK_LEN.map(function(x){ return [x, x]; }) },
+      { f:'led', label:'Led to', opts:[['start', 'Started an attack'], ['chance', 'Created a clear chance'], ['assist', 'Assist']] } ];
     return [];
   }
+  // v71: tags that carry points. A mistake can be marked "opposition chance followed"; a save can be marked a good save in review.
+  function evExtraGroups(ev, inReview){
+    if(!ev) return [];
+    var out = [];
+    if(evMistake(ev)) out.push({ f:'oppch', label:'Afterwards', opts:[['1', 'Opposition chance followed']] });
+    if(inReview && ev.key === 'save') out.push({ f:'goodSave', label:'Review', opts:[['1', 'Good save']] });
+    return out;
+  }
   function evDetailText(ev){
-    var parts = [ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.arose, ev.outside ? 'Outside the box' : ''];
+    var parts = [ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.led ? ({ start:'Started an attack', chance:'Created a chance', assist:'Assist' }[ev.led] || '') : '', ev.arose, ev.outside ? 'Outside the box' : '', ev.oppch === '1' ? 'Chance followed' : '', ev.goodSave === '1' ? 'Good save' : ''];
     return parts.concat(ev.details || []).filter(Boolean).join(' · ');
   }
   // Plain counts for a match. No scoring.
@@ -3077,7 +3097,13 @@
       if(e.key === 'turnover' || /_lost$/.test(e.key)) o.lost++; else o.on++;
     });
     function line(k, v){ return '<div class="journal-detail-row"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + v + '</div></div>'; }
-    var rows = line('Goals conceded', goals.length + (aroseTxt ? ' <span class="card-meta">(' + escapeHtml(aroseTxt) + ')</span>' : '')) +
+    var pv = { yes:0, partly:0, no:0, none:0 };
+    goals.forEach(function(g){ var v = g.rev && g.rev.prevent; if(v && pv[v] !== undefined) pv[v]++; else pv.none++; });
+    var pvTxt = goals.length ? ' <span class="card-meta">· could it be prevented? yes ' + pv.yes + ', partly ' + pv.partly + ', not much she could do ' + pv.no + (pv.none ? ', not reviewed ' + pv.none : '') + '</span>' : '';
+    var ledN = function(k){ return ev.filter(function(e){ return e.led === k; }).length; };
+    var rows = line('Goals conceded', goals.length + (aroseTxt ? ' <span class="card-meta">(' + escapeHtml(aroseTxt) + ')</span>' : '') + pvTxt) +
+      line('Creating', 'started an attack ' + ledN('start') + ' · created a clear chance ' + ledN('chance') + ' · assists ' + ledN('assist')) +
+      line('Mistakes', ev.filter(evMistake).length + ' <span class="card-meta">· opposition chance followed ' + ev.filter(function(e){ return evMistake(e) && e.oppch === '1'; }).length + '</span>') +
       line('Shots', 'saves ' + n(['save']) + ' · big saves ' + n(['bigsave']) + ' · spilled ' + n(['spill']) + ' · clash ' + n(['clash'])) +
       line('1v1 / close range', 'won ' + n(['won1v1']) + ' · beaten ' + n(['lost1v1'])) +
       line('Crosses', 'claimed ' + n(['cross', 'readcross']) + ' · punched ' + n(['punch']) + ' · missed ' + n(['crossmiss']) + ' · stayed ' + n(['stayed'])) +
@@ -3094,15 +3120,259 @@
   var TRACKER_MINUS = [
     { key:'goal',      label:'Goal conceded',                  delta:-0.5 },
     { key:'error',     label:'Error led to a goal',            delta:-0.5 },
-    { key:'crossmiss', label:'Came, missed or dropped',        delta:-0.3, ifa:'ifa3' },
-    { key:'lost1v1',   label:'Beaten in a 1v1',                delta:-0.3 },
-    { key:'turnover',  label:'Distribution turned over',       delta:-0.3, ifa:'ifa2' },
-    { key:'spill',     label:'Spilled / fumbled a shot',       delta:-0.3 },
-    { key:'nocall',    label:'No call / late call',            delta:-0.2, ifa:'ifa1' },
-    { key:'position',  label:'Poor positioning',               delta:-0.3 },
-    { key:'setlow',    label:'Set too low or late',            delta:-0.3 },
-    { key:'rushed',    label:'Rushed out early to a cross',    delta:-0.4, ifa:'ifa3' }
+    { key:'crossmiss', label:'Came, missed or dropped',        delta:0, ifa:'ifa3' },
+    { key:'lost1v1',   label:'Beaten in a 1v1',                delta:0 },
+    { key:'turnover',  label:'Distribution turned over',       delta:0, ifa:'ifa2' },
+    { key:'spill',     label:'Spilled / fumbled a shot',       delta:0 },
+    { key:'nocall',    label:'No call / late call',            delta:0, ifa:'ifa1' },
+    { key:'position',  label:'Poor positioning',               delta:0 },
+    { key:'setlow',    label:'Set too low or late',            delta:0 },
+    { key:'rushed',    label:'Rushed out early to a cross',    delta:0, ifa:'ifa3' }
   ];
+
+
+  // ---------- v71: scoring engine and settings ----------
+  // The score is about stopping things and creating things. Everything else is an event with no points.
+  // Martin can change areas, options, points and IFA tags in Tracker settings; changes live in state.trackerCfg
+  // and are applied over these defaults. Past games are re-scored from the current table.
+  var TRACKER_BONUS_DEF = { goodsave:0.1, penalty:0.5, led_start:0.1, led_chance:0.2, led_assist:0.5, oppch:-0.2 };
+  var TRACKER_BONUS_INFO = [
+    ['goodsave',   'Good save (added in review) · extra on top of a save'],
+    ['penalty',    'Penalty saved · total for the save'],
+    ['led_start',  'Pass started an attack'],
+    ['led_chance', 'Pass created a clear chance'],
+    ['led_assist', 'Pass was an assist'],
+    ['oppch',      'Mistake where an opposition chance followed']
+  ];
+  var TRACKER_BONUS = {};
+  var TRACKER_DEF = { opts:{}, areas:[], lists:{ start:TK_START.slice(), to:TK_TO.slice(), len:TK_LEN.slice(), arose:TK_AROSE.slice() } };
+  TRACKER_PLUS.concat(TRACKER_MINUS).forEach(function(o){ TRACKER_DEF.opts[o.key] = { label:o.label, delta:o.delta, ifa:o.ifa || null }; });
+  TRACKER_DEF.areas = TRACKER_AREAS.map(function(a){ return JSON.parse(JSON.stringify(a)); });
+  var TRACKER_ALL_AREAS = [];
+  var trackerBooted = null;
+  function trackerCfg(){
+    if(!state.trackerCfg) state.trackerCfg = {};
+    var c = state.trackerCfg;
+    ['pts', 'lbl', 'ifa', 'hide', 'areaLbl', 'areaHide', 'order', 'bonus', 'lists'].forEach(function(k){ if(!c[k]) c[k] = {}; });
+    ['custom', 'areasCustom', 'areaOrder'].forEach(function(k){ if(!c[k]) c[k] = []; });
+    return c;
+  }
+  function trackerGroupOrder(areaKey, grp, keys){
+    var ord = trackerCfg().order[areaKey + ':' + grp];
+    if(!ord) return keys;
+    return keys.slice().sort(function(a, b){
+      var ia = ord.indexOf(a), ib = ord.indexOf(b);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+  }
+  function applyTrackerCfg(){
+    var c = trackerCfg();
+    // custom options live in TRACKER_PLUS; rebuild them each time
+    for(var i = TRACKER_PLUS.length - 1; i >= 0; i--){ if(TRACKER_PLUS[i].custom) TRACKER_PLUS.splice(i, 1); }
+    TRACKER_PLUS.concat(TRACKER_MINUS).forEach(function(o){
+      var d = TRACKER_DEF.opts[o.key];
+      if(d){ o.label = d.label; o.delta = d.delta; o.ifa = d.ifa || undefined; }
+      if(c.lbl[o.key]) o.label = c.lbl[o.key];
+      if(typeof c.pts[o.key] === 'number') o.delta = c.pts[o.key];
+      if(c.ifa[o.key] !== undefined) o.ifa = c.ifa[o.key] || undefined;
+    });
+    c.custom.forEach(function(o){ TRACKER_PLUS.push({ key:o.key, label:c.lbl[o.key] || o.label, delta:(typeof c.pts[o.key] === 'number' ? c.pts[o.key] : o.delta), ifa:(c.ifa[o.key] !== undefined ? c.ifa[o.key] : o.ifa) || undefined, custom:true }); });
+    TRACKER_BONUS = {};
+    Object.keys(TRACKER_BONUS_DEF).forEach(function(k){ TRACKER_BONUS[k] = (typeof c.bonus[k] === 'number') ? c.bonus[k] : TRACKER_BONUS_DEF[k]; });
+    [['start', TK_START], ['to', TK_TO], ['len', TK_LEN], ['arose', TK_AROSE]].forEach(function(p){
+      var src = (c.lists[p[0]] && c.lists[p[0]].length) ? c.lists[p[0]] : TRACKER_DEF.lists[p[0]];
+      p[1].length = 0; src.forEach(function(x){ p[1].push(x); });
+    });
+    // areas: full list (for looking up past events) and the visible list (for the live buttons)
+    var base = TRACKER_DEF.areas.map(function(a){ return JSON.parse(JSON.stringify(a)); });
+    c.areasCustom.forEach(function(a){ base.push({ key:a.key, label:a.label, good:[], bad:[], neutral:[], detail:a.detail || ['Open play', 'Set piece'], custom:true }); });
+    base.forEach(function(a){
+      if(c.areaLbl[a.key]) a.label = c.areaLbl[a.key];
+      c.custom.forEach(function(o){ if(o.area === a.key){ var g = o.grp === 'bad' ? 'bad' : (o.grp === 'neutral' ? 'neutral' : 'good'); a[g] = a[g] || []; a[g].push(o.key); } });
+      a.neutral = a.neutral || [];
+      ['good', 'neutral', 'bad'].forEach(function(g){ a[g] = trackerGroupOrder(a.key, g, a[g]); });
+    });
+    var ao = c.areaOrder;
+    if(ao.length) base.sort(function(x, y){ var ix = ao.indexOf(x.key), iy = ao.indexOf(y.key); return (ix < 0 ? 999 : ix) - (iy < 0 ? 999 : iy); });
+    TRACKER_ALL_AREAS = base;
+    var vis = base.filter(function(a){ return !c.areaHide[a.key]; }).map(function(a){
+      var v = JSON.parse(JSON.stringify(a));
+      ['good', 'neutral', 'bad'].forEach(function(g){ v[g] = v[g].filter(function(k){ return !c.hide[k]; }); });
+      return v;
+    });
+    TRACKER_AREAS.length = 0;
+    vis.forEach(function(a){ TRACKER_AREAS.push(a); });
+  }
+  function trackerAreaOf(key){
+    return TRACKER_ALL_AREAS.find(function(x){ return x.good.indexOf(key) >= 0 || x.bad.indexOf(key) >= 0 || (x.neutral || []).indexOf(key) >= 0; }) || null;
+  }
+  // 'good' (stopping or creating option), 'neutral' (just an event), 'bad' (a mistake) or 'goal'
+  function trackerKeyGroup(k){
+    if(k === 'goal' || k === 'error') return 'goal';
+    var a = trackerAreaOf(k);
+    if(a){ if(a.bad.indexOf(k) >= 0) return 'bad'; if((a.neutral || []).indexOf(k) >= 0) return 'neutral'; return 'good'; }
+    if(/^d[hf]_/.test(k)) return 'good';
+    if(/_lost$/.test(k)) return 'bad';
+    if(TRACKER_MINUS.some(function(o){ return o.key === k; })) return 'bad';
+    return 'good';
+  }
+  function evBad(e){ var g = trackerKeyGroup(e.key); return g === 'bad' || g === 'goal' || e.oppch === '1'; }
+  function evMistake(e){ return trackerKeyGroup(e.key) === 'bad'; }
+  function evOptIfa(e){ var o = trackerOpt(e.key); return o ? (o.ifa || null) : (e.ifa || null); }
+  function evIfaList(e){
+    var out = [], o = evOptIfa(e);
+    if(o) out.push(o);
+    (e.ifas || []).forEach(function(x){ if(out.indexOf(x) < 0) out.push(x); });
+    return out;
+  }
+  function evHasIfa(e, k){ return evIfaList(e).indexOf(k) >= 0; }
+  function trackerSync(e){ e.delta = trackerEvDelta(e); e.sign = e.delta >= 0 ? '+' : '-'; }
+  function trackerRescoreAll(){
+    (state.matchTracks || []).forEach(function(t){ (t.events || []).forEach(trackerSync); });
+  }
+  function trackerBoot(){
+    if(trackerBooted === state) return;
+    trackerBooted = state;
+    applyTrackerCfg();
+    trackerRescoreAll();
+  }
+
+  // ---------- v71: Tracker settings (Martin's admin screen) ----------
+  var CFG_IFA_OPTS = [['', 'No IFA'], ['ifa1', 'IFA 1'], ['ifa2', 'IFA 2'], ['ifa3', 'IFA 3']];
+  var CFG_DIST_KEYS = DIST_TYPES.map(function(t){ return t.k; });
+  function cfgNum(v){ return (Math.round(v * 100) / 100).toString(); }
+  function cfgOptRow(key, o, opts){
+    opts = opts || {};
+    var c = trackerCfg();
+    var hidden = !!c.hide[key];
+    var ifaSel = '<select class="cfg-sel" data-cfg="ifa" data-key="' + key + '">' + CFG_IFA_OPTS.map(function(x){ return '<option value="' + x[0] + '"' + ((o.ifa || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>';
+    return '<div class="cfg-row' + (hidden ? ' cfg-off' : '') + '">' +
+      (opts.fixedName ? '<span class="cfg-fixed">' + escapeHtml(opts.fixedName) + '</span>' : '<input type="text" class="cfg-name" data-cfg="lbl" data-key="' + key + '" value="' + escapeHtml(o.label) + '">') +
+      '<input type="number" step="0.05" class="cfg-pts" data-cfg="pts" data-key="' + key + '" value="' + cfgNum(o.delta) + '">' + ifaSel +
+      (opts.noMove ? '' : '<button type="button" class="trk-mini" data-cfgbtn="up" data-key="' + key + '" data-area="' + opts.area + '" data-grp="' + opts.grp + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="down" data-key="' + key + '" data-area="' + opts.area + '" data-grp="' + opts.grp + '">↓</button>') +
+      (opts.noHide ? '' : '<button type="button" class="trk-mini" data-cfgbtn="hide" data-key="' + key + '">' + (hidden ? 'Show' : 'Hide') + '</button>') + '</div>';
+  }
+  function renderTrackerSettings(keepScroll){
+    var ov = trackerOverlayEl();
+    var top = keepScroll ? ov.scrollTop : 0;
+    var c = trackerCfg();
+    var GRP_NAME = { good:'Scores', neutral:'Event only', bad:'Mistake' };
+    var areasHtml = TRACKER_ALL_AREAS.map(function(a, ai){
+      var rows = '';
+      if(a.key === 'dist'){
+        rows += cfgOptRow('turnover', trackerOpt('turnover'), { fixedName:'Distribution turned over (mistake)', noMove:true, noHide:true });
+        CFG_DIST_KEYS.forEach(function(k){
+          var o = trackerOpt('dh_' + k);
+          rows += '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(DIST_TYPES.find(function(t){ return t.k === k; }).label) + ' (hands and feet)</span>' +
+            '<input type="number" step="0.05" class="cfg-pts" data-cfg="pts" data-key="dist_' + k + '" value="' + cfgNum(o.delta) + '">' +
+            '<select class="cfg-sel" data-cfg="ifa" data-key="dist_' + k + '">' + CFG_IFA_OPTS.map(function(x){ return '<option value="' + x[0] + '"' + ((o.ifa || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></div>';
+        });
+      } else {
+        ['good', 'neutral', 'bad'].forEach(function(g){
+          (a[g] || []).forEach(function(k){
+            var o = trackerOpt(k); if(!o) return;
+            rows += '<div class="cfg-grp">' + GRP_NAME[g] + '</div>' + cfgOptRow(k, o, { area:a.key, grp:g });
+          });
+        });
+      }
+      var add = a.key === 'dist' ? '' :
+        '<div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-name-' + a.key + '" placeholder="New option name">' +
+        '<select class="cfg-sel" id="cfg-new-grp-' + a.key + '"><option value="good">Scores</option><option value="neutral">Event only</option><option value="bad">Mistake</option></select>' +
+        '<input type="number" step="0.05" class="cfg-pts" id="cfg-new-pts-' + a.key + '" value="0">' +
+        '<button type="button" class="trk-mini" data-cfgbtn="addopt" data-area="' + a.key + '">Add</button></div>';
+      var off = !!c.areaHide[a.key];
+      return '<div class="card cfg-card' + (off ? ' cfg-off' : '') + '"><div class="cfg-row"><input type="text" class="cfg-name cfg-areaname" data-cfg="arealbl" data-key="' + a.key + '" value="' + escapeHtml(a.label) + '">' +
+        '<button type="button" class="trk-mini" data-cfgbtn="areaup" data-key="' + a.key + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="areadown" data-key="' + a.key + '">↓</button>' +
+        '<button type="button" class="trk-mini" data-cfgbtn="areahide" data-key="' + a.key + '">' + (off ? 'Show' : 'Hide') + '</button></div>' + rows + add + '</div>';
+    }).join('');
+    var goalOpt = trackerOpt('goal');
+    var bonusHtml = TRACKER_BONUS_INFO.map(function(b){
+      return '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(b[1]) + '</span><input type="number" step="0.05" class="cfg-pts" data-cfg="bonus" data-key="' + b[0] + '" value="' + cfgNum(TRACKER_BONUS[b[0]]) + '"></div>';
+    }).join('');
+    function listBox(k, label){
+      return '<div class="field" style="margin-top:8px;"><label>' + label + ' (one per line)</label><textarea rows="5" data-cfg="list" data-key="' + k + '">' + escapeHtml((k === 'start' ? TK_START : k === 'to' ? TK_TO : k === 'len' ? TK_LEN : TK_AROSE).join('\n')) + '</textarea></div>';
+    }
+    ov.innerHTML =
+      '<div class="trk-top"><button type="button" class="trk-mini" id="cfg-done">Done</button><div class="trk-title">Tracker settings</div><span style="width:60px;"></span></div>' +
+      '<div class="hint" style="margin:6px 0 10px;">The score is about stopping things and creating things. Everything else is an event with no points. Change a name, its points or its IFA tag and every saved game is re-scored straight away. Hiding an option removes its button but keeps it in past games.</div>' +
+      '<div class="eng-char" id="cfg-flash" style="min-height:18px; color:var(--lime);"></div>' +
+      '<div class="section-label">Goal conceded</div><div class="card cfg-card">' + cfgOptRow('goal', goalOpt, { fixedName:'Goal conceded (the red button)', noMove:true, noHide:true }) + '<div class="hint" style="margin:6px 0 0;">A goal is the only place goals are recorded. A mistake that leads to a goal scores only the goal.</div></div>' +
+      '<div class="section-label" style="margin-top:14px;">Extra points added by a tag</div><div class="card cfg-card">' + bonusHtml + '</div>' +
+      '<div class="section-label" style="margin-top:14px;">Areas and options</div><div class="hint" style="margin:0 0 6px;">Name · points · IFA tag. Points can be minus.</div>' + areasHtml +
+      '<div class="card cfg-card"><div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-area" placeholder="New area name"><button type="button" class="trk-mini" data-cfgbtn="addarea">Add area</button></div></div>' +
+      '<div class="section-label" style="margin-top:14px;">Pick lists</div><div class="card cfg-card">' + listBox('start', 'Started from') + listBox('to', 'Who to') + listBox('len', 'Length') + listBox('arose', 'How the chance arose') + '</div>' +
+      '<button type="button" class="btn btn-ghost" data-cfgbtn="reset" style="margin-top:14px; color:var(--red);">Reset everything to the defaults</button>' +
+      '<button type="button" class="btn btn-primary" id="cfg-done2" style="margin-top:10px;">Done</button>';
+    ov.scrollTop = top;
+  }
+  function cfgApply(msg){
+    applyTrackerCfg(); trackerRescoreAll(); saveData();
+    var f = document.getElementById('cfg-flash'); if(f) f.textContent = (msg || 'Saved') + ' · all games re-scored';
+  }
+  function cfgMove(list, key, dir){
+    var i = list.indexOf(key), j = i + dir;
+    if(i < 0 || j < 0 || j >= list.length) return list;
+    var t = list[i]; list[i] = list[j]; list[j] = t; return list;
+  }
+  function openTrackerSettings(){
+    trackerBoot();
+    var ov = trackerOverlayEl();
+    renderTrackerSettings(false);
+    if(ov._cfgWired) return;
+    ov._cfgWired = true;
+    ov.addEventListener('change', function(ev){
+      var el = ev.target, kind = el.getAttribute && el.getAttribute('data-cfg');
+      if(!kind) return;
+      var c = trackerCfg(), key = el.getAttribute('data-key');
+      var keys = /^dist_/.test(key || '') ? ['dh_' + key.slice(5), 'df_' + key.slice(5)] : [key];
+      if(kind === 'lbl'){ var v = el.value.trim(); if(v) c.lbl[key] = v; else delete c.lbl[key]; }
+      else if(kind === 'arealbl'){ var av = el.value.trim(); if(av) c.areaLbl[key] = av; else delete c.areaLbl[key]; }
+      else if(kind === 'pts'){ var n = parseFloat(el.value); if(isNaN(n)) return; keys.forEach(function(k){ c.pts[k] = n; }); }
+      else if(kind === 'ifa'){ keys.forEach(function(k){ c.ifa[k] = el.value; }); }
+      else if(kind === 'bonus'){ var b = parseFloat(el.value); if(isNaN(b)) return; c.bonus[key] = b; }
+      else if(kind === 'list'){ var lines = el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean); if(lines.length) c.lists[key] = lines; else delete c.lists[key]; }
+      cfgApply('Saved');
+    });
+    ov.addEventListener('click', function(ev){
+      var el = ev.target.closest ? ev.target.closest('[data-cfgbtn],#cfg-done,#cfg-done2') : null;
+      if(!el) return;
+      if(el.id === 'cfg-done' || el.id === 'cfg-done2'){ trackerOverlayState.area = null; closeTrackerOverlay(); return; }
+      var act = el.getAttribute('data-cfgbtn'), c = trackerCfg(), key = el.getAttribute('data-key'), ak = el.getAttribute('data-area'), grp = el.getAttribute('data-grp');
+      var msg = 'Saved';
+      if(act === 'hide'){ if(c.hide[key]) delete c.hide[key]; else c.hide[key] = true; }
+      else if(act === 'areahide'){ if(c.areaHide[key]) delete c.areaHide[key]; else c.areaHide[key] = true; }
+      else if(act === 'up' || act === 'down'){
+        var area = TRACKER_ALL_AREAS.find(function(a){ return a.key === ak; });
+        c.order[ak + ':' + grp] = cfgMove(area[grp].slice(), key, act === 'up' ? -1 : 1);
+      }
+      else if(act === 'areaup' || act === 'areadown'){
+        c.areaOrder = cfgMove(TRACKER_ALL_AREAS.map(function(a){ return a.key; }), key, act === 'areaup' ? -1 : 1);
+      }
+      else if(act === 'addopt'){
+        var nm = (document.getElementById('cfg-new-name-' + ak).value || '').trim();
+        if(!nm){ var f = document.getElementById('cfg-flash'); if(f) f.textContent = 'Type a name first'; return; }
+        var g = document.getElementById('cfg-new-grp-' + ak).value;
+        var p = parseFloat(document.getElementById('cfg-new-pts-' + ak).value); if(isNaN(p)) p = 0;
+        c.custom.push({ key:'x_' + Date.now().toString(36), label:nm, area:ak, grp:g, delta:p, ifa:'' });
+        msg = 'Added';
+      }
+      else if(act === 'addarea'){
+        var an = (document.getElementById('cfg-new-area').value || '').trim();
+        if(!an){ var f2 = document.getElementById('cfg-flash'); if(f2) f2.textContent = 'Type a name first'; return; }
+        c.areasCustom.push({ key:'a_' + Date.now().toString(36), label:an });
+        msg = 'Area added';
+      }
+      else if(act === 'reset'){
+        if(!confirm('Put every name, point value, IFA tag and list back to the defaults? Past games are kept and re-scored.')) return;
+        state.trackerCfg = {};
+        msg = 'Reset';
+      }
+      else return;
+      cfgApply(msg);
+      renderTrackerSettings(true);
+      var f3 = document.getElementById('cfg-flash'); if(f3) f3.textContent = msg + ' · all games re-scored';
+    });
+  }
 
   var trackerTimer = null;
   var trackerSaveTimer = null;
@@ -3116,7 +3386,17 @@
     for(var i = 0; i < n && i < track.events.length; i++){ r = trackerClamp(r + trackerEvDelta(track.events[i])); }
     return r;
   }
-  function trackerEvDelta(e){ var o = trackerOpt(e.key); return o ? o.delta : (e.delta || 0); }
+  function trackerBonus(k){ return (TRACKER_BONUS[k] !== undefined) ? TRACKER_BONUS[k] : TRACKER_BONUS_DEF[k]; }
+  function trackerEvDelta(e){
+    var o = trackerOpt(e.key);
+    var d = o ? o.delta : (e.delta || 0);
+    var det = e.details || (e.detail ? String(e.detail).split(' · ') : []);
+    if((e.key === 'save' || e.key === 'bigsave') && det.indexOf('Penalty') >= 0) d = Math.max(d, trackerBonus('penalty'));
+    if(e.key === 'save' && e.goodSave === '1') d += trackerBonus('goodsave');
+    if(e.led && TRACKER_BONUS_DEF['led_' + e.led] !== undefined) d += trackerBonus('led_' + e.led);
+    if(e.oppch === '1') d += trackerBonus('oppch');
+    return Math.round(d * 100) / 100;
+  }
   function trackerSplit(track){
     var pos = 0, neg = 0;
     (track.events || []).forEach(function(e){ var d = trackerEvDelta(e); if(d > 0) pos += d; else if(d < 0) neg += d; });
@@ -3143,7 +3423,7 @@
     if(parts.length === 1) return Math.max(0, parseInt(parts[0], 10) || 0) * 60;
     return Math.max(0, (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0));
   }
-  function fmtDelta(d){ return (d > 0 ? '+' : (d < 0 ? '−' : '')) + (d === 0 ? '' : Math.abs(d).toFixed(1)); }
+  function fmtDelta(d){ return (d > 0 ? '+' : (d < 0 ? '−' : '')) + (d === 0 ? '' : (Math.round(Math.abs(d) * 100) / 100).toString()); }
   function trackerPillColors(r){
     if(r >= 7) return { bg:'#4CC27A', fg:'#07210F' };
     if(r >= 6) return { bg:'var(--amber)', fg:'#2A1A00' };
@@ -3228,13 +3508,16 @@
         '<span class="trk-pill" style="background:' + c.bg + '; color:' + c.fg + '; padding:4px 12px;"><b style="font-size:20px;">' + trackerFinalRating(t).toFixed(1) + '</b></span></div></div>';
     }).join('');
     el.innerHTML = '<div class="section-label" style="margin-top:6px;">Match Tracker</div><div class="card">' + top + '</div>' +
-      (done.length ? '<div class="section-label" style="margin-top:18px;">Finished matches</div>' + past : '');
+      (done.length ? '<div class="section-label" style="margin-top:18px;">Finished matches</div>' + past : '') +
+      '<button type="button" class="btn btn-ghost" id="trk-settings-btn" style="margin-top:18px;">Tracker settings (areas, options, points, IFA tags)</button>';
     wireTrackerCard();
   }
 
   function wireTrackerCard(){
     var startBtn = document.getElementById('trk-start-btn');
     if(startBtn) startBtn.addEventListener('click', startTrackerNow);
+    var setBtn = document.getElementById('trk-settings-btn');
+    if(setBtn) setBtn.addEventListener('click', openTrackerSettings);
     var recapBtn = document.getElementById('trk-recap-btn');
     if(recapBtn) recapBtn.addEventListener('click', startTrackerRecap);
     var discardBtn = document.getElementById('trk-discard-btn');
@@ -3408,20 +3691,25 @@
     } else {
       var lastIdx = trackerOverlayState.detailFor;
       var lastEv = lastIdx >= 0 ? track.events[lastIdx] : null;
-      var lastArea = lastEv ? TRACKER_AREAS.find(function(a){ return a.good.indexOf(lastEv.key) >= 0 || a.bad.indexOf(lastEv.key) >= 0 || (a.neutral || []).indexOf(lastEv.key) >= 0; }) : null;
+      var lastArea = lastEv ? trackerAreaOf(lastEv.key) : null;
       var groups = lastEv ? evDetailGroups(lastEv) : [];
+      var lastExtra = lastEv ? evExtraGroups(lastEv, false) : [];
+      var extraHtml = lastExtra.map(function(g){
+        return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
+          g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(lastEv[g.f]) === String(o[0]) ? ' on' : '') + '" data-grp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
+      }).join('');
       var lastDetail = (lastEv && !groups.length && lastArea) ? (lastArea.detail || []) : [];
       var lastSet = lastEv ? (lastEv.details || (lastEv.detail ? lastEv.detail.split(' · ') : [])) : [];
       var detailRow = '';
       if(lastEv && groups.length){
-        detailRow = groups.map(function(g){
+        detailRow = groups.concat(lastExtra).map(function(g){
           return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
             g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(lastEv[g.f]) === String(o[0]) ? ' on' : '') + '" data-grp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
         }).join('') + '<div class="trk-detail"><button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
       } else if(lastEv && lastArea){
         detailRow = '<div class="trk-detail"><span class="hint" style="margin:0;">Add detail (optional):</span>' +
           lastDetail.map(function(d){ return '<button type="button" class="trk-chip' + (lastSet.indexOf(d) >= 0 ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') +
-          '<button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
+          '<button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>' + extraHtml;
       } else if(lastEv){
         detailRow = '<div class="trk-detail"><button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
       }
@@ -3498,7 +3786,7 @@
         if(!ev) return;
         var f = btn.getAttribute('data-grp'), v = btn.getAttribute('data-val');
         if(String(ev[f]) === v) delete ev[f]; else ev[f] = v;
-        ev.detail = evDetailText(ev);
+        ev.detail = evDetailText(ev); trackerSync(ev);
         trackerPersist();
         renderTrackerLive(id);
       });
@@ -3511,7 +3799,7 @@
         var set = ev.details || (ev.detail ? ev.detail.split(' · ') : []);
         var at = set.indexOf(d);
         if(at >= 0) set.splice(at, 1); else set.push(d);
-        ev.details = set; ev.detail = evDetailText(ev);
+        ev.details = set; ev.detail = evDetailText(ev); trackerSync(ev);
         trackerPersist();
         renderTrackerLive(id);
       });
@@ -3620,7 +3908,7 @@
     var chgOpts = allKeys.filter(function(k){ return trackerOpt(k); }).map(function(k){ var o = trackerOpt(k); return '<option value="' + k + '"' + (k === ev.key ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>'; }).join('');
     if(allKeys.indexOf(ev.key) < 0) chgOpts = '<option value="' + escapeHtml(ev.key) + '" selected>' + escapeHtml(ev.label) + '</option>' + chgOpts;
     var editBlock = '<div class="field" style="margin-top:10px;"><label>What happened (change it if it was recorded wrongly)</label><select id="tg-change">' + chgOpts + '</select></div>' +
-      evDetailGroups(ev).map(function(g){
+      evDetailGroups(ev).concat(evExtraGroups(ev, true)).map(function(g){
         return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
           g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(ev[g.f]) === String(o[0]) ? ' on' : '') + '" data-tgrp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
       }).join('');
@@ -3637,6 +3925,8 @@
             return '<button type="button" class="trk-chip' + (R[d.k] === o[0] ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>';
           }).join('') + '</div>';
       }).join('') +
+      '<div class="section-label" style="margin-top:14px;">IFA tag for this moment <span class="card-meta" style="text-transform:none;">· adds it to that IFA page' + (evOptIfa(ev) ? ' (already linked to ' + escapeHtml(evOptIfa(ev).toUpperCase().replace('IFA', 'IFA ')) + ' by what it is)' : '') + '</span></div>' +
+      '<div class="trk-detail">' + IDP_IFAS.map(function(i){ return '<button type="button" class="trk-chip' + ((ev.ifas || []).indexOf(i.key) >= 0 ? ' on' : '') + '" data-ifatag="' + i.key + '">' + i.key.toUpperCase().replace('IFA', 'IFA ') + '</button>'; }).join('') + '</div>' +
       (by === 'L' ? '<div class="section-label" style="margin-top:14px;">My Hudl playlist <span class="card-meta" style="text-transform:none;">· Lily\'s own pick for the Dec playlist</span></div>' +
         '<div class="trk-detail"><button type="button" class="trk-chip' + (ev.iapPick === 'S' ? ' on' : '') + '" data-pick="S">⭐ Success clip</button><button type="button" class="trk-chip' + (ev.iapPick === 'L' ? ' on' : '') + '" data-pick="L">📘 Learning clip</button></div>' : '') +
       '<div class="section-label" style="margin-top:14px;">For the coach</div>' +
@@ -3657,19 +3947,27 @@
       b.addEventListener('click', function(){
         var f = b.getAttribute('data-tgrp'), v = b.getAttribute('data-val');
         if(String(ev[f]) === v) delete ev[f]; else ev[f] = v;
-        ev.detail = evDetailText(ev); ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
+        ev.detail = evDetailText(ev); trackerSync(ev); ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
       });
     });
     var chg = ov.querySelector('#tg-change');
     if(chg) chg.addEventListener('change', function(){
       var o = trackerOpt(chg.value); if(!o) return;
-      ev.key = o.key; ev.label = o.label; ev.delta = o.delta; ev.sign = o.delta >= 0 ? '+' : '-'; ev.ifa = o.ifa || null;
+      ev.key = o.key; ev.label = o.label; ev.ifa = o.ifa || null; trackerSync(ev);
       ev.note = (ov.querySelector('#tg-note').value || '').trim(); ev.detail = evDetailText(ev); saveData(); renderTrackerTag(id, idx, fromLive);
     });
     var delBtn = ov.querySelector('#tg-delete');
     if(delBtn) delBtn.addEventListener('click', function(){
       if(!confirm('Delete this moment from the match? This cannot be undone.')) return;
       track.events.splice(idx, 1); saveData(); openTrackerReview(id, fromLive);
+    });
+    ov.querySelectorAll('[data-ifatag]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-ifatag'); ev.ifas = ev.ifas || [];
+        var at = ev.ifas.indexOf(k); if(at >= 0) ev.ifas.splice(at, 1); else ev.ifas.push(k);
+        if(!ev.ifas.length) delete ev.ifas;
+        ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
+      });
     });
     ov.querySelectorAll('[data-pick]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -3699,7 +3997,7 @@
     var ratings = [track.baseline];
     for(var i = 1; i <= ev.length; i++){ ratings.push(trackerRatingAt(track, i)); }
     var high = Math.max.apply(null, ratings), low = Math.min.apply(null, ratings);
-    var ups = ev.filter(function(e){ return e.delta >= 0; }).length;
+    var ups = ev.filter(function(e){ return !evBad(e); }).length;
     var downs = ev.length - ups;
     var offset = track.videoOffsetSec || 0;
 
@@ -3712,23 +4010,24 @@
         '<div class="eng-char">Second half: ' + htR.toFixed(1) + ' → ' + final.toFixed(1) + ' (' + (ev.length - nFirst) + ' moment' + ((ev.length - nFirst) === 1 ? '' : 's') + ')</div>';
     }
     var ifaLines = IDP_IFAS.map(function(ifa){
-      var u = ev.filter(function(e){ return e.ifa === ifa.key && e.delta >= 0; }).length;
-      var dn = ev.filter(function(e){ return e.ifa === ifa.key && e.delta < 0; }).length;
+      var u = ev.filter(function(e){ return evHasIfa(e, ifa.key) && !evBad(e); }).length;
+      var dn = ev.filter(function(e){ return evHasIfa(e, ifa.key) && evBad(e); }).length;
       if(!u && !dn) return '';
       return '<div class="eng-char">' + escapeHtml(ifa.title) + ' — ' + u + ' up, ' + dn + ' down</div>';
     }).join('');
 
     // merge events and markers into one timeline, in time order
     var rows = [];
-    ev.forEach(function(e, idx){ rows.push({ t:e.t, kind:'ev', e:e, r:ratings[idx + 1] }); });
-    track.markers.forEach(function(m){ rows.push({ t:m.t, kind:'mk', m:m }); });
+    var ifaF = trackerOverlayState.ifaFilter || '';
+    ev.forEach(function(e, idx){ if(ifaF && !evHasIfa(e, ifaF) && revIfaOf(e).indexOf(ifaF) < 0) return; rows.push({ t:e.t, kind:'ev', e:e, r:ratings[idx + 1] }); });
+    if(!ifaF) track.markers.forEach(function(m){ rows.push({ t:m.t, kind:'mk', m:m }); });
     rows.sort(function(a, b){ return a.t - b.t; });
     var timeline = rows.map(function(row){
       if(row.kind === 'mk'){
         return '<div class="trk-marker">' + escapeHtml(row.m.label) + ' · ' + fmtClock(row.t) + ' · video ' + fmtClock(offset + row.t) + '</div>';
       }
       var e = row.e;
-      var ifaTag = e.ifa ? ' <span class="eng-badge">' + escapeHtml(e.ifa.toUpperCase().replace('IFA', 'IFA ')) + '</span>' : '';
+      var ifaTag = evIfaList(e).map(function(k){ return ' <span class="eng-badge">' + escapeHtml(k.toUpperCase().replace('IFA', 'IFA ')) + '</span>'; }).join('');
       var rvTxt = revText(e);
       return '<div class="trk-ev" data-rv="' + ev.indexOf(e) + '" style="cursor:pointer;"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
         '<span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta > 0 ? '▲ ' : (e.delta < 0 ? '▼ ' : '• ')) + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag +
@@ -3765,6 +4064,8 @@
         '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
       trackerRevSummary(track) + trackerChelseaLines(track) +
       '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
+      '<div class="trk-detail" style="margin-bottom:8px;"><span class="hint" style="margin:0;">Show:</span><button type="button" class="trk-chip' + (ifaF ? '' : ' on') + '" data-ifaf="">All</button>' +
+        IDP_IFAS.map(function(i){ return '<button type="button" class="trk-chip' + (ifaF === i.key ? ' on' : '') + '" data-ifaf="' + i.key + '">' + i.key.toUpperCase().replace('IFA', 'IFA ') + '</button>'; }).join('') + '</div>' +
       (timeline || '<div class="hint">No moments recorded yet.</div>') +
       ('<button type="button" class="btn btn-ghost" id="trk-delete" style="margin-top:20px; color:var(--red); border-color:rgba(255,128,128,0.3);">Delete This Tracker</button>');
 
@@ -3772,6 +4073,9 @@
     q('#trk-close').addEventListener('click', closeTrackerOverlay);
     var bl = q('#trk-back-live'); if(bl) bl.addEventListener('click', function(){ renderTrackerLive(id); });
     var rl = q('#trk-relink'); if(rl) rl.addEventListener('click', function(){ renderTrackerFinish(id, true); });
+    ov.querySelectorAll('[data-ifaf]').forEach(function(b){
+      b.addEventListener('click', function(){ trackerOverlayState.ifaFilter = b.getAttribute('data-ifaf'); openTrackerReview(id, fromLive); });
+    });
     ov.querySelectorAll('[data-rv]').forEach(function(row){
       row.addEventListener('click', function(){ renderTrackerTag(id, parseInt(row.getAttribute('data-rv'), 10), fromLive); });
     });
@@ -7578,6 +7882,7 @@
 
   // ---------- Master render ----------
   function renderAll(){
+    trackerBoot();
     var versionBadge = document.getElementById('header-version');
     if(versionBadge) versionBadge.textContent = APP_VERSION;
     document.getElementById('gk-greeting').textContent = currentView === 'today'
