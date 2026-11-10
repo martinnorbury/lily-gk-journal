@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v71 — 10 Nov 2026 -->
+<!-- Lily GK Journal — v72 — 10 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -441,6 +441,9 @@
   .cfg-add{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; align-items:center;}
   .cfg-off{opacity:.45;}
   .cfg-card{margin-top:8px;}
+  .cfg-sec{margin-top:10px; border:1px solid var(--line); border-radius:12px; padding:0 12px 12px;}
+  .cfg-sec > summary{cursor:pointer; padding:14px 0; font-family:'Oswald',sans-serif; font-weight:600; font-size:16px; list-style:none;}
+  .cfg-sec > summary::-webkit-details-marker{display:none;}
 
   .trk-overlay{position:fixed; top:0; left:0; right:0; bottom:0; z-index:9000; background:var(--bg); overflow-y:auto; padding:14px 14px 28px; -webkit-overflow-scrolling:touch;}
   .trk-overlay button{touch-action:manipulation; -webkit-user-select:none; user-select:none;}
@@ -824,8 +827,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v71';
+  var APP_VERSION = 'v72';
   var CHANGELOG = [
+    { version:'v72', notes:'Tracker settings simplified into four closed sections, one job each: 1 Points (every score in one list: Against, Stopping, Creating, Mistakes, no-point events), 2 Buttons (rename, reorder, hide, add), 3 IFA tags (one flat list), 4 Pick lists. No behaviour or scoring change.' },
     { version:'v71', notes:'The score is now only about stopping things and creating things; everything else is an event with no points. Saves +0.1 (good save +0.2 when you add it in review), big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2. Passes can be tagged with what they led to: started an attack +0.1, created a clear chance +0.2, assist +0.5. A goal is -0.5 and nothing else is taken off for the mistake that led to it. A mistake with no goal scores nothing unless you tick that an opposition chance followed (-0.2). IFAs are out of the score and are used only to link moments to the IFA pages. New Tracker settings screen (Match Tracker tab, bottom) to rename, add, hide and reorder areas and options, change any points, set an IFA tag per option and edit the pick lists; all games are re-scored when you change anything. New IFA tag on any single moment in the review screen, and an IFA filter on the review timeline. Goals now show how many she could do little about.' },
     { version:'v70', notes:'The match rating is back, with new rules. Points now come from three things only. (1) Stopping a goal-scoring chance scores plus: save +0.3, big save +0.5, won 1v1 +0.3, ball in behind cleared +0.3, cross claimed or punched +0.3. (2) A goal, or something Lily causes, scores minus: goal conceded -0.5, spilled -0.3, beaten in a 1v1 -0.3, came and missed -0.3, turnover -0.3. (3) Anything that moves one of her IFAs scores +0.3: passes through or over (into, onto, in behind) and claimed crosses. Short passes around score nothing. Every match, old and new, is re-scored on these rules. The score sits with two plain lines underneath, good actions and goals and mistakes, so the good work stays visible when a goal goes in. Counts stay on the match page.' },
     { version:'v69', notes:'Match Tracker rethink after the first full-game review. (1) No match rating any more: the 10-point score is hidden everywhere and replaced by plain counts (goals and how each arose, saves, crosses, balls in behind, and with-the-ball by where it started and whether she was pressed). (2) With the ball now asks four separate things: where the ball came from (back-pass, goal kick, free kick or offside, after a save or catch, opposition pass she got to first, other), pressed or not, who it went to (full-back, centre-back, midfielder, forward) and length. A turnover also records what she tried. (3) Goal conceded has one question, how the chance arose (corner, free kick, penalty, cross, ball in behind, after a save, second ball, after Lily\'s turnover, after a teammate\'s turnover, dribble into the box, long-range shot), plus a separate outside-the-box tick. The duplicate Goal button inside Shot-stopping is gone. (4) New review field: quality of the pass back. (5) Opponent names such as City Lionesses no longer trip the privacy filter. (6) After a match the reflection button is now optional and quieter.' },
@@ -3241,68 +3245,92 @@
   var CFG_IFA_OPTS = [['', 'No IFA'], ['ifa1', 'IFA 1'], ['ifa2', 'IFA 2'], ['ifa3', 'IFA 3']];
   var CFG_DIST_KEYS = DIST_TYPES.map(function(t){ return t.k; });
   function cfgNum(v){ return (Math.round(v * 100) / 100).toString(); }
-  function cfgOptRow(key, o, opts){
-    opts = opts || {};
-    var c = trackerCfg();
-    var hidden = !!c.hide[key];
-    var ifaSel = '<select class="cfg-sel" data-cfg="ifa" data-key="' + key + '">' + CFG_IFA_OPTS.map(function(x){ return '<option value="' + x[0] + '"' + ((o.ifa || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>';
-    return '<div class="cfg-row' + (hidden ? ' cfg-off' : '') + '">' +
-      (opts.fixedName ? '<span class="cfg-fixed">' + escapeHtml(opts.fixedName) + '</span>' : '<input type="text" class="cfg-name" data-cfg="lbl" data-key="' + key + '" value="' + escapeHtml(o.label) + '">') +
-      '<input type="number" step="0.05" class="cfg-pts" data-cfg="pts" data-key="' + key + '" value="' + cfgNum(o.delta) + '">' + ifaSel +
-      (opts.noMove ? '' : '<button type="button" class="trk-mini" data-cfgbtn="up" data-key="' + key + '" data-area="' + opts.area + '" data-grp="' + opts.grp + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="down" data-key="' + key + '" data-area="' + opts.area + '" data-grp="' + opts.grp + '">↓</button>') +
-      (opts.noHide ? '' : '<button type="button" class="trk-mini" data-cfgbtn="hide" data-key="' + key + '">' + (hidden ? 'Show' : 'Hide') + '</button>') + '</div>';
+  var cfgOpen = { points:true };
+  function cfgNameOf(k){ var o = trackerOpt(k); return o ? o.label : k; }
+  function cfgPtsRow(key, label, val, sub, dataCfg){
+    return '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(label) + (sub ? ' <span class="card-meta">' + escapeHtml(sub) + '</span>' : '') + '</span>' +
+      '<input type="number" step="0.05" class="cfg-pts" data-cfg="' + (dataCfg || 'pts') + '" data-key="' + key + '" value="' + cfgNum(val) + '"></div>';
+  }
+  function cfgIfaSel(key, cur){
+    return '<select class="cfg-sel" data-cfg="ifa" data-key="' + key + '">' + CFG_IFA_OPTS.map(function(x){ return '<option value="' + x[0] + '"' + ((cur || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>';
+  }
+  function cfgSection(id, title, help, body){
+    return '<details class="cfg-sec" data-sec="' + id + '"' + (cfgOpen[id] ? ' open' : '') + '><summary>' + title + '</summary><div class="hint" style="margin:6px 0 8px;">' + help + '</div>' + body + '</details>';
   }
   function renderTrackerSettings(keepScroll){
     var ov = trackerOverlayEl();
     var top = keepScroll ? ov.scrollTop : 0;
     var c = trackerCfg();
-    var GRP_NAME = { good:'Scores', neutral:'Event only', bad:'Mistake' };
-    var areasHtml = TRACKER_ALL_AREAS.map(function(a, ai){
-      var rows = '';
+    // visible-or-not, every option by what kind of thing it is
+    var groups = { good:[], neutral:[], bad:[] };
+    TRACKER_ALL_AREAS.forEach(function(a){
+      if(a.key === 'dist') return;
+      ['good', 'neutral', 'bad'].forEach(function(g){ (a[g] || []).forEach(function(k){ if(trackerOpt(k)) groups[g].push({ k:k, area:a.label }); }); });
+    });
+    var pointsBody =
+      '<div class="cfg-grp">Against</div>' + cfgPtsRow('goal', 'Goal conceded', trackerOpt('goal').delta) +
+        cfgPtsRow('oppch', 'Mistake, then an opposition chance followed', TRACKER_BONUS.oppch, 'tick on the mistake', 'bonus') +
+      '<div class="cfg-grp">Stopping</div>' +
+        groups.good.map(function(x){ return cfgPtsRow(x.k, cfgNameOf(x.k), trackerOpt(x.k).delta, x.area); }).join('') +
+        cfgPtsRow('penalty', 'Penalty saved (total for that save)', TRACKER_BONUS.penalty, 'tick Penalty on a save', 'bonus') +
+        cfgPtsRow('goodsave', 'Good save (added on top of a save)', TRACKER_BONUS.goodsave, 'tag in review', 'bonus') +
+      '<div class="cfg-grp">Creating (tag a pass with what it led to)</div>' +
+        cfgPtsRow('led_start', 'Started an attack', TRACKER_BONUS.led_start, '', 'bonus') +
+        cfgPtsRow('led_chance', 'Created a clear chance', TRACKER_BONUS.led_chance, '', 'bonus') +
+        cfgPtsRow('led_assist', 'Assist', TRACKER_BONUS.led_assist, '', 'bonus') +
+      '<div class="cfg-grp">Mistakes (0 unless you set a value or tick a chance followed)</div>' +
+        cfgPtsRow('turnover', 'Distribution turned over', trackerOpt('turnover').delta, 'With the ball') +
+        groups.bad.map(function(x){ return cfgPtsRow(x.k, cfgNameOf(x.k), trackerOpt(x.k).delta, x.area); }).join('') +
+      '<div class="cfg-grp">Events with no points (change if you want one to score)</div>' +
+        groups.neutral.map(function(x){ return cfgPtsRow(x.k, cfgNameOf(x.k), trackerOpt(x.k).delta, x.area); }).join('') +
+        DIST_TYPES.map(function(t){ return cfgPtsRow('dist_' + t.k, t.label, trackerOpt('dh_' + t.k).delta, 'passes, hands and feet'); }).join('');
+    var buttonsBody = TRACKER_ALL_AREAS.map(function(a){
+      var off = !!c.areaHide[a.key], rows = '';
       if(a.key === 'dist'){
-        rows += cfgOptRow('turnover', trackerOpt('turnover'), { fixedName:'Distribution turned over (mistake)', noMove:true, noHide:true });
-        CFG_DIST_KEYS.forEach(function(k){
-          var o = trackerOpt('dh_' + k);
-          rows += '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(DIST_TYPES.find(function(t){ return t.k === k; }).label) + ' (hands and feet)</span>' +
-            '<input type="number" step="0.05" class="cfg-pts" data-cfg="pts" data-key="dist_' + k + '" value="' + cfgNum(o.delta) + '">' +
-            '<select class="cfg-sel" data-cfg="ifa" data-key="dist_' + k + '">' + CFG_IFA_OPTS.map(function(x){ return '<option value="' + x[0] + '"' + ((o.ifa || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></div>';
-        });
+        rows = '<div class="hint" style="margin:4px 0;">Fixed: Hands or Feet, then Around, Through or Over (in behind, into, onto). Only the mistake button, Distribution turned over, can be renamed.</div>' +
+          '<div class="cfg-row"><input type="text" class="cfg-name" data-cfg="lbl" data-key="turnover" value="' + escapeHtml(cfgNameOf('turnover')) + '"></div>';
       } else {
         ['good', 'neutral', 'bad'].forEach(function(g){
           (a[g] || []).forEach(function(k){
-            var o = trackerOpt(k); if(!o) return;
-            rows += '<div class="cfg-grp">' + GRP_NAME[g] + '</div>' + cfgOptRow(k, o, { area:a.key, grp:g });
+            var hid = !!c.hide[k];
+            rows += '<div class="cfg-row' + (hid ? ' cfg-off' : '') + '"><input type="text" class="cfg-name" data-cfg="lbl" data-key="' + k + '" value="' + escapeHtml(cfgNameOf(k)) + '">' +
+              '<button type="button" class="trk-mini" data-cfgbtn="up" data-key="' + k + '" data-area="' + a.key + '" data-grp="' + g + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="down" data-key="' + k + '" data-area="' + a.key + '" data-grp="' + g + '">↓</button>' +
+              '<button type="button" class="trk-mini" data-cfgbtn="hide" data-key="' + k + '">' + (hid ? 'Show' : 'Hide') + '</button></div>';
           });
         });
+        rows += '<div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-name-' + a.key + '" placeholder="Add a button here">' +
+          '<select class="cfg-sel" id="cfg-new-grp-' + a.key + '"><option value="good">Stopping</option><option value="neutral">No points</option><option value="bad">Mistake</option></select>' +
+          '<button type="button" class="trk-mini" data-cfgbtn="addopt" data-area="' + a.key + '">Add</button></div>';
       }
-      var add = a.key === 'dist' ? '' :
-        '<div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-name-' + a.key + '" placeholder="New option name">' +
-        '<select class="cfg-sel" id="cfg-new-grp-' + a.key + '"><option value="good">Scores</option><option value="neutral">Event only</option><option value="bad">Mistake</option></select>' +
-        '<input type="number" step="0.05" class="cfg-pts" id="cfg-new-pts-' + a.key + '" value="0">' +
-        '<button type="button" class="trk-mini" data-cfgbtn="addopt" data-area="' + a.key + '">Add</button></div>';
-      var off = !!c.areaHide[a.key];
       return '<div class="card cfg-card' + (off ? ' cfg-off' : '') + '"><div class="cfg-row"><input type="text" class="cfg-name cfg-areaname" data-cfg="arealbl" data-key="' + a.key + '" value="' + escapeHtml(a.label) + '">' +
         '<button type="button" class="trk-mini" data-cfgbtn="areaup" data-key="' + a.key + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="areadown" data-key="' + a.key + '">↓</button>' +
-        '<button type="button" class="trk-mini" data-cfgbtn="areahide" data-key="' + a.key + '">' + (off ? 'Show' : 'Hide') + '</button></div>' + rows + add + '</div>';
-    }).join('');
-    var goalOpt = trackerOpt('goal');
-    var bonusHtml = TRACKER_BONUS_INFO.map(function(b){
-      return '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(b[1]) + '</span><input type="number" step="0.05" class="cfg-pts" data-cfg="bonus" data-key="' + b[0] + '" value="' + cfgNum(TRACKER_BONUS[b[0]]) + '"></div>';
-    }).join('');
+        '<button type="button" class="trk-mini" data-cfgbtn="areahide" data-key="' + a.key + '">' + (off ? 'Show' : 'Hide') + '</button></div>' + rows + '</div>';
+    }).join('') +
+      '<div class="card cfg-card"><div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-area" placeholder="Add a new area"><button type="button" class="trk-mini" data-cfgbtn="addarea">Add area</button></div></div>';
+    var ifaKeys = [];
+    TRACKER_ALL_AREAS.forEach(function(a){
+      if(a.key === 'dist') return;
+      ['good', 'neutral', 'bad'].forEach(function(g){ (a[g] || []).forEach(function(k){ if(trackerOpt(k)) ifaKeys.push({ k:k, o:trackerOpt(k), area:a.label }); }); });
+    });
+    var ifaBody = ifaKeys.map(function(x){
+      return '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(x.o.label) + ' <span class="card-meta">' + escapeHtml(x.area) + '</span></span>' + cfgIfaSel(x.k, x.o.ifa) + '</div>';
+    }).join('') +
+      '<div class="cfg-row"><span class="cfg-fixed">Passes and turnovers (all With the ball)</span>' + cfgIfaSel('dist_around', trackerOpt('dh_around').ifa) + '</div>' +
+      '<div class="hint" style="margin:6px 0 0;">You can also tag any single moment with an IFA while reviewing a game.</div>';
     function listBox(k, label){
       return '<div class="field" style="margin-top:8px;"><label>' + label + ' (one per line)</label><textarea rows="5" data-cfg="list" data-key="' + k + '">' + escapeHtml((k === 'start' ? TK_START : k === 'to' ? TK_TO : k === 'len' ? TK_LEN : TK_AROSE).join('\n')) + '</textarea></div>';
     }
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="cfg-done">Done</button><div class="trk-title">Tracker settings</div><span style="width:60px;"></span></div>' +
-      '<div class="hint" style="margin:6px 0 10px;">The score is about stopping things and creating things. Everything else is an event with no points. Change a name, its points or its IFA tag and every saved game is re-scored straight away. Hiding an option removes its button but keeps it in past games.</div>' +
+      '<div class="hint" style="margin:6px 0 10px;">Four sections, one job each. Tap a heading to open it. Any change re-scores every saved game straight away.</div>' +
       '<div class="eng-char" id="cfg-flash" style="min-height:18px; color:var(--lime);"></div>' +
-      '<div class="section-label">Goal conceded</div><div class="card cfg-card">' + cfgOptRow('goal', goalOpt, { fixedName:'Goal conceded (the red button)', noMove:true, noHide:true }) + '<div class="hint" style="margin:6px 0 0;">A goal is the only place goals are recorded. A mistake that leads to a goal scores only the goal.</div></div>' +
-      '<div class="section-label" style="margin-top:14px;">Extra points added by a tag</div><div class="card cfg-card">' + bonusHtml + '</div>' +
-      '<div class="section-label" style="margin-top:14px;">Areas and options</div><div class="hint" style="margin:0 0 6px;">Name · points · IFA tag. Points can be minus.</div>' + areasHtml +
-      '<div class="card cfg-card"><div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-area" placeholder="New area name"><button type="button" class="trk-mini" data-cfgbtn="addarea">Add area</button></div></div>' +
-      '<div class="section-label" style="margin-top:14px;">Pick lists</div><div class="card cfg-card">' + listBox('start', 'Started from') + listBox('to', 'Who to') + listBox('len', 'Length') + listBox('arose', 'How the chance arose') + '</div>' +
+      cfgSection('points', '1 · Points', 'What each thing scores. Stopping and creating score; everything else is 0. Points can be minus.', pointsBody) +
+      cfgSection('buttons', '2 · Buttons', 'What you tap live: areas and the options inside them. Rename, reorder, hide or add. Hiding keeps it in past games.', buttonsBody) +
+      cfgSection('ifa', '3 · IFA tags', 'Which IFA each option belongs to, so it can be pulled out later. This never changes the score.', ifaBody) +
+      cfgSection('lists', '4 · Pick lists', 'The choices shown under Started from, Who to, Length and How the chance arose.', listBox('start', 'Started from') + listBox('to', 'Who to') + listBox('len', 'Length') + listBox('arose', 'How the chance arose')) +
       '<button type="button" class="btn btn-ghost" data-cfgbtn="reset" style="margin-top:14px; color:var(--red);">Reset everything to the defaults</button>' +
       '<button type="button" class="btn btn-primary" id="cfg-done2" style="margin-top:10px;">Done</button>';
+    ov.querySelectorAll('details.cfg-sec').forEach(function(d){ d.addEventListener('toggle', function(){ cfgOpen[d.getAttribute('data-sec')] = d.open; }); });
     ov.scrollTop = top;
   }
   function cfgApply(msg){
@@ -3352,7 +3380,7 @@
         var nm = (document.getElementById('cfg-new-name-' + ak).value || '').trim();
         if(!nm){ var f = document.getElementById('cfg-flash'); if(f) f.textContent = 'Type a name first'; return; }
         var g = document.getElementById('cfg-new-grp-' + ak).value;
-        var p = parseFloat(document.getElementById('cfg-new-pts-' + ak).value); if(isNaN(p)) p = 0;
+        var p = 0;
         c.custom.push({ key:'x_' + Date.now().toString(36), label:nm, area:ak, grp:g, delta:p, ifa:'' });
         msg = 'Added';
       }
