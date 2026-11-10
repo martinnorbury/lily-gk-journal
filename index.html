@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v68 — 10 Nov 2026 -->
+<!-- Lily GK Journal — v70 — 10 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -813,8 +813,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v68';
+  var APP_VERSION = 'v70';
   var CHANGELOG = [
+    { version:'v70', notes:'The match rating is back, with new rules. Points now come from three things only. (1) Stopping a goal-scoring chance scores plus: save +0.3, big save +0.5, won 1v1 +0.3, ball in behind cleared +0.3, cross claimed or punched +0.3. (2) A goal, or something Lily causes, scores minus: goal conceded -0.5, spilled -0.3, beaten in a 1v1 -0.3, came and missed -0.3, turnover -0.3. (3) Anything that moves one of her IFAs scores +0.3: passes through or over (into, onto, in behind) and claimed crosses. Short passes around score nothing. Every match, old and new, is re-scored on these rules. The score sits with two plain lines underneath, good actions and goals and mistakes, so the good work stays visible when a goal goes in. Counts stay on the match page.' },
+    { version:'v69', notes:'Match Tracker rethink after the first full-game review. (1) No match rating any more: the 10-point score is hidden everywhere and replaced by plain counts (goals and how each arose, saves, crosses, balls in behind, and with-the-ball by where it started and whether she was pressed). (2) With the ball now asks four separate things: where the ball came from (back-pass, goal kick, free kick or offside, after a save or catch, opposition pass she got to first, other), pressed or not, who it went to (full-back, centre-back, midfielder, forward) and length. A turnover also records what she tried. (3) Goal conceded has one question, how the chance arose (corner, free kick, penalty, cross, ball in behind, after a save, second ball, after Lily\'s turnover, after a teammate\'s turnover, dribble into the box, long-range shot), plus a separate outside-the-box tick. The duplicate Goal button inside Shot-stopping is gone. (4) New review field: quality of the pass back. (5) Opponent names such as City Lionesses no longer trip the privacy filter. (6) After a match the reflection button is now optional and quieter.' },
     { version:'v68', notes:'New My clips tab in IAP Prep: every clip in one list, newest first, with the Hudl video time, an Open in Hudl button (when the match has its Hudl link) and a Copy time button. The star clips Martin taps during a game, and the clips Lily picks when tagging, are both here. Any star clip can be put into the playlist: choose an IFA or theme and Success or Learning, and it goes into the 12-clip list ahead of the automatic picks.' },
     { version:'v67', notes:'Audit fixes. Edge now counts Lily\'s own ownership: the Hudl clips she picked, the weekly reviews completed and the next steps she named. The August ratings (Tactical 3.3, Technical 4.0, Psychological 2.8, Physical 3.8, Social 3.5) are stored as her starting baseline and shown beside her current averages. The four Oct targets are labelled Seb, Josh & Kiera Feedback (Oct 2 Review). The written IAP is labelled as her three IDP IFAs, with the fourth Hudl area noted as playlist only. The privacy filter also catches national camp, international duty, SGP camp and similar. Attribute tags are described as self-reflection tags, not a Chelsea staff assessment.' },
     { version:'v66', notes:'December pack. The Brave and Leading counts in the IAP briefing now include the review tags (Brave, Bounced back, Called early and clear, Took control), because the live buttons for them were removed in v58. Lily can pick a moment for her Hudl playlist as Success or Learning when she tags it as herself; her picks go first in the 12-clip list, then the app fills any gaps from the recorded moments as before. New IFA pages tab in IAP Prep: for each IFA, Chelsea\'s What, How and Who, the evidence counts, her chosen clips, and a Next step box in her own words.' },
@@ -1377,7 +1379,19 @@
   var AUG_BASELINE = { tactical:3.3, technical:4.0, psych:2.8, physical:3.8, social:3.5 };
   var IP_OCT_LABEL = 'Seb, Josh & Kiera Feedback (Oct 2 Review)';
   var ipSaveTimer = null;
-  function ipSafe(s){ s = String(s == null ? '' : s).trim(); return (!s || IP_PRIVATE_RE.test(s)) ? '' : s; }
+  function ipOppRe(){
+    var names = {};
+    (state.schedule || []).forEach(function(x){ if(x.opponent) names[String(x.opponent).trim().toLowerCase()] = 1; });
+    (state.matchTracks || []).forEach(function(x){ if(x.opponent) names[String(x.opponent).trim().toLowerCase()] = 1; });
+    var list = Object.keys(names).filter(function(n){ return n.length >= 3; }).sort(function(a, b){ return b.length - a.length; })
+      .map(function(n){ return n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+    return list.length ? new RegExp(list.join('|'), 'gi') : null;
+  }
+  function ipSafe(s){
+    s = String(s == null ? '' : s).trim(); if(!s) return '';
+    var re = ipOppRe(), t = re ? s.replace(re, ' ') : s;
+    return IP_PRIVATE_RE.test(t) ? '' : s;
+  }
   function ipPrepState(){
     state.iapPrep = state.iapPrep || {};
     if(!Array.isArray(state.iapPrep.targets)) state.iapPrep.targets = [{target:'',adjust:''},{target:'',adjust:''},{target:'',adjust:''}];
@@ -2583,6 +2597,7 @@
         state.mindgymLogs = state.mindgymLogs || [];
         state.recoveryLogs = state.recoveryLogs || [];
         state.syllabusOverrides = state.syllabusOverrides || {};
+        (state.matchTracks || []).forEach(function(t){ (t.events || []).forEach(function(e){ var o = trackerOpt(e.key); if(o){ e.delta = o.delta; e.sign = o.delta >= 0 ? '+' : '-'; } }); });
         cacheLocally();
       }
       renderAll();
@@ -2864,9 +2879,9 @@
   var TRACKER_BASELINE = 6.0;
   var TRACKER_PLUS = [
     { key:'save',      label:'Save',                           delta:0.3 },
-    { key:'bigsave',   label:'Big save',                       delta:0.6 },
+    { key:'bigsave',   label:'Big save',                       delta:0.5 },
     { key:'cross',     label:'Claimed a cross',                delta:0.3, ifa:'ifa3' },
-    { key:'won1v1',    label:'Won the 1v1',                    delta:0.5 },
+    { key:'won1v1',    label:'Won the 1v1',                    delta:0.3 },
     { key:'fwdpass',   label:'Pass forward finds a team-mate', delta:0.3, ifa:'ifa2' },
     { key:'brave',     label:'Brave action',                   delta:0.3 },
     { key:'call',      label:'Good call / command',            delta:0.2, ifa:'ifa1' },
@@ -2874,11 +2889,11 @@
     { key:'bounce',    label:'Bounced back after a mistake',   delta:0.2 },
     { key:'sethigh',   label:'Set early and high',             delta:0.2 },
     { key:'alive',     label:'Alive early, trusted anticipation', delta:0.3 },
-    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.5, ifa:'ifa3' },
+    { key:'readcross', label:'Waited, read the flight, claimed', delta:0.3, ifa:'ifa3' },
     { key:'longpass',  label:'Long ball / goal kick finds target', delta:0.3, ifa:'ifa2' },
-    { key:'punch',     label:'Punched clear',                  delta:0.1, ifa:'ifa3' },
+    { key:'punch',     label:'Punched clear',                  delta:0.3, ifa:'ifa3' },
     { key:'stayed',    label:'Stayed on line (did not come)',  delta:0 },
-    { key:'bib_clear', label:'Ball in behind · came and cleared', delta:0.2 },
+    { key:'bib_clear', label:'Ball in behind · came and cleared', delta:0.3 },
     { key:'bib_stay',  label:'Ball in behind · stayed on line',   delta:0 },
     { key:'bib_beat',  label:'Ball in behind · beaten',           delta:0 },
     { key:'clash',     label:'GK and defender both went / in each other\'s way', delta:0 },
@@ -2891,11 +2906,11 @@
   ];
   // Chelsea's In-Possession wording: play around / through / over (into, onto, in behind), by hands or feet.
   var DIST_TYPES = [
-    { k:'around',  label:'Play around',        delta:0.1 },
-    { k:'through', label:'Play through',       delta:0.2 },
-    { k:'into',    label:'Over: into',         delta:0.2 },
-    { k:'onto',    label:'Over: onto',         delta:0.2 },
-    { k:'behind',  label:'Over: in behind',    delta:0.2 }
+    { k:'around',  label:'Play around',        delta:0 },
+    { k:'through', label:'Play through',       delta:0.3 },
+    { k:'into',    label:'Over: into',         delta:0.3 },
+    { k:'onto',    label:'Over: onto',         delta:0.3 },
+    { k:'behind',  label:'Over: in behind',    delta:0.3 }
   ];
   ['h','f'].forEach(function(m){
     DIST_TYPES.forEach(function(t){
@@ -2905,9 +2920,8 @@
 
   // v56: the tracker works in levels. Tap 1 = area, tap 2 = what happened (recorded at once), tap 3 = optional detail.
   var TRACKER_AREAS = [
-    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['goal','spill'], neutral:['clash'],
-      detail:['Open play','Penalty','Free kick','Corner','Close range','Long range'],
-      detailGoal:['From a corner','From a cross','After a turnover','Outside the box','Free kick','Penalty','Second ball / not cleared'] },
+    { key:'shot',  label:'Shot-stopping',   good:['save','bigsave'],                     bad:['spill'], neutral:['clash'],
+      detail:['Open play','Penalty','Free kick','Corner','Close range','Long range'] },
     { key:'one',   label:'1v1 / close range', good:['won1v1'],                          bad:['lost1v1'],
       detail:['Through ball','Breakaway','Cut-back','Rebound'] },
     { key:'space', label:'Ball in behind',  good:['bib_clear'],                          bad:[], neutral:['bib_stay','bib_beat'],
@@ -2926,6 +2940,7 @@
     { k:'pass',     label:'Pass technique',       std:'Technical',     opts:[['pass_good','Technique good (driven / lofted / curled)'],['pass_off','Technique off']] },
     { k:'phys',     label:'Reach & athleticism',  std:'Physical',      opts:[['easy','Got there comfortably'],['just','Only just got there'],['beaten','Beaten for reach or pace'],['strong','Strong in the air / contact']] },
     { k:'mind',     label:'Mindset',              std:'Psychological', opts:[['brave','Brave'],['composed','Composed'],['bounce','Bounced back'],['lost','Lost focus']] },
+    { k:'pbq',      label:'Quality of the pass back (the teammate\'s ball)', std:null, opts:[['good','Good ball'],['weak_foot','Onto her weaker foot'],['behind','Behind her'],['weak','Weak or bouncing'],['hard','Too hard or fast'],['pressure','Played into pressure']] },
     { k:'prevent',  label:'Could it be prevented?', std:null,          opts:[['yes','Yes'],['partly','Partly'],['no','Not much she could do']] }
   ];
   function revLabel(dim, val){ var d = REVIEW_DIMS.find(function(x){ return x.k === dim; }); var o = d && d.opts.find(function(x){ return x[0] === val; }); return o ? o[1] : ''; }
@@ -3013,15 +3028,76 @@
       '<div class="eng-char"><b>BLUE:</b> ' + (bl ? escapeHtml(bl) : '<span style="opacity:0.6;">nothing yet</span>') + '</div>' +
       '<div class="hint" style="margin:8px 0 0;">These are Lily\'s and Martin\'s own self-reflection tags, not a Chelsea staff assessment. Counts only, no scores. Attribute and BLUE names come from the Chelsea GK Induction 26/27; which tag feeds which attribute is this app\'s own mapping. BLUE here: Brave = wanting the ball under pressure or being brave, Lead = communication, Unite = questions asked of the coaches, Edge = clips Lily picked herself.</div></div>';
   }
+  // ---------- v69: grouped, single-answer detail (each question answered once) ----------
+  var TK_START = ['Back-pass','Goal kick','Free kick / offside','After a save or catch','Opposition pass, she got there first','Other'];
+  var TK_PRESS = [['P','Pressed'],['N','Not pressed']];
+  var TK_TO = ['Full-back','Centre-back','Midfielder','Forward'];
+  var TK_LEN = ['Short','Medium','Long'];
+  var TK_AROSE = ['Corner','Free kick','Penalty','Cross','Ball in behind','After a save (rebound)','Second ball, not cleared','After Lily\'s turnover','After a teammate\'s turnover','Dribble into the box','Long-range shot','Other'];
+  function evDetailGroups(ev){
+    if(!ev) return [];
+    if(ev.key === 'goal') return [
+      { f:'arose', label:'How did the chance arise?', opts:TK_AROSE.map(function(x){ return [x, x]; }) },
+      { f:'outside', label:'Shot from', opts:[['1', 'Outside the box']] } ];
+    if(ev.key === 'turnover') return [
+      { f:'start', label:'Started from', opts:TK_START.map(function(x){ return [x, x]; }) },
+      { f:'press', label:'Pressure', opts:TK_PRESS },
+      { f:'how', label:'She tried', opts:[['Hands', 'Hands'], ['Feet', 'Feet']] },
+      { f:'shape', label:'Where', opts:[['Around', 'Around'], ['Through', 'Through'], ['Over', 'Over']] },
+      { f:'to', label:'Who to', opts:TK_TO.map(function(x){ return [x, x]; }) },
+      { f:'len', label:'Length', opts:TK_LEN.map(function(x){ return [x, x]; }) } ];
+    if(/^d[hf]_/.test(ev.key)) return [
+      { f:'start', label:'Started from', opts:TK_START.map(function(x){ return [x, x]; }) },
+      { f:'press', label:'Pressure', opts:TK_PRESS },
+      { f:'to', label:'Who to', opts:TK_TO.map(function(x){ return [x, x]; }) },
+      { f:'len', label:'Length', opts:TK_LEN.map(function(x){ return [x, x]; }) } ];
+    return [];
+  }
+  function evDetailText(ev){
+    var parts = [ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.arose, ev.outside ? 'Outside the box' : ''];
+    return parts.concat(ev.details || []).filter(Boolean).join(' · ');
+  }
+  // Plain counts for a match. No scoring.
+  function trackerFactsHtml(track){
+    var ev = track.events || [];
+    function n(keys){ return ev.filter(function(e){ return keys.indexOf(e.key) >= 0; }).length; }
+    var goals = ev.filter(function(e){ return e.key === 'goal' || e.key === 'error'; });
+    var aroseCount = {};
+    goals.forEach(function(g){
+      var k = g.arose || (g.details || []).filter(function(d){ return d !== 'Outside the box'; })[0] || 'Not recorded';
+      aroseCount[k] = (aroseCount[k] || 0) + 1;
+    });
+    var aroseTxt = Object.keys(aroseCount).map(function(k){ return k + ' ' + aroseCount[k]; }).join(' · ');
+    var wb = ev.filter(function(e){ return /^d[hf]_|^bp_|^turnover$/.test(e.key); });
+    var byStart = {};
+    wb.forEach(function(e){
+      var k = e.start || (/^bp_/.test(e.key) ? 'Back-pass' : 'Start not recorded');
+      var o = byStart[k] = byStart[k] || { t:0, p:0, np:0, on:0, lost:0 };
+      o.t++; if(e.press === 'P') o.p++; if(e.press === 'N') o.np++;
+      if(e.key === 'turnover' || /_lost$/.test(e.key)) o.lost++; else o.on++;
+    });
+    function line(k, v){ return '<div class="journal-detail-row"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + v + '</div></div>'; }
+    var rows = line('Goals conceded', goals.length + (aroseTxt ? ' <span class="card-meta">(' + escapeHtml(aroseTxt) + ')</span>' : '')) +
+      line('Shots', 'saves ' + n(['save']) + ' · big saves ' + n(['bigsave']) + ' · spilled ' + n(['spill']) + ' · clash ' + n(['clash'])) +
+      line('1v1 / close range', 'won ' + n(['won1v1']) + ' · beaten ' + n(['lost1v1'])) +
+      line('Crosses', 'claimed ' + n(['cross', 'readcross']) + ' · punched ' + n(['punch']) + ' · missed ' + n(['crossmiss']) + ' · stayed ' + n(['stayed'])) +
+      line('Ball in behind', 'came and cleared ' + n(['bib_clear']) + ' · stayed on line ' + n(['bib_stay']) + ' · beaten ' + n(['bib_beat']));
+    var wbRows = Object.keys(byStart).map(function(k){
+      var o = byStart[k];
+      return '<div class="eng-char"><b>' + escapeHtml(k) + ':</b> ' + o.t + ' · pressed ' + o.p + ', not pressed ' + o.np + ' · played on ' + o.on + ', lost ' + o.lost + '</div>';
+    }).join('');
+    return '<div class="card"><div class="card-title" style="font-size:14px;">What happened (counts only)</div>' + rows +
+      '<div class="section-label" style="margin-top:10px;">With the ball: ' + wb.length + ' in all</div>' + (wbRows || '<div class="hint">None recorded.</div>') + '</div>';
+  }
   function trackerOpt(key){ return TRACKER_PLUS.concat(TRACKER_MINUS).find(function(o){ return o.key === key; }); }
 
   var TRACKER_MINUS = [
-    { key:'goal',      label:'Goal conceded',                  delta:-0.3 },
-    { key:'error',     label:'Error led to a goal',            delta:-0.8 },
+    { key:'goal',      label:'Goal conceded',                  delta:-0.5 },
+    { key:'error',     label:'Error led to a goal',            delta:-0.5 },
     { key:'crossmiss', label:'Came, missed or dropped',        delta:-0.3, ifa:'ifa3' },
-    { key:'lost1v1',   label:'Beaten in a 1v1',                delta:-0.4 },
+    { key:'lost1v1',   label:'Beaten in a 1v1',                delta:-0.3 },
     { key:'turnover',  label:'Distribution turned over',       delta:-0.3, ifa:'ifa2' },
-    { key:'spill',     label:'Spilled / fumbled a shot',       delta:-0.4 },
+    { key:'spill',     label:'Spilled / fumbled a shot',       delta:-0.3 },
     { key:'nocall',    label:'No call / late call',            delta:-0.2, ifa:'ifa1' },
     { key:'position',  label:'Poor positioning',               delta:-0.3 },
     { key:'setlow',    label:'Set too low or late',            delta:-0.3 },
@@ -3037,8 +3113,18 @@
   function trackerClamp(r){ return Math.max(1, Math.min(10, Math.round(r * 100) / 100)); }
   function trackerRatingAt(track, n){
     var r = track.baseline;
-    for(var i = 0; i < n && i < track.events.length; i++){ r = trackerClamp(r + track.events[i].delta); }
+    for(var i = 0; i < n && i < track.events.length; i++){ r = trackerClamp(r + trackerEvDelta(track.events[i])); }
     return r;
+  }
+  function trackerEvDelta(e){ var o = trackerOpt(e.key); return o ? o.delta : (e.delta || 0); }
+  function trackerSplit(track){
+    var pos = 0, neg = 0;
+    (track.events || []).forEach(function(e){ var d = trackerEvDelta(e); if(d > 0) pos += d; else if(d < 0) neg += d; });
+    return { pos:pos, neg:neg };
+  }
+  function trackerSplitHtml(track){
+    var sp = trackerSplit(track);
+    return '<div class="eng-char" style="margin:6px 0 0; text-align:center;">Good actions <b>+' + sp.pos.toFixed(1) + '</b> &nbsp;·&nbsp; Goals and mistakes <b>' + (sp.neg < 0 ? '−' : '') + Math.abs(sp.neg).toFixed(1) + '</b></div>';
   }
   function trackerFinalRating(track){ return trackerRatingAt(track, track.events.length); }
   function trackerElapsed(track){
@@ -3057,15 +3143,15 @@
     if(parts.length === 1) return Math.max(0, parseInt(parts[0], 10) || 0) * 60;
     return Math.max(0, (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0));
   }
-  function fmtDelta(d){ return (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(1); }
+  function fmtDelta(d){ return (d > 0 ? '+' : (d < 0 ? '−' : '')) + (d === 0 ? '' : Math.abs(d).toFixed(1)); }
   function trackerPillColors(r){
     if(r >= 7) return { bg:'#4CC27A', fg:'#07210F' };
     if(r >= 6) return { bg:'var(--amber)', fg:'#2A1A00' };
     if(r >= 5) return { bg:'#F08A4B', fg:'#2A1200' };
     return { bg:'var(--red)', fg:'#2A0000' };
   }
-  function trackerBadgeHtml(r){
-    var c = trackerPillColors(r);
+  function trackerBadgeHtml(track){
+    var r = trackerFinalRating(track), c = trackerPillColors(r);
     var av = (state.profile && state.profile.avatarDataUrl)
       ? '<img class="trk-avatar" src="' + state.profile.avatarDataUrl + '" alt="">'
       : '<div class="trk-avatar">L</div>';
@@ -3240,7 +3326,7 @@
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="trk-fin-back">' + (relink ? 'Back' : 'Back to Match') + '</button>' +
         '<div class="trk-title">' + (relink ? 'Link to a match' : 'Final whistle') + '</div><span style="width:60px;"></span></div>' +
-      '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">Final rating</div></div>' + trackerBadgeHtml(final) + '</div>' +
+      '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">Final rating</div></div>' + trackerBadgeHtml(track) + '</div>' + trackerSplitHtml(track) +
       '<div class="card" style="margin-top:10px;">' +
         '<div class="field"><label>Which match was this?</label><select id="trk-fin-match">' + opts + '</select></div>' +
         '<div class="field"><label>Opponent</label><input type="text" id="trk-fin-opp" value="' + escapeHtml(track.opponent || '') + '" placeholder="e.g. Arsenal"></div>' +
@@ -3322,12 +3408,23 @@
     } else {
       var lastIdx = trackerOverlayState.detailFor;
       var lastEv = lastIdx >= 0 ? track.events[lastIdx] : null;
-      var lastArea = lastEv ? TRACKER_AREAS.find(function(a){ return a.good.indexOf(lastEv.key) >= 0 || a.bad.indexOf(lastEv.key) >= 0 || (a.neutral || []).indexOf(lastEv.key) >= 0 || (a.key === 'dist' && /^(d[hf]_|bp_)/.test(lastEv.key)); }) : null;
-      var lastDetail = lastArea ? ((lastArea.key === 'dist' && lastEv.key === 'turnover') ? lastArea.detailBad : ((lastArea.key === 'shot' && lastEv.key === 'goal') ? lastArea.detailGoal : lastArea.detail)) : [];
+      var lastArea = lastEv ? TRACKER_AREAS.find(function(a){ return a.good.indexOf(lastEv.key) >= 0 || a.bad.indexOf(lastEv.key) >= 0 || (a.neutral || []).indexOf(lastEv.key) >= 0; }) : null;
+      var groups = lastEv ? evDetailGroups(lastEv) : [];
+      var lastDetail = (lastEv && !groups.length && lastArea) ? (lastArea.detail || []) : [];
       var lastSet = lastEv ? (lastEv.details || (lastEv.detail ? lastEv.detail.split(' · ') : [])) : [];
-      var detailRow = (lastEv && lastArea) ? '<div class="trk-detail"><span class="hint" style="margin:0;">' + (lastArea.key === 'dist' && lastEv.key !== 'turnover' ? 'Range / back-pass? (optional):' : 'Add detail (optional):') + '</span>' +
-        lastDetail.map(function(d){ return '<button type="button" class="trk-chip' + (lastSet.indexOf(d) >= 0 ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') +
-        '<button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>' : '';
+      var detailRow = '';
+      if(lastEv && groups.length){
+        detailRow = groups.map(function(g){
+          return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
+            g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(lastEv[g.f]) === String(o[0]) ? ' on' : '') + '" data-grp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
+        }).join('') + '<div class="trk-detail"><button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
+      } else if(lastEv && lastArea){
+        detailRow = '<div class="trk-detail"><span class="hint" style="margin:0;">Add detail (optional):</span>' +
+          lastDetail.map(function(d){ return '<button type="button" class="trk-chip' + (lastSet.indexOf(d) >= 0 ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') +
+          '<button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
+      } else if(lastEv){
+        detailRow = '<div class="trk-detail"><button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
+      }
       var minuteRow = track.recap ? '<div class="trk-minute"><span class="hint" style="margin:0;">Minute</span>' + [-10,-5,-1].map(function(n){ return '<button type="button" class="trk-chip" data-min="' + n + '">' + n + '</button>'; }).join('') + '<b class="trk-minval">' + (track.recapMin || 0) + '\'</b>' + [1,5,10].map(function(n){ return '<button type="button" class="trk-chip" data-min="' + n + '">+' + n + '</button>'; }).join('') + '</div>' : '';
       main = minuteRow + detailRow + '<button type="button" class="trk-goal" data-opt="goal">GOAL CONCEDED</button>' + '<div class="trk-areas">' + TRACKER_AREAS.map(function(a){
         return '<button type="button" class="trk-area" data-area="' + a.key + '">' + escapeHtml(a.label) + '</button>';
@@ -3351,7 +3448,7 @@
       '<div class="trk-top"><button type="button" class="trk-mini" id="trk-close">Close</button>' +
         '<div class="trk-title">' + (track.opponent ? 'vs ' + escapeHtml(track.opponent) : 'Match') + '</div>' +
         '<button type="button" class="trk-mini" id="trk-review"' + (track.events.length ? '' : ' disabled style="opacity:0.4;"') + '>Timeline</button></div>' +
-      '<div class="trk-clockrow"><div class="trk-clock">' + fmtClock(trackerElapsed(track)) + '</div>' + trackerBadgeHtml(rating) + '</div>' +
+      '<div class="trk-clockrow"><div class="trk-clock">' + fmtClock(trackerElapsed(track)) + '</div>' + trackerBadgeHtml(track) + '</div>' + trackerSplitHtml(track) +
       '<div class="trk-flash">' + escapeHtml(trackerOverlayState.flash || '') + '</div>' +
       main + controls +
       (recent ? '<div class="section-label" style="margin-top:16px;">Latest</div>' + recent : '');
@@ -3395,7 +3492,18 @@
         renderTrackerLive(id);
       });
     });
-    ov.querySelectorAll('.trk-chip').forEach(function(btn){
+    ov.querySelectorAll('[data-grp]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ev = track.events[trackerOverlayState.detailFor];
+        if(!ev) return;
+        var f = btn.getAttribute('data-grp'), v = btn.getAttribute('data-val');
+        if(String(ev[f]) === v) delete ev[f]; else ev[f] = v;
+        ev.detail = evDetailText(ev);
+        trackerPersist();
+        renderTrackerLive(id);
+      });
+    });
+    ov.querySelectorAll('.trk-chip[data-detail]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var ev = track.events[trackerOverlayState.detailFor];
         if(!ev) return;
@@ -3403,7 +3511,7 @@
         var set = ev.details || (ev.detail ? ev.detail.split(' · ') : []);
         var at = set.indexOf(d);
         if(at >= 0) set.splice(at, 1); else set.push(d);
-        ev.details = set; ev.detail = set.join(' · ');
+        ev.details = set; ev.detail = evDetailText(ev);
         trackerPersist();
         renderTrackerLive(id);
       });
@@ -3505,10 +3613,22 @@
     ev[RK] = ev[RK] || {};
     var R = ev[RK];
     var offset = track.videoOffsetSec || 0;
+    var allKeys = [];
+    TRACKER_AREAS.forEach(function(a){ a.good.concat(a.bad, a.neutral || []).forEach(function(k){ if(allKeys.indexOf(k) < 0) allKeys.push(k); }); });
+    allKeys.push('goal');
+    ['h', 'f'].forEach(function(m){ DIST_TYPES.forEach(function(t){ allKeys.push('d' + m + '_' + t.k); }); });
+    var chgOpts = allKeys.filter(function(k){ return trackerOpt(k); }).map(function(k){ var o = trackerOpt(k); return '<option value="' + k + '"' + (k === ev.key ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>'; }).join('');
+    if(allKeys.indexOf(ev.key) < 0) chgOpts = '<option value="' + escapeHtml(ev.key) + '" selected>' + escapeHtml(ev.label) + '</option>' + chgOpts;
+    var editBlock = '<div class="field" style="margin-top:10px;"><label>What happened (change it if it was recorded wrongly)</label><select id="tg-change">' + chgOpts + '</select></div>' +
+      evDetailGroups(ev).map(function(g){
+        return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
+          g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(ev[g.f]) === String(o[0]) ? ' on' : '') + '" data-tgrp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
+      }).join('');
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="tg-back">Done</button><div class="trk-title">Review this moment</div><span style="width:60px;"></span></div>' +
       '<div class="card"><div class="card-title" style="font-size:15px;">' + escapeHtml(ev.label) + (ev.detail ? ' · ' + escapeHtml(ev.detail) : '') + '</div>' +
       '<div class="card-meta">' + (track.recap ? 'Minute ' + Math.round(ev.t / 60) : 'Match ' + fmtClock(ev.t)) + ' · video ' + fmtClock(offset + ev.t) + (offset ? '' : ' (set the video time first for an exact clip)') + '</div></div>' +
+      editBlock +
       '<div class="trk-detail" style="margin-top:12px;"><span class="hint" style="margin:0;">Tagging as:</span>' +
         '<button type="button" class="trk-chip' + (by === 'M' ? ' on' : '') + '" data-by="M">Martin</button><button type="button" class="trk-chip' + (by === 'L' ? ' on' : '') + '" data-by="L">Lily</button></div>' +
       REVIEW_DIMS.map(function(d){
@@ -3522,7 +3642,8 @@
       '<div class="section-label" style="margin-top:14px;">For the coach</div>' +
       '<div class="trk-detail"><button type="button" class="trk-chip' + (ev.ask ? ' on' : '') + '" id="tg-ask">❓ Ask the coach</button></div>' +
       '<div class="field" style="margin-top:10px;"><label>Question or note (optional)</label><textarea id="tg-note" rows="2" placeholder="e.g. Who should take the ball here?">' + escapeHtml(ev.note || '') + '</textarea></div>' +
-      '<button type="button" class="btn btn-primary" id="tg-done" style="margin-top:12px;">Done</button>';
+      '<button type="button" class="btn btn-primary" id="tg-done" style="margin-top:12px;">Done</button>' +
+      '<button type="button" class="btn btn-ghost" id="tg-delete" style="margin-top:8px; color:var(--red);">Delete this moment</button>';
     function finish(){ ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); openTrackerReview(id, fromLive); }
     ov.querySelectorAll('[data-dim]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -3531,6 +3652,24 @@
         ev.note = (ov.querySelector('#tg-note').value || '').trim();
         saveData(); renderTrackerTag(id, idx, fromLive);
       });
+    });
+    ov.querySelectorAll('[data-tgrp]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var f = b.getAttribute('data-tgrp'), v = b.getAttribute('data-val');
+        if(String(ev[f]) === v) delete ev[f]; else ev[f] = v;
+        ev.detail = evDetailText(ev); ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
+      });
+    });
+    var chg = ov.querySelector('#tg-change');
+    if(chg) chg.addEventListener('change', function(){
+      var o = trackerOpt(chg.value); if(!o) return;
+      ev.key = o.key; ev.label = o.label; ev.delta = o.delta; ev.sign = o.delta >= 0 ? '+' : '-'; ev.ifa = o.ifa || null;
+      ev.note = (ov.querySelector('#tg-note').value || '').trim(); ev.detail = evDetailText(ev); saveData(); renderTrackerTag(id, idx, fromLive);
+    });
+    var delBtn = ov.querySelector('#tg-delete');
+    if(delBtn) delBtn.addEventListener('click', function(){
+      if(!confirm('Delete this moment from the match? This cannot be undone.')) return;
+      track.events.splice(idx, 1); saveData(); openTrackerReview(id, fromLive);
     });
     ov.querySelectorAll('[data-pick]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -3594,16 +3733,17 @@
       return '<div class="trk-ev" data-rv="' + ev.indexOf(e) + '" style="cursor:pointer;"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
         '<span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta > 0 ? '▲ ' : (e.delta < 0 ? '▼ ' : '• ')) + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag +
           (rvTxt ? '<br><span class="card-meta" style="color:var(--cyan);">Review: ' + escapeHtml(rvTxt) + '</span>' : '') + (revTextL(e) ? '<br><span class="card-meta" style="color:var(--lime);">Lily\'s view: ' + escapeHtml(revTextL(e)) + '</span>' : '') + (e.answer ? '<br><span class="card-meta">✅ Coach: ' + escapeHtml(e.answer) + '</span>' : '') + (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</span>' +
-        '<span class="d">' + fmtDelta(e.delta) + '<br>' + row.r.toFixed(1) + '</span></div>';
+        '<span class="d">' + fmtDelta(trackerEvDelta(e)) + '<br>' + row.r.toFixed(1) + '</span></div>';
     }).join('');
 
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="trk-close">Close</button>' +
         '<div class="trk-title">' + (track.opponent ? 'vs ' + escapeHtml(track.opponent) : 'Match') + ' · ' + escapeHtml(fmtDate(track.date)) + (track.ctx ? ' · ' + ({A:'Assertive',B:'Balanced',C:'Challenge'}[track.ctx] || '') : '') + '</div>' +
         (track.status !== 'done' ? '<button type="button" class="trk-mini" id="trk-back-live">Back to Live</button>' : '<span style="width:60px;"></span>') + '</div>' +
-      '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">' + (track.status === 'done' ? 'Final rating' : 'Rating so far') + '</div></div>' + trackerBadgeHtml(final) + '</div>' +
+      '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">' + (track.status === 'done' ? 'Final rating' : 'Rating so far') + '</div></div>' + trackerBadgeHtml(track) + '</div>' + trackerSplitHtml(track) +
       '<div class="card">' + trackerChartSvg(track) +
         '<div class="hint trk-caption" style="margin:8px 0 0; text-align:center;">Tap a ▲ or ▼ to see what it was</div></div>' +
+      trackerFactsHtml(track) +
       (ev.some(function(e){ return e.ask; }) ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Questions for the coaches</div>' +
         ev.map(function(e, i){ return e.ask ? '<div class="eng-char" data-ans="' + i + '" style="cursor:pointer;">' + (e.answer ? '✅ ' : '❓ ') + (track.recap ? '' : fmtClock(e.t) + ' · ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + (e.note ? ' — ' + escapeHtml(e.note) : '') + (e.answer ? '<br><span class="card-meta">Coach said: ' + escapeHtml(e.answer) + '</span>' : '<br><span class="card-meta">Tap to record the coach\'s answer</span>') + '</div>' : ''; }).join('') + '</div>' : '') +
       (revDiffs(track).length ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Where you and Lily see it differently</div>' + revDiffs(track).map(function(x){ return '<div class="eng-char">' + (track.recap ? '' : fmtClock(x.t) + ' · ') + escapeHtml(x.label) + ' · ' + escapeHtml(x.dim) + ': Martin ' + escapeHtml(x.m) + ', Lily ' + escapeHtml(x.l) + '</div>'; }).join('') + '<div class="hint" style="margin:8px 0 0;">Worth watching together and asking the coach. Neither view is the right one.</div></div>' : '') +
@@ -4899,7 +5039,7 @@
       (session.hudlLink ? '<a href="' + escapeHtml(session.hudlLink) + '" target="_blank" rel="noopener" class="hudl-link">▶ Watch on Hudl</a>' : '') +
       renderWarmupCardHtml(session) +
       renderFuelingTimelineHtml(session) +
-      '<button class="btn btn-primary" id="prep-log-reflection-btn" style="margin-top:20px;">Log Match Reflection</button>'
+      '<button class="btn btn-ghost" id="prep-log-reflection-btn" style="margin-top:20px;">Add my own note about this match (optional)</button>'
     );
     document.getElementById('close-modal').addEventListener('click', closeModal);
     wireFuelingChecklist();
