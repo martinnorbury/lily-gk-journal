@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v72 — 10 Nov 2026 -->
+<!-- Lily GK Journal — v75 — 10 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -441,6 +441,10 @@
   .cfg-add{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; align-items:center;}
   .cfg-off{opacity:.45;}
   .cfg-card{margin-top:8px;}
+  .cfg-ev{border-top:1px solid var(--line); padding:8px 0;}
+  .cfg-evname{font-size:15px; font-weight:600; width:100%; box-sizing:border-box; margin-bottom:2px;}
+  input.cfg-evname{background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:4px;}
+  .cfg-area{font-family:'Oswald',sans-serif; font-weight:700; font-size:15px; margin-bottom:4px;}
   .cfg-sec{margin-top:10px; border:1px solid var(--line); border-radius:12px; padding:0 12px 12px;}
   .cfg-sec > summary{cursor:pointer; padding:14px 0; font-family:'Oswald',sans-serif; font-weight:600; font-size:16px; list-style:none;}
   .cfg-sec > summary::-webkit-details-marker{display:none;}
@@ -827,8 +831,11 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v72';
+  var APP_VERSION = 'v75';
   var CHANGELOG = [
+    { version:'v75', notes:'Stripped back. The live tracker now has two buttons, Out of possession and In possession, and only events that can gain or lose a point. Out: save +0.1, big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2, penalty conceded -0.5, mistake with an opposition chance following -0.2 (and the red GOAL CONCEDED -0.5). In: pass started an attack +0.1, created a clear chance +0.2, assist +0.5, turnover with an opposition chance following -0.2. Everything else (where it started, pressure, hands or feet, who to, length, what the mistake was, where a shot came from, good save) is added later in the review, which is also where IFAs link. Old areas and events stay in past games and score as before. Tracker settings shows the two new lists.' },
+    { version:'v74', notes:'Tracker settings: every event now has a Button dropdown so it can be moved to a different area by picking it from a list (no typing, and past games keep their link). Scoring unchanged.' },
+    { version:'v73', notes:'Tracker settings is now one list, one block per event: its name, points and IFA tag together (plus order and hide). The tag values (good save, penalty, led to, chance followed) sit inside the event they belong to. Pick lists are tucked away at the bottom. No scoring change.' },
     { version:'v72', notes:'Tracker settings simplified into four closed sections, one job each: 1 Points (every score in one list: Against, Stopping, Creating, Mistakes, no-point events), 2 Buttons (rename, reorder, hide, add), 3 IFA tags (one flat list), 4 Pick lists. No behaviour or scoring change.' },
     { version:'v71', notes:'The score is now only about stopping things and creating things; everything else is an event with no points. Saves +0.1 (good save +0.2 when you add it in review), big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2. Passes can be tagged with what they led to: started an attack +0.1, created a clear chance +0.2, assist +0.5. A goal is -0.5 and nothing else is taken off for the mistake that led to it. A mistake with no goal scores nothing unless you tick that an opposition chance followed (-0.2). IFAs are out of the score and are used only to link moments to the IFA pages. New Tracker settings screen (Match Tracker tab, bottom) to rename, add, hide and reorder areas and options, change any points, set an IFA tag per option and edit the pick lists; all games are re-scored when you change anything. New IFA tag on any single moment in the review screen, and an IFA filter on the review timeline. Goals now show how many she could do little about.' },
     { version:'v70', notes:'The match rating is back, with new rules. Points now come from three things only. (1) Stopping a goal-scoring chance scores plus: save +0.3, big save +0.5, won 1v1 +0.3, ball in behind cleared +0.3, cross claimed or punched +0.3. (2) A goal, or something Lily causes, scores minus: goal conceded -0.5, spilled -0.3, beaten in a 1v1 -0.3, came and missed -0.3, turnover -0.3. (3) Anything that moves one of her IFAs scores +0.3: passes through or over (into, onto, in behind) and claimed crosses. Short passes around score nothing. Every match, old and new, is re-scored on these rules. The score sits with two plain lines underneath, good actions and goals and mistakes, so the good work stays visible when a goal goes in. Counts stay on the match page.' },
@@ -2917,7 +2924,11 @@
     { key:'bp_p_lost', label:'Back-pass, pressed · lost it',         delta:0, ifa:'ifa2' },
     { key:'bp_f_on',   label:'Back-pass, not pressed · played it on', delta:0, ifa:'ifa2' },
     { key:'bp_f_long', label:'Back-pass, not pressed · kicked long / cleared', delta:0, ifa:'ifa2' },
-    { key:'bp_f_lost', label:'Back-pass, not pressed · lost it',     delta:0, ifa:'ifa2' }
+    { key:'bp_f_lost', label:'Back-pass, not pressed · lost it',     delta:0, ifa:'ifa2' },
+    { key:'pensave',   label:'Penalty saved',                  delta:0.5 },
+    { key:'in_start',  label:'Pass started an attack',         delta:0.1, ifa:'ifa2' },
+    { key:'in_chance', label:'Pass created a clear chance',    delta:0.2, ifa:'ifa2' },
+    { key:'in_assist', label:'Assist',                         delta:0.5, ifa:'ifa2' }
   ];
   // Chelsea's In-Possession wording: play around / through / over (into, onto, in behind), by hands or feet.
   var DIST_TYPES = [
@@ -2946,6 +2957,12 @@
     { key:'dist',  label:'With the ball',   good:[],                                     bad:['turnover'],
       detail:['Short','Medium','Long','Back-pass: pressed','Back-pass: not pressed'], detailBad:['Hands','Feet','Around','Through','Over','Back-pass: pressed','Back-pass: not pressed'] }
   ];
+  // v75: the live tracker has two buttons, In and Out of possession, and only events that can score. The old areas stay for past games.
+  TRACKER_AREAS.forEach(function(a){ a.legacy = true; });
+  TRACKER_AREAS.unshift(
+    { key:'out', label:'Out of possession', good:['save', 'bigsave', 'pensave', 'won1v1', 'cross', 'bib_clear'], neutral:[], bad:['penconceded', 'mistake_chance'], detail:[] },
+    { key:'in',  label:'In possession',     good:['in_start', 'in_chance', 'in_assist'], neutral:[], bad:['turnover_chance'], detail:[] }
+  );
   // Review layer (added while watching the video). Five independent dimensions, one choice each, all optional.
   var REVIEW_DIMS = [
     { k:'set',      label:'Set & anticipation',   std:'Tactical',      opts:[['early_high','Set early & high'],['late_low','Set late or low'],['alive','Alive early'],['late_react','Reacted late']] },
@@ -3049,8 +3066,19 @@
   var TK_TO = ['Full-back','Centre-back','Midfielder','Forward'];
   var TK_LEN = ['Short','Medium','Long'];
   var TK_AROSE = ['Corner','Free kick','Penalty','Cross','Ball in behind','After a save (rebound)','Second ball, not cleared','After Lily\'s turnover','After a teammate\'s turnover','Dribble into the box','Long-range shot','Other'];
-  function evDetailGroups(ev){
+  var TK_SRC = ['Open play', 'Corner', 'Free kick', 'Cross', 'Close range', 'Long range', 'Rebound'];
+  var TK_WHAT = ['Spilled / fumbled a shot', 'Beaten in a 1v1', 'Came and missed a cross', 'Misjudged a ball in behind', 'Other'];
+  function evDetailGroups(ev, inReview){
     if(!ev) return [];
+    if(/^(in_|turnover_chance$)/.test(ev.key)) return !inReview ? [] : [
+      { f:'start', label:'Started from', opts:TK_START.map(function(x){ return [x, x]; }) },
+      { f:'press', label:'Pressure', opts:TK_PRESS },
+      { f:'how', label:'Hands or feet', opts:[['Hands', 'Hands'], ['Feet', 'Feet']] },
+      { f:'shape', label:'Where', opts:[['Around', 'Around'], ['Through', 'Through'], ['Over', 'Over']] },
+      { f:'to', label:'Who to', opts:TK_TO.map(function(x){ return [x, x]; }) },
+      { f:'len', label:'Length', opts:TK_LEN.map(function(x){ return [x, x]; }) } ];
+    if(ev.key === 'mistake_chance') return !inReview ? [] : [{ f:'what', label:'What was the mistake?', opts:TK_WHAT.map(function(x){ return [x, x]; }) }];
+    if(ev.key !== 'goal' && ev.key !== 'turnover' && (function(){ var a = trackerAreaOf(ev.key); return a && a.key === 'out'; })()) return !inReview ? [] : [{ f:'src', label:'Came from', opts:TK_SRC.map(function(x){ return [x, x]; }) }];
     if(ev.key === 'goal') return [
       { f:'arose', label:'How did the chance arise?', opts:TK_AROSE.map(function(x){ return [x, x]; }) },
       { f:'outside', label:'Shot from', opts:[['1', 'Outside the box']] } ];
@@ -3073,12 +3101,12 @@
   function evExtraGroups(ev, inReview){
     if(!ev) return [];
     var out = [];
-    if(evMistake(ev)) out.push({ f:'oppch', label:'Afterwards', opts:[['1', 'Opposition chance followed']] });
+    if(evMistake(ev) && !/_chance$/.test(ev.key) && ev.key !== 'penconceded') out.push({ f:'oppch', label:'Afterwards', opts:[['1', 'Opposition chance followed']] });
     if(inReview && ev.key === 'save') out.push({ f:'goodSave', label:'Review', opts:[['1', 'Good save']] });
     return out;
   }
   function evDetailText(ev){
-    var parts = [ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.led ? ({ start:'Started an attack', chance:'Created a chance', assist:'Assist' }[ev.led] || '') : '', ev.arose, ev.outside ? 'Outside the box' : '', ev.oppch === '1' ? 'Chance followed' : '', ev.goodSave === '1' ? 'Good save' : ''];
+    var parts = [ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.led ? ({ start:'Started an attack', chance:'Created a chance', assist:'Assist' }[ev.led] || '') : '', ev.src, ev.what, ev.arose, ev.outside ? 'Outside the box' : '', ev.oppch === '1' ? 'Chance followed' : '', ev.goodSave === '1' ? 'Good save' : ''];
     return parts.concat(ev.details || []).filter(Boolean).join(' · ');
   }
   // Plain counts for a match. No scoring.
@@ -3092,23 +3120,23 @@
       aroseCount[k] = (aroseCount[k] || 0) + 1;
     });
     var aroseTxt = Object.keys(aroseCount).map(function(k){ return k + ' ' + aroseCount[k]; }).join(' · ');
-    var wb = ev.filter(function(e){ return /^d[hf]_|^bp_|^turnover$/.test(e.key); });
+    var wb = ev.filter(function(e){ return /^d[hf]_|^bp_|^turnover$|^in_|^turnover_chance$/.test(e.key); });
     var byStart = {};
     wb.forEach(function(e){
       var k = e.start || (/^bp_/.test(e.key) ? 'Back-pass' : 'Start not recorded');
       var o = byStart[k] = byStart[k] || { t:0, p:0, np:0, on:0, lost:0 };
       o.t++; if(e.press === 'P') o.p++; if(e.press === 'N') o.np++;
-      if(e.key === 'turnover' || /_lost$/.test(e.key)) o.lost++; else o.on++;
+      if(/^turnover/.test(e.key) || /_lost$/.test(e.key)) o.lost++; else o.on++;
     });
     function line(k, v){ return '<div class="journal-detail-row"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + v + '</div></div>'; }
     var pv = { yes:0, partly:0, no:0, none:0 };
     goals.forEach(function(g){ var v = g.rev && g.rev.prevent; if(v && pv[v] !== undefined) pv[v]++; else pv.none++; });
     var pvTxt = goals.length ? ' <span class="card-meta">· could it be prevented? yes ' + pv.yes + ', partly ' + pv.partly + ', not much she could do ' + pv.no + (pv.none ? ', not reviewed ' + pv.none : '') + '</span>' : '';
-    var ledN = function(k){ return ev.filter(function(e){ return e.led === k; }).length; };
+    var ledN = function(k){ return ev.filter(function(e){ return e.led === k || e.key === 'in_' + k; }).length; };
     var rows = line('Goals conceded', goals.length + (aroseTxt ? ' <span class="card-meta">(' + escapeHtml(aroseTxt) + ')</span>' : '') + pvTxt) +
       line('Creating', 'started an attack ' + ledN('start') + ' · created a clear chance ' + ledN('chance') + ' · assists ' + ledN('assist')) +
-      line('Mistakes', ev.filter(evMistake).length + ' <span class="card-meta">· opposition chance followed ' + ev.filter(function(e){ return evMistake(e) && e.oppch === '1'; }).length + '</span>') +
-      line('Shots', 'saves ' + n(['save']) + ' · big saves ' + n(['bigsave']) + ' · spilled ' + n(['spill']) + ' · clash ' + n(['clash'])) +
+      line('Mistakes', ev.filter(evMistake).length + ' <span class="card-meta">· opposition chance followed ' + ev.filter(function(e){ return evMistake(e) && (e.oppch === '1' || /_chance$/.test(e.key)); }).length + '</span>') +
+      line('Shots', 'saves ' + n(['save', 'pensave']) + ' · big saves ' + n(['bigsave']) + ' · spilled ' + n(['spill']) + ' · clash ' + n(['clash'])) +
       line('1v1 / close range', 'won ' + n(['won1v1']) + ' · beaten ' + n(['lost1v1'])) +
       line('Crosses', 'claimed ' + n(['cross', 'readcross']) + ' · punched ' + n(['punch']) + ' · missed ' + n(['crossmiss']) + ' · stayed ' + n(['stayed'])) +
       line('Ball in behind', 'came and cleared ' + n(['bib_clear']) + ' · stayed on line ' + n(['bib_stay']) + ' · beaten ' + n(['bib_beat']));
@@ -3131,7 +3159,10 @@
     { key:'nocall',    label:'No call / late call',            delta:0, ifa:'ifa1' },
     { key:'position',  label:'Poor positioning',               delta:0 },
     { key:'setlow',    label:'Set too low or late',            delta:0 },
-    { key:'rushed',    label:'Rushed out early to a cross',    delta:0, ifa:'ifa3' }
+    { key:'rushed',    label:'Rushed out early to a cross',    delta:0, ifa:'ifa3' },
+    { key:'penconceded', label:'Penalty conceded',             delta:-0.5 },
+    { key:'mistake_chance', label:'Mistake · opposition chance followed', delta:-0.2 },
+    { key:'turnover_chance', label:'Turnover · opposition chance followed', delta:-0.2, ifa:'ifa2' }
   ];
 
 
@@ -3157,7 +3188,7 @@
   function trackerCfg(){
     if(!state.trackerCfg) state.trackerCfg = {};
     var c = state.trackerCfg;
-    ['pts', 'lbl', 'ifa', 'hide', 'areaLbl', 'areaHide', 'order', 'bonus', 'lists'].forEach(function(k){ if(!c[k]) c[k] = {}; });
+    ['pts', 'lbl', 'ifa', 'hide', 'areaLbl', 'areaHide', 'order', 'bonus', 'lists', 'move'].forEach(function(k){ if(!c[k]) c[k] = {}; });
     ['custom', 'areasCustom', 'areaOrder'].forEach(function(k){ if(!c[k]) c[k] = []; });
     return c;
   }
@@ -3190,16 +3221,24 @@
     // areas: full list (for looking up past events) and the visible list (for the live buttons)
     var base = TRACKER_DEF.areas.map(function(a){ return JSON.parse(JSON.stringify(a)); });
     c.areasCustom.forEach(function(a){ base.push({ key:a.key, label:a.label, good:[], bad:[], neutral:[], detail:a.detail || ['Open play', 'Set piece'], custom:true }); });
+    // moved events: take the event out of its own area and put it in the chosen one (same kind: stopping / no points / mistake)
+    Object.keys(c.move).forEach(function(k){
+      var target = base.find(function(a){ return a.key === c.move[k]; });
+      if(!target || target.key === 'dist') return;
+      var found = null;
+      base.forEach(function(a){ ['good', 'neutral', 'bad'].forEach(function(g){ var i = (a[g] || []).indexOf(k); if(i >= 0){ a[g].splice(i, 1); found = g; } }); });
+      if(found){ target[found] = target[found] || []; target[found].push(k); }
+    });
     base.forEach(function(a){
       if(c.areaLbl[a.key]) a.label = c.areaLbl[a.key];
-      c.custom.forEach(function(o){ if(o.area === a.key){ var g = o.grp === 'bad' ? 'bad' : (o.grp === 'neutral' ? 'neutral' : 'good'); a[g] = a[g] || []; a[g].push(o.key); } });
+      c.custom.forEach(function(o){ if((c.move[o.key] || o.area) === a.key){ var g = o.grp === 'bad' ? 'bad' : (o.grp === 'neutral' ? 'neutral' : 'good'); a[g] = a[g] || []; a[g].push(o.key); } });
       a.neutral = a.neutral || [];
       ['good', 'neutral', 'bad'].forEach(function(g){ a[g] = trackerGroupOrder(a.key, g, a[g]); });
     });
     var ao = c.areaOrder;
     if(ao.length) base.sort(function(x, y){ var ix = ao.indexOf(x.key), iy = ao.indexOf(y.key); return (ix < 0 ? 999 : ix) - (iy < 0 ? 999 : iy); });
     TRACKER_ALL_AREAS = base;
-    var vis = base.filter(function(a){ return !c.areaHide[a.key]; }).map(function(a){
+    var vis = base.filter(function(a){ return !c.areaHide[a.key] && !a.legacy; }).map(function(a){
       var v = JSON.parse(JSON.stringify(a));
       ['good', 'neutral', 'bad'].forEach(function(g){ v[g] = v[g].filter(function(k){ return !c.hide[k]; }); });
       return v;
@@ -3245,89 +3284,62 @@
   var CFG_IFA_OPTS = [['', 'No IFA'], ['ifa1', 'IFA 1'], ['ifa2', 'IFA 2'], ['ifa3', 'IFA 3']];
   var CFG_DIST_KEYS = DIST_TYPES.map(function(t){ return t.k; });
   function cfgNum(v){ return (Math.round(v * 100) / 100).toString(); }
-  var cfgOpen = { points:true };
+  var cfgOpen = {};
   function cfgNameOf(k){ var o = trackerOpt(k); return o ? o.label : k; }
-  function cfgPtsRow(key, label, val, sub, dataCfg){
-    return '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(label) + (sub ? ' <span class="card-meta">' + escapeHtml(sub) + '</span>' : '') + '</span>' +
-      '<input type="number" step="0.05" class="cfg-pts" data-cfg="' + (dataCfg || 'pts') + '" data-key="' + key + '" value="' + cfgNum(val) + '"></div>';
-  }
   function cfgIfaSel(key, cur){
     return '<select class="cfg-sel" data-cfg="ifa" data-key="' + key + '">' + CFG_IFA_OPTS.map(function(x){ return '<option value="' + x[0] + '"' + ((cur || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>';
   }
-  function cfgSection(id, title, help, body){
-    return '<details class="cfg-sec" data-sec="' + id + '"' + (cfgOpen[id] ? ' open' : '') + '><summary>' + title + '</summary><div class="hint" style="margin:6px 0 8px;">' + help + '</div>' + body + '</details>';
+  // One event = one block: its name, then points, IFA, order and hide together.
+  function cfgEvent(key, o){
+    o = o || { label:key, delta:0 };
+    var c = trackerCfg(), hid = !!c.hide[key];
+    var mvSel = o.area ? '<div class="cfg-row"><span class="card-meta">Button</span><select class="cfg-sel" data-cfg="move" data-key="' + key + '">' + TRACKER_ALL_AREAS.filter(function(a){ return a.key !== 'dist' && !a.legacy; }).map(function(a){ return '<option value="' + a.key + '"' + (a.key === o.area ? ' selected' : '') + '>' + escapeHtml(a.label) + '</option>'; }).join('') + '</select></div>' : '';
+    var mv = o.area ? '<button type="button" class="trk-mini" data-cfgbtn="up" data-key="' + key + '" data-area="' + o.area + '" data-grp="' + o.grp + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="down" data-key="' + key + '" data-area="' + o.area + '" data-grp="' + o.grp + '">↓</button><button type="button" class="trk-mini" data-cfgbtn="hide" data-key="' + key + '">' + (hid ? 'Show' : 'Hide') + '</button>' : '';
+    return '<div class="cfg-ev' + (hid ? ' cfg-off' : '') + '">' +
+      (o.fixed ? '<div class="cfg-evname">' + escapeHtml(o.label) + '</div>' : '<input type="text" class="cfg-name cfg-evname" data-cfg="lbl" data-key="' + key + '" value="' + escapeHtml(o.label) + '">') +
+      '<div class="cfg-row"><span class="card-meta">Points</span><input type="number" step="0.05" class="cfg-pts" data-cfg="' + (o.bonus ? 'bonus' : 'pts') + '" data-key="' + o.pkey + '" value="' + cfgNum(o.delta) + '">' +
+      (o.noIfa ? '' : '<span class="card-meta">IFA</span>' + cfgIfaSel(o.ikey || key, o.ifa)) + mv + '</div>' + mvSel + '</div>';
   }
   function renderTrackerSettings(keepScroll){
     var ov = trackerOverlayEl();
     var top = keepScroll ? ov.scrollTop : 0;
     var c = trackerCfg();
-    // visible-or-not, every option by what kind of thing it is
-    var groups = { good:[], neutral:[], bad:[] };
+    function tagRow(bk, label){ return cfgEvent('tag_' + bk, { label:label, delta:TRACKER_BONUS[bk], bonus:true, pkey:bk, fixed:true, noIfa:true }); }
+    var body = '<div class="card cfg-card"><div class="cfg-area">Goal</div>' +
+      cfgEvent('goal', { label:'Goal conceded', delta:trackerOpt('goal').delta, pkey:'goal', fixed:true, noIfa:true }) +
+      '</div>';
     TRACKER_ALL_AREAS.forEach(function(a){
-      if(a.key === 'dist') return;
-      ['good', 'neutral', 'bad'].forEach(function(g){ (a[g] || []).forEach(function(k){ if(trackerOpt(k)) groups[g].push({ k:k, area:a.label }); }); });
-    });
-    var pointsBody =
-      '<div class="cfg-grp">Against</div>' + cfgPtsRow('goal', 'Goal conceded', trackerOpt('goal').delta) +
-        cfgPtsRow('oppch', 'Mistake, then an opposition chance followed', TRACKER_BONUS.oppch, 'tick on the mistake', 'bonus') +
-      '<div class="cfg-grp">Stopping</div>' +
-        groups.good.map(function(x){ return cfgPtsRow(x.k, cfgNameOf(x.k), trackerOpt(x.k).delta, x.area); }).join('') +
-        cfgPtsRow('penalty', 'Penalty saved (total for that save)', TRACKER_BONUS.penalty, 'tick Penalty on a save', 'bonus') +
-        cfgPtsRow('goodsave', 'Good save (added on top of a save)', TRACKER_BONUS.goodsave, 'tag in review', 'bonus') +
-      '<div class="cfg-grp">Creating (tag a pass with what it led to)</div>' +
-        cfgPtsRow('led_start', 'Started an attack', TRACKER_BONUS.led_start, '', 'bonus') +
-        cfgPtsRow('led_chance', 'Created a clear chance', TRACKER_BONUS.led_chance, '', 'bonus') +
-        cfgPtsRow('led_assist', 'Assist', TRACKER_BONUS.led_assist, '', 'bonus') +
-      '<div class="cfg-grp">Mistakes (0 unless you set a value or tick a chance followed)</div>' +
-        cfgPtsRow('turnover', 'Distribution turned over', trackerOpt('turnover').delta, 'With the ball') +
-        groups.bad.map(function(x){ return cfgPtsRow(x.k, cfgNameOf(x.k), trackerOpt(x.k).delta, x.area); }).join('') +
-      '<div class="cfg-grp">Events with no points (change if you want one to score)</div>' +
-        groups.neutral.map(function(x){ return cfgPtsRow(x.k, cfgNameOf(x.k), trackerOpt(x.k).delta, x.area); }).join('') +
-        DIST_TYPES.map(function(t){ return cfgPtsRow('dist_' + t.k, t.label, trackerOpt('dh_' + t.k).delta, 'passes, hands and feet'); }).join('');
-    var buttonsBody = TRACKER_ALL_AREAS.map(function(a){
+      if(a.legacy) return;
       var off = !!c.areaHide[a.key], rows = '';
       if(a.key === 'dist'){
-        rows = '<div class="hint" style="margin:4px 0;">Fixed: Hands or Feet, then Around, Through or Over (in behind, into, onto). Only the mistake button, Distribution turned over, can be renamed.</div>' +
-          '<div class="cfg-row"><input type="text" class="cfg-name" data-cfg="lbl" data-key="turnover" value="' + escapeHtml(cfgNameOf('turnover')) + '"></div>';
+        rows += cfgEvent('turnover', { label:'Distribution turned over', delta:trackerOpt('turnover').delta, pkey:'turnover', fixed:true, ifa:trackerOpt('turnover').ifa });
+        DIST_TYPES.forEach(function(t){ var o = trackerOpt('dh_' + t.k); rows += cfgEvent('dist_' + t.k, { label:'Pass: ' + t.label + ' (hands or feet)', delta:o.delta, pkey:'dist_' + t.k, fixed:true, ifa:o.ifa }); });
+        rows += tagRow('led_start', 'Pass led to: started an attack') + tagRow('led_chance', 'Pass led to: created a clear chance') + tagRow('led_assist', 'Pass led to: assist');
       } else {
         ['good', 'neutral', 'bad'].forEach(function(g){
           (a[g] || []).forEach(function(k){
-            var hid = !!c.hide[k];
-            rows += '<div class="cfg-row' + (hid ? ' cfg-off' : '') + '"><input type="text" class="cfg-name" data-cfg="lbl" data-key="' + k + '" value="' + escapeHtml(cfgNameOf(k)) + '">' +
-              '<button type="button" class="trk-mini" data-cfgbtn="up" data-key="' + k + '" data-area="' + a.key + '" data-grp="' + g + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="down" data-key="' + k + '" data-area="' + a.key + '" data-grp="' + g + '">↓</button>' +
-              '<button type="button" class="trk-mini" data-cfgbtn="hide" data-key="' + k + '">' + (hid ? 'Show' : 'Hide') + '</button></div>';
+            var o = trackerOpt(k); if(!o) return;
+            rows += cfgEvent(k, { label:o.label, delta:o.delta, pkey:k, ifa:o.ifa, area:a.key, grp:g });
           });
         });
-        rows += '<div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-name-' + a.key + '" placeholder="Add a button here">' +
+        if(a.key === 'out') rows += tagRow('goodsave', 'Good save (added on a save, in review)');
+        rows += '<div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-name-' + a.key + '" placeholder="Add an event here">' +
           '<select class="cfg-sel" id="cfg-new-grp-' + a.key + '"><option value="good">Stopping</option><option value="neutral">No points</option><option value="bad">Mistake</option></select>' +
           '<button type="button" class="trk-mini" data-cfgbtn="addopt" data-area="' + a.key + '">Add</button></div>';
       }
-      return '<div class="card cfg-card' + (off ? ' cfg-off' : '') + '"><div class="cfg-row"><input type="text" class="cfg-name cfg-areaname" data-cfg="arealbl" data-key="' + a.key + '" value="' + escapeHtml(a.label) + '">' +
+      body += '<div class="card cfg-card' + (off ? ' cfg-off' : '') + '"><div class="cfg-row"><input type="text" class="cfg-name cfg-areaname" data-cfg="arealbl" data-key="' + a.key + '" value="' + escapeHtml(a.label) + '">' +
         '<button type="button" class="trk-mini" data-cfgbtn="areaup" data-key="' + a.key + '">↑</button><button type="button" class="trk-mini" data-cfgbtn="areadown" data-key="' + a.key + '">↓</button>' +
         '<button type="button" class="trk-mini" data-cfgbtn="areahide" data-key="' + a.key + '">' + (off ? 'Show' : 'Hide') + '</button></div>' + rows + '</div>';
-    }).join('') +
-      '<div class="card cfg-card"><div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-area" placeholder="Add a new area"><button type="button" class="trk-mini" data-cfgbtn="addarea">Add area</button></div></div>';
-    var ifaKeys = [];
-    TRACKER_ALL_AREAS.forEach(function(a){
-      if(a.key === 'dist') return;
-      ['good', 'neutral', 'bad'].forEach(function(g){ (a[g] || []).forEach(function(k){ if(trackerOpt(k)) ifaKeys.push({ k:k, o:trackerOpt(k), area:a.label }); }); });
     });
-    var ifaBody = ifaKeys.map(function(x){
-      return '<div class="cfg-row"><span class="cfg-fixed">' + escapeHtml(x.o.label) + ' <span class="card-meta">' + escapeHtml(x.area) + '</span></span>' + cfgIfaSel(x.k, x.o.ifa) + '</div>';
-    }).join('') +
-      '<div class="cfg-row"><span class="cfg-fixed">Passes and turnovers (all With the ball)</span>' + cfgIfaSel('dist_around', trackerOpt('dh_around').ifa) + '</div>' +
-      '<div class="hint" style="margin:6px 0 0;">You can also tag any single moment with an IFA while reviewing a game.</div>';
+    body += '<div class="card cfg-card"><div class="cfg-add"><input type="text" class="cfg-name" id="cfg-new-area" placeholder="Add a new area"><button type="button" class="trk-mini" data-cfgbtn="addarea">Add area</button></div></div>';
     function listBox(k, label){
       return '<div class="field" style="margin-top:8px;"><label>' + label + ' (one per line)</label><textarea rows="5" data-cfg="list" data-key="' + k + '">' + escapeHtml((k === 'start' ? TK_START : k === 'to' ? TK_TO : k === 'len' ? TK_LEN : TK_AROSE).join('\n')) + '</textarea></div>';
     }
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="cfg-done">Done</button><div class="trk-title">Tracker settings</div><span style="width:60px;"></span></div>' +
-      '<div class="hint" style="margin:6px 0 10px;">Four sections, one job each. Tap a heading to open it. Any change re-scores every saved game straight away.</div>' +
-      '<div class="eng-char" id="cfg-flash" style="min-height:18px; color:var(--lime);"></div>' +
-      cfgSection('points', '1 · Points', 'What each thing scores. Stopping and creating score; everything else is 0. Points can be minus.', pointsBody) +
-      cfgSection('buttons', '2 · Buttons', 'What you tap live: areas and the options inside them. Rename, reorder, hide or add. Hiding keeps it in past games.', buttonsBody) +
-      cfgSection('ifa', '3 · IFA tags', 'Which IFA each option belongs to, so it can be pulled out later. This never changes the score.', ifaBody) +
-      cfgSection('lists', '4 · Pick lists', 'The choices shown under Started from, Who to, Length and How the chance arose.', listBox('start', 'Started from') + listBox('to', 'Who to') + listBox('len', 'Length') + listBox('arose', 'How the chance arose')) +
+      '<div class="hint" style="margin:6px 0 10px;">One list. Each event has its name, points and IFA tag together. Only stopping and creating score; everything else is 0. Points can be minus. Any change re-scores every saved game.</div>' +
+      '<div class="eng-char" id="cfg-flash" style="min-height:18px; color:var(--lime);"></div>' + body +
+      '<details class="cfg-sec" data-sec="lists"' + (cfgOpen.lists ? ' open' : '') + '><summary>Pick lists (rarely needed)</summary>' + listBox('start', 'Started from') + listBox('to', 'Who to') + listBox('len', 'Length') + listBox('arose', 'How the chance arose') + '</details>' +
       '<button type="button" class="btn btn-ghost" data-cfgbtn="reset" style="margin-top:14px; color:var(--red);">Reset everything to the defaults</button>' +
       '<button type="button" class="btn btn-primary" id="cfg-done2" style="margin-top:10px;">Done</button>';
     ov.querySelectorAll('details.cfg-sec').forEach(function(d){ d.addEventListener('toggle', function(){ cfgOpen[d.getAttribute('data-sec')] = d.open; }); });
@@ -3357,6 +3369,7 @@
       else if(kind === 'arealbl'){ var av = el.value.trim(); if(av) c.areaLbl[key] = av; else delete c.areaLbl[key]; }
       else if(kind === 'pts'){ var n = parseFloat(el.value); if(isNaN(n)) return; keys.forEach(function(k){ c.pts[k] = n; }); }
       else if(kind === 'ifa'){ keys.forEach(function(k){ c.ifa[k] = el.value; }); }
+      else if(kind === 'move'){ c.move[key] = el.value; cfgApply('Moved'); renderTrackerSettings(true); return; }
       else if(kind === 'bonus'){ var b = parseFloat(el.value); if(isNaN(b)) return; c.bonus[key] = b; }
       else if(kind === 'list'){ var lines = el.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean); if(lines.length) c.lists[key] = lines; else delete c.lists[key]; }
       cfgApply('Saved');
@@ -3735,7 +3748,7 @@
             g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(lastEv[g.f]) === String(o[0]) ? ' on' : '') + '" data-grp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
         }).join('') + '<div class="trk-detail"><button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>';
       } else if(lastEv && lastArea){
-        detailRow = '<div class="trk-detail"><span class="hint" style="margin:0;">Add detail (optional):</span>' +
+        detailRow = '<div class="trk-detail">' + (lastDetail.length ? '<span class="hint" style="margin:0;">Add detail (optional):</span>' : '') +
           lastDetail.map(function(d){ return '<button type="button" class="trk-chip' + (lastSet.indexOf(d) >= 0 ? ' on' : '') + '" data-detail="' + escapeHtml(d) + '">' + escapeHtml(d) + '</button>'; }).join('') +
           '<button type="button" class="trk-chip' + (lastEv.ask ? ' on' : '') + '" id="trk-ask">❓ Ask the coach</button></div>' + extraHtml;
       } else if(lastEv){
@@ -3930,13 +3943,13 @@
     var R = ev[RK];
     var offset = track.videoOffsetSec || 0;
     var allKeys = [];
-    TRACKER_AREAS.forEach(function(a){ a.good.concat(a.bad, a.neutral || []).forEach(function(k){ if(allKeys.indexOf(k) < 0) allKeys.push(k); }); });
+    TRACKER_ALL_AREAS.forEach(function(a){ a.good.concat(a.bad, a.neutral || []).forEach(function(k){ if(allKeys.indexOf(k) < 0) allKeys.push(k); }); });
     allKeys.push('goal');
     ['h', 'f'].forEach(function(m){ DIST_TYPES.forEach(function(t){ allKeys.push('d' + m + '_' + t.k); }); });
     var chgOpts = allKeys.filter(function(k){ return trackerOpt(k); }).map(function(k){ var o = trackerOpt(k); return '<option value="' + k + '"' + (k === ev.key ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>'; }).join('');
     if(allKeys.indexOf(ev.key) < 0) chgOpts = '<option value="' + escapeHtml(ev.key) + '" selected>' + escapeHtml(ev.label) + '</option>' + chgOpts;
     var editBlock = '<div class="field" style="margin-top:10px;"><label>What happened (change it if it was recorded wrongly)</label><select id="tg-change">' + chgOpts + '</select></div>' +
-      evDetailGroups(ev).concat(evExtraGroups(ev, true)).map(function(g){
+      evDetailGroups(ev, true).concat(evExtraGroups(ev, true)).map(function(g){
         return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
           g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(ev[g.f]) === String(o[0]) ? ' on' : '') + '" data-tgrp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
       }).join('');
