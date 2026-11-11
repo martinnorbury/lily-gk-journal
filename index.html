@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v75 — 10 Nov 2026 -->
+<!-- Lily GK Journal — v76 — 11 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -831,8 +831,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v75';
+  var APP_VERSION = 'v76';
   var CHANGELOG = [
+    { version:'v76', notes:'Tidy up in the match review: tick moments in the timeline and delete them all at once, to keep only the key events. A quick button ticks every moment with no points, leaving out goals and anything with a note, coach question, review tag, IFA tag or clip pick. Half-time position is kept correct when moments are removed.' },
     { version:'v75', notes:'Stripped back. The live tracker now has two buttons, Out of possession and In possession, and only events that can gain or lose a point. Out: save +0.1, big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2, penalty conceded -0.5, mistake with an opposition chance following -0.2 (and the red GOAL CONCEDED -0.5). In: pass started an attack +0.1, created a clear chance +0.2, assist +0.5, turnover with an opposition chance following -0.2. Everything else (where it started, pressure, hands or feet, who to, length, what the mistake was, where a shot came from, good save) is added later in the review, which is also where IFAs link. Old areas and events stay in past games and score as before. Tracker settings shows the two new lists.' },
     { version:'v74', notes:'Tracker settings: every event now has a Button dropdown so it can be moved to a different area by picking it from a list (no typing, and past games keep their link). Scoring unchanged.' },
     { version:'v73', notes:'Tracker settings is now one list, one block per event: its name, points and IFA tag together (plus order and hide). The tag values (good save, penalty, led to, chance followed) sit inside the event they belong to. Pick lists are tucked away at the bottom. No scoring change.' },
@@ -4070,7 +4071,8 @@
       var e = row.e;
       var ifaTag = evIfaList(e).map(function(k){ return ' <span class="eng-badge">' + escapeHtml(k.toUpperCase().replace('IFA', 'IFA ')) + '</span>'; }).join('');
       var rvTxt = revText(e);
-      return '<div class="trk-ev" data-rv="' + ev.indexOf(e) + '" style="cursor:pointer;"><span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
+      var tidyOn = !!trackerOverlayState.tidy, tidySelHit = tidyOn && (trackerOverlayState.tidySel || []).indexOf(ev.indexOf(e)) >= 0;
+      return '<div class="trk-ev" data-rv="' + ev.indexOf(e) + '" style="cursor:pointer;' + (tidySelHit ? ' background:rgba(255,128,128,0.12);' : '') + '">' + (tidyOn ? '<span style="font-size:20px; margin-right:8px;">' + (tidySelHit ? '☑' : '☐') + '</span>' : '') + '<span class="t">' + fmtClock(e.t) + '<br><span style="color:var(--cyan);">▶ ' + fmtClock(offset + e.t) + '</span></span>' +
         '<span style="flex:1;">' + (e.ask ? '❓ ' : '') + (e.delta > 0 ? '▲ ' : (e.delta < 0 ? '▼ ' : '• ')) + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + ifaTag +
           (rvTxt ? '<br><span class="card-meta" style="color:var(--cyan);">Review: ' + escapeHtml(rvTxt) + '</span>' : '') + (revTextL(e) ? '<br><span class="card-meta" style="color:var(--lime);">Lily\'s view: ' + escapeHtml(revTextL(e)) + '</span>' : '') + (e.answer ? '<br><span class="card-meta">✅ Coach: ' + escapeHtml(e.answer) + '</span>' : '') + (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</span>' +
         '<span class="d">' + fmtDelta(trackerEvDelta(e)) + '<br>' + row.r.toFixed(1) + '</span></div>';
@@ -4105,20 +4107,57 @@
         '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
       trackerRevSummary(track) + trackerChelseaLines(track) +
       '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
+      (trackerOverlayState.tidy
+        ? '<div class="card" style="margin-bottom:8px;"><div class="hint" style="margin:0 0 8px;">Tap moments to tick them, then delete the ticked ones. Moments with a note, a coach question, a review tag or a clip pick are never ticked by the quick button.</div>' +
+          '<div class="trk-detail"><button type="button" class="trk-chip" id="tidy-zero">Tick all with no points</button><button type="button" class="trk-chip" id="tidy-none">Untick all</button></div>' +
+          '<button type="button" class="btn btn-ghost" id="tidy-del" style="margin-top:8px; color:var(--red); border-color:rgba(255,128,128,0.3);"' + ((trackerOverlayState.tidySel || []).length ? '' : ' disabled') + '>Delete ' + (trackerOverlayState.tidySel || []).length + ' ticked</button>' +
+          '<button type="button" class="btn btn-ghost" id="tidy-cancel" style="margin-top:6px;">Finish tidying</button></div>'
+        : '<button type="button" class="btn btn-ghost" id="tidy-on" style="margin-bottom:8px;">Tidy up: remove moments I don\'t need</button>') +
       '<div class="trk-detail" style="margin-bottom:8px;"><span class="hint" style="margin:0;">Show:</span><button type="button" class="trk-chip' + (ifaF ? '' : ' on') + '" data-ifaf="">All</button>' +
         IDP_IFAS.map(function(i){ return '<button type="button" class="trk-chip' + (ifaF === i.key ? ' on' : '') + '" data-ifaf="' + i.key + '">' + i.key.toUpperCase().replace('IFA', 'IFA ') + '</button>'; }).join('') + '</div>' +
       (timeline || '<div class="hint">No moments recorded yet.</div>') +
       ('<button type="button" class="btn btn-ghost" id="trk-delete" style="margin-top:20px; color:var(--red); border-color:rgba(255,128,128,0.3);">Delete This Tracker</button>');
 
     function q(sel){ return ov.querySelector(sel); }
-    q('#trk-close').addEventListener('click', closeTrackerOverlay);
+    q('#trk-close').addEventListener('click', function(){ trackerOverlayState.tidy = false; trackerOverlayState.tidySel = []; closeTrackerOverlay(); });
     var bl = q('#trk-back-live'); if(bl) bl.addEventListener('click', function(){ renderTrackerLive(id); });
     var rl = q('#trk-relink'); if(rl) rl.addEventListener('click', function(){ renderTrackerFinish(id, true); });
     ov.querySelectorAll('[data-ifaf]').forEach(function(b){
       b.addEventListener('click', function(){ trackerOverlayState.ifaFilter = b.getAttribute('data-ifaf'); openTrackerReview(id, fromLive); });
     });
+    function tidyRedraw(){ var st = ov.scrollTop; openTrackerReview(id, fromLive); ov.scrollTop = st; }
+    var tOn = q('#tidy-on'); if(tOn) tOn.addEventListener('click', function(){ trackerOverlayState.tidy = true; trackerOverlayState.tidySel = []; tidyRedraw(); });
+    var tCancel = q('#tidy-cancel'); if(tCancel) tCancel.addEventListener('click', function(){ trackerOverlayState.tidy = false; trackerOverlayState.tidySel = []; tidyRedraw(); });
+    var tNone = q('#tidy-none'); if(tNone) tNone.addEventListener('click', function(){ trackerOverlayState.tidySel = []; tidyRedraw(); });
+    var tZero = q('#tidy-zero'); if(tZero) tZero.addEventListener('click', function(){
+      var sel = trackerOverlayState.tidySel || [];
+      ev.forEach(function(e, i){
+        if(ifaF && !evHasIfa(e, ifaF) && revIfaOf(e).indexOf(ifaF) < 0) return;
+        var hasMeaning = e.note || e.ask || e.iapPick || e.answer || (e.rev && Object.keys(e.rev).length) || (e.revL && Object.keys(e.revL).length) || (e.ifas && e.ifas.length);
+        if(e.key !== 'goal' && trackerEvDelta(e) === 0 && !hasMeaning && sel.indexOf(i) < 0) sel.push(i);
+      });
+      trackerOverlayState.tidySel = sel; tidyRedraw();
+    });
+    var tDel = q('#tidy-del'); if(tDel) tDel.addEventListener('click', function(){
+      var sel = (trackerOverlayState.tidySel || []).slice().sort(function(a, b){ return b - a; });
+      if(!sel.length) return;
+      if(!confirm('Delete ' + sel.length + ' moment' + (sel.length === 1 ? '' : 's') + ' from this game? This cannot be undone.')) return;
+      var gone = sel.slice();
+      sel.forEach(function(i){ track.events.splice(i, 1); });
+      track.markers.forEach(function(m){ if(typeof m.n === 'number'){ m.n = m.n - gone.filter(function(i){ return i < m.n; }).length; } });
+      trackerOverlayState.tidySel = []; trackerOverlayState.tidy = false;
+      saveData(); tidyRedraw();
+    });
     ov.querySelectorAll('[data-rv]').forEach(function(row){
-      row.addEventListener('click', function(){ renderTrackerTag(id, parseInt(row.getAttribute('data-rv'), 10), fromLive); });
+      row.addEventListener('click', function(){
+        var ix = parseInt(row.getAttribute('data-rv'), 10);
+        if(trackerOverlayState.tidy){
+          var sel = trackerOverlayState.tidySel = trackerOverlayState.tidySel || [];
+          var at = sel.indexOf(ix); if(at >= 0) sel.splice(at, 1); else sel.push(ix);
+          tidyRedraw(); return;
+        }
+        renderTrackerTag(id, ix, fromLive);
+      });
     });
     ov.querySelectorAll('[data-ans]').forEach(function(row){
       row.addEventListener('click', function(){
