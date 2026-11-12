@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v84 — 12 Nov 2026 -->
+<!-- Lily GK Journal — v86 — 12 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -734,9 +734,6 @@
     <div class="section-label">Season Overview</div>
     <div class="stat-grid" id="progress-stats"></div>
 
-    <div class="section-label">Week By Week</div>
-    <div id="progress-week-list"></div>
-
     <div class="section-label">Linked To My Focus Areas</div>
     <div class="hint" style="margin-bottom:0;">Weeks that touched each IFA, and match moments linked to it. Tap one to see the evidence.</div>
     <div id="progress-ifa-links"></div>
@@ -832,8 +829,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v84';
+  var APP_VERSION = 'v86';
   var CHANGELOG = [
+    { version:'v86', notes:'One count everywhere. A match moment is "linked to an IFA" if it is tagged to that IFA (button or manual tag) or its review tags point to it. Progress, the IFA pages in Standards, the evidence page, the per-match screen and the All games review now all use that one definition and the same set of games (finished games from 1 July), so IFA 3 shows the same number on every screen. Wording is now "linked moments", with how many of them have been reviewed.' },
+    { version:'v85', notes:'Progress: removed the Week by week list. Progress now shows the Season overview (matches, clean sheets, goals conceded), Linked to my focus areas, Chelsea GK Profile attributes and My story so far.' },
     { version:'v84', notes:'Season overview simplified. Removed Weeks reviewed, Average week, Good or great weeks, Best week, Sessions and the Weekly temperature check. Overview now shows Matches, Clean sheets and Goals conceded. Linked to my focus areas now counts weeks and match moments for each IFA. New Chelsea GK Profile Attributes section: all 20 attributes with how many match moments (and weekly-review mentions) show each, empty ones are still to find, with links into the all-games review.' },
     { version:'v83', notes:'Review across all games. New button on the Tracker page. Four views of every tagged moment from every finished game, newest first, each with game, time, video time, IFA, Position, Decision, Execution, attributes and note: by IFA, by attribute (and which attributes have no moment yet), by Position/Decision/Execution, and the picked Success and Learning clips. Tap a moment to edit it and come back to the same view. Counts and moments only, no scores.' },
     { version:'v82', notes:'Attributes are now multi-select, so one moment can show several. Each moment has an exact time in the game and on the video (mm:ss) that you can type, so it is easy to find again. The final match screen is calmer: the "What happened" counts, Review tags and Self-reflection cards are gone. In their place one card, Moments to talk about, lists the moments linked to each IFA with time, video time, Position, Decision, Execution and the attributes shown. Link, Hudl time and Chelsea game label are folded into Match details.' },
@@ -1845,14 +1844,13 @@
     return '<div class="hint" style="margin-bottom:8px;">One page per IFA (her three IFAs from the IDP: Communication, Distribution, Crosses): what, how and who are Chelsea\'s words from her IDP. Evidence is what Lily and Martin recorded in this app. Next is Lily\'s own.</div>' +
       IDP_IFAS.map(function(ifa){
         var notes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
-        var evN = 0, rvN = 0, games = 0;
-        tracks.forEach(function(m){ var any = false; (m.t.events || []).forEach(function(e){ if(evHasIfa(e, ifa.key)){ evN++; any = true; } if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvN++; any = true; } }); if(any) games++; });
+        var stt = ifaStats(ifa.key), evN = stt.n, rvN = stt.rv, games = stt.games;
         var mine = clips.rows.filter(function(r){ return r.akey === ifa.key && r.mine; });
         var q = notes.slice(-2).reverse().map(function(r){ var t = ipSafe(r.evidence || r.wentWell || r.action || ''); return t ? '<div class="eng-char">' + escapeHtml(fmtDate(r.date)) + ': ' + escapeHtml(truncate(t, 120)) + '</div>' : ''; }).join('');
         return '<div class="card" style="margin-top:10px;"><div class="idp-ifa-title" style="font-size:14px;">' + escapeHtml(ifa.title) + '</div>' +
           '<div class="card-meta" style="margin:2px 0 6px;">' + escapeHtml(ifa.tag) + ' · source: Chelsea IDP</div>' +
           '<div class="eng-char"><b>What:</b> ' + escapeHtml(ifa.what) + '</div><div class="eng-char"><b>How:</b> ' + escapeHtml(ifa.how) + '</div><div class="eng-char"><b>Who:</b> ' + escapeHtml(ifa.who) + '</div>' +
-          '<div class="eng-char" style="margin-top:8px;"><b>Evidence</b> (this app): ' + notes.length + ' linked note' + (notes.length === 1 ? '' : 's') + ' · ' + evN + ' recorded match moment' + (evN === 1 ? '' : 's') + ' · ' + rvN + ' reviewed on video · ' + games + ' game' + (games === 1 ? '' : 's') + '</div>' + q +
+          '<div class="eng-char" style="margin-top:8px;"><b>Evidence</b> (this app): ' + notes.length + ' linked note' + (notes.length === 1 ? '' : 's') + ' · ' + evN + ' match moment' + (evN === 1 ? '' : 's') + ' linked · ' + rvN + ' of them reviewed · ' + games + ' game' + (games === 1 ? '' : 's') + '</div>' + q +
           (mine.length ? '<div class="eng-char"><b>Lily\'s chosen clips:</b> ' + mine.map(function(r){ return escapeHtml(r.type + ' ' + r.match + ' ▶ ' + r.clock); }).join('; ') + '</div>' : '<div class="eng-char" style="opacity:0.7;">No clips picked by Lily yet</div>') +
           '<div class="field" style="margin-top:8px; margin-bottom:0;"><label>Next (Lily\'s own words)</label><textarea rows="2" data-ifa-next="' + ifa.key + '" placeholder="What I will work on next for this IFA">' + escapeHtml(state.ifaNext[ifa.key] || '') + '</textarea></div></div>';
       }).join('');
@@ -2097,20 +2095,12 @@
       var notes = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
       var wk = {}; notes.forEach(function(r){ wk[weekOf(r.date)] = true; });
       var quotes = notes.slice(-2).reverse().map(function(r){ var q = ipSafe(r.evidence || r.wentWell || r.action || ''); return q ? '<div class="eng-char">' + escapeHtml(fmtDate(r.date)) + ': ' + escapeHtml(truncate(q, 110)) + '</div>' : ''; }).join('');
-      var evCount = 0, rvCount = 0, games = 0;
-      tracks.forEach(function(m){
-        var any = false;
-        (m.t.events || []).forEach(function(e){
-          if(evHasIfa(e, ifa.key)){ evCount++; any = true; }
-          if(e.rev && revIfaOf(e).indexOf(ifa.key) >= 0){ rvCount++; any = true; }
-        });
-        if(any) games++;
-      });
+      var stt2 = ifaStats(ifa.key), evCount = stt2.n, rvCount = stt2.rv, games = stt2.games;
       return '<div class="card" style="margin-top:8px;"><div class="idp-ifa-title" style="font-size:13.5px;">' + escapeHtml(ifa.title) + '</div>' +
         '<div class="card-meta" style="margin:4px 0 8px;">Chelsea IDP · ' + escapeHtml(ifa.tag) + ' · What: ' + escapeHtml(ifa.what) + '</div>' +
         '<div style="display:flex; gap:12px;">' +
           col('Training and notes (Lily / Martin)', '<div class="eng-char">' + notes.length + ' linked note' + (notes.length === 1 ? '' : 's') + ' across ' + Object.keys(wk).length + ' week' + (Object.keys(wk).length === 1 ? '' : 's') + '</div>' + quotes) +
-          col('Matches (tracker)', '<div class="eng-char">' + evCount + ' recorded moment' + (evCount === 1 ? '' : 's') + '</div><div class="eng-char">' + rvCount + ' reviewed on video</div><div class="eng-char">' + games + ' game' + (games === 1 ? '' : 's') + '</div>') +
+          col('Matches (tracker)', '<div class="eng-char">' + evCount + ' linked moment' + (evCount === 1 ? '' : 's') + '</div><div class="eng-char">' + rvCount + ' of them reviewed</div><div class="eng-char">' + games + ' game' + (games === 1 ? '' : 's') + '</div>') +
         '</div></div>';
     }).join('');
 
@@ -3039,8 +3029,8 @@
     });
     var stdLines = ['Tactical','Technical','Psychological','Physical','Social'].map(function(k){ return byStd[k] ? '<div class="eng-char"><b>' + k + ':</b> ' + escapeHtml(byStd[k].join(' · ')) + '</div>' : '<div class="eng-char" style="opacity:0.6;"><b>' + k + ':</b> nothing tagged yet</div>'; }).join('');
     var ifaLines = IDP_IFAS.map(function(ifa){
-      var n = ev.filter(function(e){ return revIfaOf(e).indexOf(ifa.key) >= 0; }).length;
-      return n ? '<div class="eng-char"><b>' + escapeHtml(ifa.title) + ':</b> ' + n + ' reviewed moment' + (n === 1 ? '' : 's') + '</div>' : '';
+      var n = ev.filter(function(e){ return evLinked(e, ifa.key); }).length;
+      return n ? '<div class="eng-char"><b>' + escapeHtml(ifa.title) + ':</b> ' + n + ' linked moment' + (n === 1 ? '' : 's') + '</div>' : '';
     }).join('');
     var pv = ['yes','partly','no'].map(function(v){ var n = revCount(ev, 'prevent', v); return n ? revLabel('prevent', v) + ' ' + n : ''; }).filter(Boolean).join(' · ');
     return '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Review tags (' + ev.length + ' of ' + track.events.length + ' moments reviewed)</div>' +
@@ -3174,7 +3164,7 @@
     }
     var used = [], html = '';
     IDP_IFAS.forEach(function(ifa){
-      var list = ev.filter(function(e){ return evHasIfa(e, ifa.key) || revIfaOf(e).indexOf(ifa.key) >= 0; }).sort(function(a, b){ return a.t - b.t; });
+      var list = ev.filter(function(e){ return evLinked(e, ifa.key); }).sort(function(a, b){ return a.t - b.t; });
       list.forEach(function(e){ if(used.indexOf(e) < 0) used.push(e); });
       if(list.length) html += '<div class="section-label" style="margin:10px 0 2px;">' + escapeHtml(ifa.title) + '</div>' + list.map(line).join('');
     });
@@ -3342,6 +3332,22 @@
     return out;
   }
   function evHasIfa(e, k){ return evIfaList(e).indexOf(k) >= 0; }
+  // v86: ONE definition of "a match moment linked to an IFA" used everywhere in the app:
+  // the moment is tagged to the IFA (button or manual tag) OR its review tags point to it.
+  function evLinked(e, k){ return evHasIfa(e, k) || revIfaOf(e).indexOf(k) >= 0; }
+  function ifaStats(key){
+    var st = { n:0, rv:0, games:0, up:0, down:0 };
+    ipTracks().forEach(function(m){
+      var any = false;
+      (m.t.events || []).forEach(function(e){
+        if(!evLinked(e, key)) return;
+        st.n++; any = true; if(e.rev && Object.keys(e.rev).length) st.rv++;
+        if(evBad(e)) st.down++; else st.up++;
+      });
+      if(any) st.games++;
+    });
+    return st;
+  }
   function trackerSync(e){ e.delta = trackerEvDelta(e); e.sign = e.delta >= 0 ? '+' : '-'; }
   function trackerRescoreAll(){
     (state.matchTracks || []).forEach(function(t){ (t.events || []).forEach(trackerSync); });
@@ -4171,7 +4177,7 @@
     var ov = trackerOverlayEl(); trackerOverlayState.fromAll = true;
     var PDE = { good:'Good', part:'Partly', poor:'Not good' };
     var items = [];
-    (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).forEach(function(t){
+    ipTracks().map(function(x){ return x.t; }).forEach(function(t){
       (t.events || []).forEach(function(e, i){ items.push({ t:t, e:e, i:i, sk:(t.date || '') + String(100000 + (e.t || 0)) }); });
     });
     var tagged = items.filter(function(x){ var r = x.e.rev || {}; return r.pos || r.dec || r.exe || rvArr(r.attr).length || evIfaList(x.e).length || x.e.iapPick || x.e.note; });
@@ -4189,8 +4195,8 @@
     function group(title, l){ return l.length ? '<div class="section-label" style="margin:14px 0 2px;">' + escapeHtml(title) + ' <span class="card-meta" style="text-transform:none;">· ' + l.length + '</span></div>' + sorted(l).map(row).join('') : ''; }
     var body = '';
     if(allRevView === 'ifa'){
-      IDP_IFAS.forEach(function(ifa){ body += group(ifa.title, tagged.filter(function(x){ return evHasIfa(x.e, ifa.key) || revIfaOf(x.e).indexOf(ifa.key) >= 0; })); });
-      body += group('Not linked to an IFA', tagged.filter(function(x){ return !evIfaList(x.e).length && !revIfaOf(x.e).length; }));
+      IDP_IFAS.forEach(function(ifa){ body += group(ifa.title, tagged.filter(function(x){ return evLinked(x.e, ifa.key); })); });
+      body += group('Not linked to an IFA', tagged.filter(function(x){ return !IDP_IFAS.some(function(i){ return evLinked(x.e, i.key); }); }));
     } else if(allRevView === 'attr'){
       var dim = REVIEW_DIMS.find(function(d){ return d.k === 'attr'; });
       ['Tactical','Technical','Psychological','Social','Physical'].forEach(function(g){
@@ -4206,7 +4212,7 @@
       body += group('⭐ Success clips', tagged.filter(function(x){ return x.e.iapPick === 'S'; })) + group('📘 Learning clips', tagged.filter(function(x){ return x.e.iapPick === 'L'; }));
       if(!body) body = '<div class="hint">No clips picked yet. Open a moment and choose Success or Learning clip.</div>';
     }
-    var games = (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).length;
+    var games = ipTracks().length;
     var chips = [['ifa','By IFA'],['attr','By attribute'],['pde','Position, Decision, Execution'],['clips','Clips']].map(function(c){ return '<button type="button" class="trk-chip' + (allRevView === c[0] ? ' on' : '') + '" data-av="' + c[0] + '">' + c[1] + '</button>'; }).join('');
     ov.innerHTML = '<div class="trk-top"><button type="button" class="trk-mini" id="av-close">Close</button><div class="trk-title">All games</div><span style="width:60px;"></span></div>' +
       '<div class="hint" style="margin:0 0 8px;">' + games + ' games · ' + tagged.length + ' moments with a tag, IFA, note or clip. Newest first. Tap a moment to edit it. * = video time not set for that game.</div>' +
@@ -4239,10 +4245,10 @@
         '<div class="eng-char">Second half: ' + htR.toFixed(1) + ' → ' + final.toFixed(1) + ' (' + (ev.length - nFirst) + ' moment' + ((ev.length - nFirst) === 1 ? '' : 's') + ')</div>';
     }
     var ifaLines = IDP_IFAS.map(function(ifa){
-      var u = ev.filter(function(e){ return evHasIfa(e, ifa.key) && !evBad(e); }).length;
-      var dn = ev.filter(function(e){ return evHasIfa(e, ifa.key) && evBad(e); }).length;
+      var u = ev.filter(function(e){ return evLinked(e, ifa.key) && !evBad(e); }).length;
+      var dn = ev.filter(function(e){ return evLinked(e, ifa.key) && evBad(e); }).length;
       if(!u && !dn) return '';
-      return '<div class="eng-char">' + escapeHtml(ifa.title) + ' — ' + u + ' up, ' + dn + ' down</div>';
+      return '<div class="eng-char">' + escapeHtml(ifa.title) + ' — ' + (u + dn) + ' linked moment' + (u + dn === 1 ? '' : 's') + ' (' + u + ' up, ' + dn + ' down)</div>';
     }).join('');
 
     // merge events and markers into one timeline, in time order
@@ -6406,7 +6412,6 @@
       card(matches, 'Matches') +
       card(clean, 'Clean Sheets') +
       card(conceded, 'Goals Conceded');
-    renderWeekList(weeks);
     renderProgressIfaLinks();
     renderProgressAttrs();
   }
@@ -6414,16 +6419,12 @@
   // Progress-tab view of the same Focus Area linkage shown on Standards — so the
   // "how is she actually doing against what Chelsea want" question can be answered
   // from the stats screen itself, with a tap-through to the actual evidence.
-  function matchIfaMoments(key){
-    var n = 0;
-    (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).forEach(function(t){ (t.events || []).forEach(function(e){ if(evHasIfa(e, key) || revIfaOf(e).indexOf(key) >= 0) n++; }); });
-    return n;
-  }
+  function matchIfaMoments(key){ return ifaStats(key).n; }
   function renderProgressAttrs(){
     var wrap = document.getElementById('progress-attrs'); if(!wrap) return;
     var dim = REVIEW_DIMS.find(function(d){ return d.k === 'attr'; });
     var mc = {}, wc = {};
-    (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).forEach(function(t){ (t.events || []).forEach(function(e){ rvArr((e.rev || {}).attr).forEach(function(v){ mc[v] = (mc[v] || 0) + 1; }); }); });
+    ipTracks().map(function(x){ return x.t; }).forEach(function(t){ (t.events || []).forEach(function(e){ rvArr((e.rev || {}).attr).forEach(function(v){ mc[v] = (mc[v] || 0) + 1; }); }); });
     (state.weeklyReviews || []).forEach(function(w){ (w.attrEvidence || []).forEach(function(x){ var o = dim.opts.find(function(q){ return q[1] === x.attribute; }); if(o) wc[o[0]] = (wc[o[0]] || 0) + 1; }); });
     wrap.innerHTML = ['Tactical','Technical','Psychological','Social','Physical'].map(function(g){
       return '<div class="card-meta" style="margin:10px 0 2px;">' + g + '</div><div class="trk-detail">' + dim.opts.filter(function(o){ return o[2] === g; }).map(function(o){
