@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v79 — 12 Nov 2026 -->
+<!-- Lily GK Journal — v82 — 12 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -831,8 +831,11 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v79';
+  var APP_VERSION = 'v82';
   var CHANGELOG = [
+    { version:'v82', notes:'Attributes are now multi-select, so one moment can show several. Each moment has an exact time in the game and on the video (mm:ss) that you can type, so it is easy to find again. The final match screen is calmer: the "What happened" counts, Review tags and Self-reflection cards are gone. In their place one card, Moments to talk about, lists the moments linked to each IFA with time, video time, Position, Decision, Execution and the attributes shown. Link, Hudl time and Chelsea game label are folded into Match details.' },
+    { version:'v81', notes:'Review split in two. 1) Position, Decision, Execution (the slide 10 headings) as a quick self-review lens: Good, Partly or Not good for each. 2) Chelsea GK attribute shown: the 20 attribute words (Brave, Intelligent and so on) grouped as on the slide, pick the one that fits best. Attributes no longer sit under the three headings, because Chelsea does not say which corner they belong to.' },
+    { version:'v80', notes:'Less noise on the review screen: the app\'s own earlier tag lists (Set, Decision, Comm and so on) are hidden unless that moment already has one of them set.' },
     { version:'v79', notes:'Chelsea GK Profile in the review. Each match moment now has Position, Decision and Execution (slide 10 corners) with the Chelsea attribute words to pick from; the app\'s own earlier tags sit under "Other tags". New Chelsea syllabus label per moment (Dominate the Space, Area, Goal on slide 11; Play outside, inside, over on slide 13). The Who-to list now uses Chelsea\'s words (centre back, full back, pivot, pocket, winger, front line). Weekly review: new Position, Decision and Execution questions asked the same every week, a Quick 5-minute mode for Lily, a Martin\'s view mode, the prompt now returns Chelsea attributes with a quote and who said it (Lily or Martin), and any week since 27 July can be selected. Which corner each attribute sits in is the app\'s reading of the slide layout, not stated by Chelsea.' },
     { version:'v78', notes:'New third live button, Distribution (IFA 2, no points): Pass around, Pass through, Pass over. They score 0 and are tagged IFA 2 so they feed the IFA 2 page and clips; started from, pressure, hands or feet, who to and length are added in review. The Tidy up quick button leaves them alone. Also available in Add a moment I missed.' },
     { version:'v77', notes:'Add a moment I missed: in a finished match review, pick what happened and the match-clock time and it is added to the timeline in the right place (half-time position kept correct), then opens straight into the review screen for pick lists, IFA tag and notes.' },
@@ -1602,8 +1605,8 @@
     function count(keys){ var n = 0; tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(keys.indexOf(e.key) > -1) n++; }); }); return n; }
     function tagN(dim, val){ var n = 0; tracks.forEach(function(m){ n += revCount(m.t.events || [], dim, val); }); return n; }
     return {
-      brave: count(['brave', 'bounce']) + tagN('mind', 'brave') + tagN('mind', 'bounce') + tagN('dec', 'brave'),
-      lead: count(['call']) + tagN('comm', 'clear') + tagN('comm', 'control') + tagN('dec', 'leader'),
+      brave: count(['brave', 'bounce']) + tagN('mind', 'brave') + tagN('mind', 'bounce') + tagN('attr', 'brave'),
+      lead: count(['call']) + tagN('comm', 'clear') + tagN('comm', 'control') + tagN('attr', 'leader'),
       edgeNotes: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length,
       edgePicks: tracks.reduce(function(a, m){ return a + (m.t.events || []).filter(function(e){ return e.iapPick; }).length; }, 0),
       edgeReviews: (state.weeklyReviews || []).filter(function(w){ return w.weekStart >= weekOf(IP_FROM); }).length
@@ -2110,7 +2113,7 @@
 
     // Standards: weekly review ratings (training side) next to match tag counts
     var attr = {};
-    tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(!e.rev) return; REVIEW_DIMS.forEach(function(d){ var v = e.rev[d.k]; if(!v) return; var o = d.opts.find(function(x){ return x[0] === v; }); var sd = (o && o[2]) || d.std; if(!sd) return; attr[sd] = (attr[sd] || 0) + 1; }); }); });
+    tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(!e.rev) return; REVIEW_DIMS.forEach(function(d){ rvArr(e.rev[d.k]).forEach(function(v){ var o = d.opts.find(function(x){ return x[0] === v; }); var sd = (o && o[2]) || d.std; if(!sd) return; attr[sd] = (attr[sd] || 0) + 1; }); }); }); });
     var wrs = (state.weeklyReviews || []).filter(function(w){ return w.standards; }).sort(function(a, b){ return a.weekStart < b.weekStart ? -1 : 1; });
     var stdMap = { tactical:'Tactical', technical:'Technical', psych:'Psychological', physical:'Physical', social:'Social' };
     var stdHtml = ATTR_KEYS.map(function(k){
@@ -2973,9 +2976,10 @@
   );
   // Review layer (added while watching the video). Five independent dimensions, one choice each, all optional.
   var REVIEW_DIMS = [
-    { k:'pos', label:'Position', std:null, opts:[['intelligent','Intelligent','Tactical'],['connected','Connected','Tactical'],['influential','Influential','Tactical']] },
-    { k:'dec', label:'Decision', std:null, opts:[['brave','Brave','Psychological'],['edge','Edge','Psychological'],['controlled','Controlled','Psychological'],['committed','Committed','Psychological'],['independent','Independent','Psychological'],['leader','Leader','Social'],['coachable','Coachable','Social'],['team_player','Team Player','Social']] },
-    { k:'exe', label:'Execution', std:null, opts:[['effective','Effective','Technical'],['impactful','Impactful','Technical'],['consistent','Consistent','Technical'],['quick','Quick','Physical'],['reactive','Reactive','Physical'],['presence','Presence','Physical'],['explosive','Explosive','Physical'],['strong','Strong','Physical'],['robust','Robust','Physical']] },
+    { k:'pos', label:'Position', std:null, opts:[['good', 'Good'], ['part', 'Partly'], ['poor', 'Not good']] },
+    { k:'dec', label:'Decision', std:null, opts:[['good', 'Good'], ['part', 'Partly'], ['poor', 'Not good']] },
+    { k:'exe', label:'Execution', std:null, opts:[['good', 'Good'], ['part', 'Partly'], ['poor', 'Not good']] },
+    { k:'attr', label:'Chelsea GK attribute shown', std:null, opts:[['intelligent', 'Intelligent', 'Tactical'], ['connected', 'Connected', 'Tactical'], ['influential', 'Influential', 'Tactical'], ['effective', 'Effective', 'Technical'], ['impactful', 'Impactful', 'Technical'], ['consistent', 'Consistent', 'Technical'], ['brave', 'Brave', 'Psychological'], ['edge', 'Edge', 'Psychological'], ['controlled', 'Controlled', 'Psychological'], ['committed', 'Committed', 'Psychological'], ['independent', 'Independent', 'Psychological'], ['leader', 'Leader', 'Social'], ['coachable', 'Coachable', 'Social'], ['team_player', 'Team Player', 'Social'], ['quick', 'Quick', 'Physical'], ['reactive', 'Reactive', 'Physical'], ['presence', 'Presence', 'Physical'], ['explosive', 'Explosive', 'Physical'], ['strong', 'Strong', 'Physical'], ['robust', 'Robust', 'Physical']] },
     { k:'set',      label:'Set & anticipation',   std:'Tactical',      opts:[['early_high','Set early & high'],['late_low','Set late or low'],['alive','Alive early'],['late_react','Reacted late']] },
     { k:'decision', label:'Decision',             std:'Tactical',      opts:[['read','Read it & waited'],['right','Right option'],['rushed','Rushed'],['hesitated','Hesitated'],['wrong','Wrong option']] },
     { k:'comm',     label:'Command & voice',      std:'Social',        opts:[['clear','Called early & clear'],['control','Took control'],['late','Late or no call'],['clash','Got in each other\'s way']] },
@@ -2986,33 +2990,34 @@
     { k:'pbq',      label:'Quality of the pass back (the teammate\'s ball)', std:null, opts:[['good','Good ball'],['weak_foot','Onto her weaker foot'],['behind','Behind her'],['weak','Weak or bouncing'],['hard','Too hard or fast'],['pressure','Played into pressure']] },
     { k:'prevent',  label:'Could it be prevented?', std:null,          opts:[['yes','Yes'],['partly','Partly'],['no','Not much she could do']] }
   ];
+  function rvArr(v){ return v ? (Array.isArray(v) ? v : [v]) : []; }
   function revLabel(dim, val){ var d = REVIEW_DIMS.find(function(x){ return x.k === dim; }); var o = d && d.opts.find(function(x){ return x[0] === val; }); return o ? o[1] : ''; }
   function revText(e){
     if(!e.rev) return '';
-    return REVIEW_DIMS.map(function(d){ return e.rev[d.k] ? revLabel(d.k, e.rev[d.k]) : ''; }).filter(Boolean).join(' · ');
+    return REVIEW_DIMS.map(function(d){ return rvArr(e.rev[d.k]).map(function(v){ return revLabel(d.k, v); }).filter(Boolean).join(', '); }).filter(Boolean).join(' · ');
   }
   function revTextL(e){
     if(!e.revL) return '';
-    return REVIEW_DIMS.map(function(d){ return e.revL[d.k] ? revLabel(d.k, e.revL[d.k]) : ''; }).filter(Boolean).join(' · ');
+    return REVIEW_DIMS.map(function(d){ return rvArr(e.revL[d.k]).map(function(v){ return revLabel(d.k, v); }).filter(Boolean).join(', '); }).filter(Boolean).join(' · ');
   }
   function revDiffs(track){
     var out = [];
     (track.events || []).forEach(function(e){
       if(!e.rev || !e.revL) return;
       REVIEW_DIMS.forEach(function(d){
-        if(e.rev[d.k] && e.revL[d.k] && e.rev[d.k] !== e.revL[d.k]){
+        if(d.k !== 'attr' && e.rev[d.k] && e.revL[d.k] && e.rev[d.k] !== e.revL[d.k]){
           out.push({ t:e.t, label:e.label, dim:d.label, m:revLabel(d.k, e.rev[d.k]), l:revLabel(d.k, e.revL[d.k]) });
         }
       });
     });
     return out;
   }
-  function revCount(events, dim, val){ return events.filter(function(e){ return e.rev && e.rev[dim] === val; }).length; }
+  function revCount(events, dim, val){ return events.filter(function(e){ return e.rev && rvArr(e.rev[dim]).indexOf(val) >= 0; }).length; }
   function revIfaOf(e){
     var a = trackerAreaOf(e.key);
     var out = [];
-    if(e.rev && (e.rev.comm || e.rev.dec === 'leader' || e.rev.dec === 'team_player')) out.push('ifa1');
-    if(e.rev && (e.rev.decision || e.rev.set || e.rev.pass || e.rev.pos || e.rev.dec)){
+    if(e.rev && (e.rev.comm || rvArr(e.rev.attr).indexOf('leader') >= 0 || rvArr(e.rev.attr).indexOf('team_player') >= 0)) out.push('ifa1');
+    if(e.rev && (e.rev.decision || e.rev.set || e.rev.pass || e.rev.pos || e.rev.dec || e.rev.exe || e.rev.attr)){
       if((a && a.key === 'dist') || evOptIfa(e) === 'ifa2' || /^d[hf]_|^bp_/.test(e.key)) out.push('ifa2');
       if((a && a.key === 'cross') || evOptIfa(e) === 'ifa3') out.push('ifa3');
     }
@@ -3025,7 +3030,7 @@
     REVIEW_DIMS.forEach(function(d){
       d.opts.forEach(function(o){
         var sd = o[2] || d.std; if(!sd) return;
-        var hit = ev.filter(function(e){ return e.rev[d.k] === o[0]; });
+        var hit = ev.filter(function(e){ return rvArr(e.rev[d.k]).indexOf(o[0]) >= 0; });
         if(hit.length){ (byStd[sd] = byStd[sd] || []).push(o[1] + ' ' + hit.length + ' (video ' + hit.map(function(e){ return fmtClock((track.videoOffsetSec || 0) + e.t); }).join(', ') + ')'); }
       });
     });
@@ -3045,18 +3050,19 @@
     Physical:['Explosive','Strong','Robust','Quick','Reactive','Presence'] };
   var REV_ATTR = { set:'Intelligent', decision:'Intelligent', comm:'Leader', hands:'Effective', pass:'Impactful',
     phys:'Reactive', 'phys:strong':'Strong', mind:'Controlled', 'mind:brave':'Brave', 'mind:bounce':'Brave' };
-  REVIEW_DIMS.filter(function(d){ return /^(pos|dec|exe)$/.test(d.k); }).forEach(function(d){ d.opts.forEach(function(o){ REV_ATTR[d.k + ':' + o[0]] = o[1]; }); });
-  var REV_BLUE = { 'dec:brave':'Brave', 'dec:edge':'Edge', 'dec:leader':'Lead', 'dec:team_player':'Unite', 'mind:brave':'Brave', 'mind:bounce':'Brave', 'comm:clear':'Lead', 'comm:control':'Lead', 'comm:late':'Lead', 'comm:clash':'Lead' };
+  REVIEW_DIMS.filter(function(d){ return d.k === 'attr'; }).forEach(function(d){ d.opts.forEach(function(o){ REV_ATTR[d.k + ':' + o[0]] = o[1]; }); });
+  var REV_BLUE = { 'attr:brave':'Brave', 'attr:edge':'Edge', 'attr:leader':'Lead', 'attr:team_player':'Unite', 'mind:brave':'Brave', 'mind:bounce':'Brave', 'comm:clear':'Lead', 'comm:control':'Lead', 'comm:late':'Lead', 'comm:clash':'Lead' };
   function trackerChelseaLines(track){
     var events = track.events || [], off = track.videoOffsetSec || 0;
     var attr = {}, blue = {};
     function vt(e){ return fmtClock(off + e.t); }
     events.forEach(function(e){
       if(e.rev){ REVIEW_DIMS.forEach(function(d){
-        var v = e.rev[d.k]; if(!v) return;
+        rvArr(e.rev[d.k]).forEach(function(v){
         var a = REV_ATTR[d.k + ':' + v] || REV_ATTR[d.k];
-        if(a && (d.std || /^(pos|dec|exe)$/.test(d.k))) (attr[a] = attr[a] || []).push(vt(e));
+        if(a && (d.std || d.k === 'attr')) (attr[a] = attr[a] || []).push(vt(e));
         var b = REV_BLUE[d.k + ':' + v]; if(b) (blue[b] = blue[b] || []).push(vt(e));
+        });
       }); }
       if(/^bp_p_/.test(e.key)) (blue.Brave = blue.Brave || []).push(vt(e));
       if(e.ask) (blue.Unite = blue.Unite || []).push(vt(e));
@@ -3151,6 +3157,29 @@
     return parts.concat(ev.details || []).filter(Boolean).join(' · ');
   }
   // Plain counts for a match. No scoring.
+  // v82: one calm card for the final screen: moments linked to an IFA, with the three headings and attributes.
+  function trackerTalkHtml(track){
+    var ev = track.events || [], off = track.videoOffsetSec || 0;
+    var PDE = { good:'Good', part:'Partly', poor:'Not good' };
+    function line(e){
+      var r = e.rev || {};
+      var pde = [['pos','Position'],['dec','Decision'],['exe','Execution']].filter(function(x){ return r[x[0]]; }).map(function(x){ return x[1] + ' ' + (PDE[r[x[0]]] || '').toLowerCase(); }).join(' · ');
+      var at = rvArr(r.attr).map(function(v){ return revLabel('attr', v); }).filter(Boolean).join(', ');
+      return '<div class="eng-char" style="cursor:pointer;" data-talk="' + ev.indexOf(e) + '"><b>' + fmtClock(e.t) + '</b> <span style="color:var(--cyan);">▶ ' + fmtClock(off + e.t) + '</span> · ' + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') +
+        (pde ? '<br><span class="card-meta">' + escapeHtml(pde) + '</span>' : '') + (at ? '<br><span class="card-meta">Shows: ' + escapeHtml(at) + '</span>' : '') +
+        (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</div>';
+    }
+    var used = [], html = '';
+    IDP_IFAS.forEach(function(ifa){
+      var list = ev.filter(function(e){ return evHasIfa(e, ifa.key) || revIfaOf(e).indexOf(ifa.key) >= 0; }).sort(function(a, b){ return a.t - b.t; });
+      list.forEach(function(e){ if(used.indexOf(e) < 0) used.push(e); });
+      if(list.length) html += '<div class="section-label" style="margin:10px 0 2px;">' + escapeHtml(ifa.title) + '</div>' + list.map(line).join('');
+    });
+    var rest = ev.filter(function(e){ return used.indexOf(e) < 0 && e.rev && (e.rev.pos || e.rev.dec || e.rev.exe || rvArr(e.rev.attr).length); }).sort(function(a, b){ return a.t - b.t; });
+    if(rest.length) html += '<div class="section-label" style="margin:10px 0 2px;">Not linked to an IFA yet</div>' + rest.map(line).join('');
+    return '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Moments to talk about</div>' +
+      (html || '<div class="hint" style="margin:0;">Nothing linked yet. Tap a moment below, add an IFA, then Position, Decision, Execution and the attributes it shows.</div>') + '</div>';
+  }
   function trackerFactsHtml(track){
     var ev = track.events || [];
     function n(keys){ return ev.filter(function(e){ return keys.indexOf(e.key) >= 0; }).length; }
@@ -3998,21 +4027,31 @@
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="tg-back">Done</button><div class="trk-title">Review this moment</div><span style="width:60px;"></span></div>' +
       '<div class="card"><div class="card-title" style="font-size:15px;">' + escapeHtml(ev.label) + (ev.detail ? ' · ' + escapeHtml(ev.detail) : '') + '</div>' +
-      '<div class="card-meta">' + (track.recap ? 'Minute ' + Math.round(ev.t / 60) : 'Match ' + fmtClock(ev.t)) + ' · video ' + fmtClock(offset + ev.t) + (offset ? '' : ' (set the video time first for an exact clip)') + '</div></div>' +
+      '<div class="card-meta">' + 'Match ' + fmtClock(ev.t) + ' · video ' + fmtClock(offset + ev.t) + (offset ? '' : ' (set the video time first for an exact clip)') + '</div></div>' +
+      '<div class="card" style="margin-top:10px;"><div class="trk-detail" style="margin:0;">' +
+        '<div class="field" style="flex:1; margin:0;"><label>Time in the game (mm:ss)</label><input type="text" id="tg-gt" value="' + fmtClock(ev.t) + '" inputmode="numeric"></div>' +
+        '<div class="field" style="flex:1; margin:0;"><label>Time on the video (mm:ss)</label><input type="text" id="tg-vt" value="' + fmtClock(offset + ev.t) + '" inputmode="numeric"></div></div>' +
+        '<div class="hint" style="margin:6px 0 0;">Type the exact time so you can find it again. Changing one updates the other.</div></div>' +
       editBlock +
       '<div class="trk-detail" style="margin-top:12px;"><span class="hint" style="margin:0;">Tagging as:</span>' +
         '<button type="button" class="trk-chip' + (by === 'M' ? ' on' : '') + '" data-by="M">Martin</button><button type="button" class="trk-chip' + (by === 'L' ? ' on' : '') + '" data-by="L">Lily</button></div>' +
       (function(){
         function row(d){
-          return '<div class="section-label" style="margin-top:14px;">' + escapeHtml(d.label) + (d.std ? ' <span class="card-meta" style="text-transform:none;">· ' + d.std + '</span>' : (/^(pos|dec|exe)$/.test(d.k) ? ' <span class="card-meta" style="text-transform:none;">· Chelsea GK Profile, slide 10</span>' : '')) + '</div>' +
+          return '<div class="section-label" style="margin-top:14px;">' + escapeHtml(d.label) + (d.std ? ' <span class="card-meta" style="text-transform:none;">· ' + d.std + '</span>' : (d.k === 'attr' ? ' <span class="card-meta" style="text-transform:none;">· Chelsea GK Profile</span>' : '')) + '</div>' +
             '<div class="trk-detail">' + d.opts.map(function(o){
-              return '<button type="button" class="trk-chip' + (R[d.k] === o[0] ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>';
+              return '<button type="button" class="trk-chip' + (rvArr(R[d.k]).indexOf(o[0]) >= 0 ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>';
             }).join('') + '</div>';
         }
-        var fresh = REVIEW_DIMS.filter(function(d){ return /^(pos|dec|exe)$/.test(d.k); });
-        var older = REVIEW_DIMS.filter(function(d){ return !/^(pos|dec|exe)$/.test(d.k); });
+        function attrRow(d){
+          var grp = [], out = '<div class="section-label" style="margin-top:18px;">' + escapeHtml(d.label) + ' <span class="card-meta" style="text-transform:none;">· Chelsea GK Profile, tap as many as fit</span></div>';
+          d.opts.forEach(function(o){ if(grp.indexOf(o[2]) < 0) grp.push(o[2]); });
+          grp.forEach(function(g){ out += '<div class="card-meta" style="margin:8px 0 2px;">' + g + '</div><div class="trk-detail">' + d.opts.filter(function(o){ return o[2] === g; }).map(function(o){ return '<button type="button" class="trk-chip' + (rvArr(R[d.k]).indexOf(o[0]) >= 0 ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>'; });
+          return out;
+        }
+        var fresh = REVIEW_DIMS.filter(function(d){ return /^(pos|dec|exe|attr)$/.test(d.k); });
+        var older = REVIEW_DIMS.filter(function(d){ return !/^(pos|dec|exe|attr)$/.test(d.k); });
         var hasOlder = older.some(function(d){ return R[d.k]; });
-        return fresh.map(row).join('') + '<details class="cfg-sec" style="margin-top:14px;"' + (hasOlder ? ' open' : '') + '><summary>Other tags (this app\'s own, from earlier)</summary>' + older.map(row).join('') + '</details>';
+        return fresh.map(function(d){ return d.k === 'attr' ? attrRow(d) : row(d); }).join('') + (hasOlder ? '<details class="cfg-sec" style="margin-top:14px;" open><summary>Earlier tags on this moment</summary>' + older.filter(function(d){ return R[d.k]; }).map(row).join('') + '</details>' : '');
       })() +
       '<div class="section-label" style="margin-top:14px;">IFA tag for this moment <span class="card-meta" style="text-transform:none;">· adds it to that IFA page' + (evOptIfa(ev) ? ' (already linked to ' + escapeHtml(evOptIfa(ev).toUpperCase().replace('IFA', 'IFA ')) + ' by what it is)' : '') + '</span></div>' +
       '<div class="trk-detail">' + IDP_IFAS.map(function(i){ return '<button type="button" class="trk-chip' + ((ev.ifas || []).indexOf(i.key) >= 0 ? ' on' : '') + '" data-ifatag="' + i.key + '">' + i.key.toUpperCase().replace('IFA', 'IFA ') + '</button>'; }).join('') + '</div>' +
@@ -4027,11 +4066,18 @@
     ov.querySelectorAll('[data-dim]').forEach(function(b){
       b.addEventListener('click', function(){
         var k = b.getAttribute('data-dim'), v = b.getAttribute('data-val');
-        if(R[k] === v) delete R[k]; else R[k] = v;
+        if(k === 'attr'){ var arr = rvArr(R[k]).slice(), at = arr.indexOf(v); if(at >= 0) arr.splice(at, 1); else arr.push(v); if(arr.length) R[k] = arr; else delete R[k]; }
+        else if(R[k] === v) delete R[k]; else R[k] = v;
         ev.note = (ov.querySelector('#tg-note').value || '').trim();
         saveData(); renderTrackerTag(id, idx, fromLive);
       });
     });
+    function timeSave(v, isVideo){
+      var sec = parseClock(v); if(isVideo) sec = Math.max(0, sec - offset);
+      ev.t = sec; ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
+    }
+    ov.querySelector('#tg-gt').addEventListener('change', function(){ timeSave(this.value, false); });
+    ov.querySelector('#tg-vt').addEventListener('change', function(){ timeSave(this.value, true); });
     var sylSel = ov.querySelector('#tg-syl');
     if(sylSel) sylSel.addEventListener('change', function(){
       if(sylSel.value) ev.syl = sylSel.value; else delete ev.syl;
@@ -4171,10 +4217,6 @@
       '<div class="trk-clockrow"><div><div class="hint" style="margin:0;">' + (track.status === 'done' ? 'Final rating' : 'Rating so far') + '</div></div>' + trackerBadgeHtml(track) + '</div>' + trackerSplitHtml(track) +
       '<div class="card">' + trackerChartSvg(track) +
         '<div class="hint trk-caption" style="margin:8px 0 0; text-align:center;">Tap a ▲ or ▼ to see what it was</div></div>' +
-      trackerFactsHtml(track) +
-      (ev.some(function(e){ return e.ask; }) ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Questions for the coaches</div>' +
-        ev.map(function(e, i){ return e.ask ? '<div class="eng-char" data-ans="' + i + '" style="cursor:pointer;">' + (e.answer ? '✅ ' : '❓ ') + (track.recap ? '' : fmtClock(e.t) + ' · ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + (e.note ? ' — ' + escapeHtml(e.note) : '') + (e.answer ? '<br><span class="card-meta">Coach said: ' + escapeHtml(e.answer) + '</span>' : '<br><span class="card-meta">Tap to record the coach\'s answer</span>') + '</div>' : ''; }).join('') + '</div>' : '') +
-      (revDiffs(track).length ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Where you and Lily see it differently</div>' + revDiffs(track).map(function(x){ return '<div class="eng-char">' + (track.recap ? '' : fmtClock(x.t) + ' · ') + escapeHtml(x.label) + ' · ' + escapeHtml(x.dim) + ': Martin ' + escapeHtml(x.m) + ', Lily ' + escapeHtml(x.l) + '</div>'; }).join('') + '<div class="hint" style="margin:8px 0 0;">Worth watching together and asking the coach. Neither view is the right one.</div></div>' : '') +
       '<div class="card" style="margin-top:10px;">' +
         '<div class="card-title" style="font-size:14px;">The game in numbers</div>' +
         '<div class="eng-char">Started ' + track.baseline.toFixed(1) + ' · Finished ' + final.toFixed(1) + ' · Highest ' + high.toFixed(1) + ' · Lowest ' + low.toFixed(1) + '</div>' +
@@ -4182,6 +4224,11 @@
         halfLines +
         ifaLines +
       '</div>' +
+      trackerTalkHtml(track) +
+      (ev.some(function(e){ return e.ask; }) ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Questions for the coaches</div>' +
+        ev.map(function(e, i){ return e.ask ? '<div class="eng-char" data-ans="' + i + '" style="cursor:pointer;">' + (e.answer ? '✅ ' : '❓ ') + (track.recap ? '' : fmtClock(e.t) + ' · ') + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') + (e.note ? ' — ' + escapeHtml(e.note) : '') + (e.answer ? '<br><span class="card-meta">Coach said: ' + escapeHtml(e.answer) + '</span>' : '<br><span class="card-meta">Tap to record the coach\'s answer</span>') + '</div>' : ''; }).join('') + '</div>' : '') +
+      (revDiffs(track).length ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Where you and Lily see it differently</div>' + revDiffs(track).map(function(x){ return '<div class="eng-char">' + (track.recap ? '' : fmtClock(x.t) + ' · ') + escapeHtml(x.label) + ' · ' + escapeHtml(x.dim) + ': Martin ' + escapeHtml(x.m) + ', Lily ' + escapeHtml(x.l) + '</div>'; }).join('') + '<div class="hint" style="margin:8px 0 0;">Worth watching together and asking the coach. Neither view is the right one.</div></div>' : '') +
+      '<details class="cfg-sec" style="margin-top:10px;"><summary>Match details: link, Hudl video time, Chelsea game label</summary>' +
       (track.status === 'done' ? '<div class="card" style="margin-top:10px;"><div class="eng-char" style="margin-top:0;">' + escapeHtml(trackerLinkText(track)) + '</div>' + (trackerPlayedText(track) ? '<div class="eng-char">Lily played: ' + trackerPlayedText(track) + '</div>' : '') +
         '<button type="button" class="btn btn-ghost" id="trk-relink" style="margin-top:8px;">' + (track.sessionId ? 'Change Match' : 'Link to a Match') + '</button></div>' : '') +
       '<div class="card" style="margin-top:10px;">' +
@@ -4191,7 +4238,7 @@
       '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Chelsea game label</div>' +
         '<div class="trk-detail">' + [['A','Assertive'],['B','Balanced'],['C','Challenge']].map(function(c){ return '<button type="button" class="trk-chip' + (track.ctx === c[0] ? ' on' : '') + '" data-ctx="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
         '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
-      trackerRevSummary(track) + trackerChelseaLines(track) +
+      '</details>' +
       '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
       (trackerOverlayState.tidy ? '' : '<button type="button" class="btn btn-ghost" id="add-mom" style="margin-bottom:8px;">+ Add a moment I missed</button>') +
       (trackerOverlayState.tidy
@@ -4246,6 +4293,9 @@
         }
         renderTrackerTag(id, ix, fromLive);
       });
+    });
+    ov.querySelectorAll('[data-talk]').forEach(function(row){
+      row.addEventListener('click', function(){ renderTrackerTag(id, parseInt(row.getAttribute('data-talk'), 10), fromLive); });
     });
     ov.querySelectorAll('[data-ans]').forEach(function(row){
       row.addEventListener('click', function(){
