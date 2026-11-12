@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v86 — 12 Nov 2026 -->
+<!-- Lily GK Journal — v87 — 12 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -829,8 +829,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v86';
+  var APP_VERSION = 'v87';
   var CHANGELOG = [
+    { version:'v87', notes:'Same IFA line everywhere. Progress and the Standards focus-area cards now both read, for example, "6 reflections in 3 weeks · 5 match moments in 2 games" (reflections and weeks are training notes, match moments come from the tracker). The IFA pages, evidence page and IAP briefing use the same helper and the same set of reflections (from 1 July).' },
     { version:'v86', notes:'One count everywhere. A match moment is "linked to an IFA" if it is tagged to that IFA (button or manual tag) or its review tags point to it. Progress, the IFA pages in Standards, the evidence page, the per-match screen and the All games review now all use that one definition and the same set of games (finished games from 1 July), so IFA 3 shows the same number on every screen. Wording is now "linked moments", with how many of them have been reviewed.' },
     { version:'v85', notes:'Progress: removed the Week by week list. Progress now shows the Season overview (matches, clean sheets, goals conceded), Linked to my focus areas, Chelsea GK Profile attributes and My story so far.' },
     { version:'v84', notes:'Season overview simplified. Removed Weeks reviewed, Average week, Good or great weeks, Best week, Sessions and the Weekly temperature check. Overview now shows Matches, Clean sheets and Goals conceded. Linked to my focus areas now counts weeks and match moments for each IFA. New Chelsea GK Profile Attributes section: all 20 attributes with how many match moments (and weekly-review mentions) show each, empty ones are still to find, with links into the all-games review.' },
@@ -1594,7 +1595,7 @@
         .slice(0, 3).map(function(r){ return { date:r.date, text:truncate(ipSafe(r.wentWell), 150) }; });
       var moments = [];
       tracks.forEach(function(m){
-        (m.t.events || []).forEach(function(e){ if(evHasIfa(e, ifa.key) && !evBad(e)) moments.push({ date:m.date, opp:m.opp, label:e.label, delta:e.delta }); });
+        (m.t.events || []).forEach(function(e){ if(evLinked(e, ifa.key) && !evBad(e)) moments.push({ date:m.date, opp:m.opp, label:e.label, delta:e.delta }); });
       });
       moments.sort(function(a, b){ return (b.delta - a.delta) || (a.date < b.date ? 1 : -1); });
       var linked = refs.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; });
@@ -2350,7 +2351,7 @@
     // }).join('');
 
     var ifaCardsHtml = IDP_IFAS.map(function(ifa){
-      var linkedCount = state.reflections.filter(function(r){ return getLinkedIfas(r).indexOf(ifa.key) > -1; }).length;
+      var linkedCount = ifaNotes(ifa.key).n;
       var status = idp.ifaStatuses[ifa.key] || 'on_track';
       return '<div class="card idp-ifa-card">' +
         '<div class="idp-ifa-tag">' + escapeHtml(ifa.tag) + '</div>' +
@@ -2363,8 +2364,8 @@
           IFA_STATUS_OPTIONS.map(function(o){ return '<option value="' + o.key + '"' + (status===o.key?' selected':'') + '>' + o.label + '</option>'; }).join('') +
         '</select></div>' +
         (linkedCount > 0
-          ? '<div class="idp-evidence-btn" data-ifa="' + ifa.key + '">' + linkedCount + ' linked reflection' + (linkedCount===1?'':'s') + ' — view evidence →</div>'
-          : '<div class="hint" style="margin-top:8px;">No reflections linked yet — link one from the reflection form to build evidence here.</div>') +
+          ? '<div class="idp-evidence-btn" data-ifa="' + ifa.key + '">' + ifaLine(ifa.key) + ' — view evidence →</div>'
+          : '<div class="hint" style="margin-top:8px;">No reflections linked yet — link one from the reflection form to build evidence here.' + (ifaStats(ifa.key).n ? ' ' + ifaLine(ifa.key) + '.' : '') + '</div>') +
       '</div>';
     }).join('');
 
@@ -3335,6 +3336,15 @@
   // v86: ONE definition of "a match moment linked to an IFA" used everywhere in the app:
   // the moment is tagged to the IFA (button or manual tag) OR its review tags point to it.
   function evLinked(e, k){ return evHasIfa(e, k) || revIfaOf(e).indexOf(k) >= 0; }
+  function ifaNotes(key){
+    var wk = {}, n = 0;
+    ipRefs().forEach(function(r){ if(getLinkedIfas(r).indexOf(key) > -1){ n++; if(r.date) wk[weekOf(r.date)] = true; } });
+    return { n:n, weeks:Object.keys(wk).length };
+  }
+  function ifaLine(key){
+    var a = ifaNotes(key), m = ifaStats(key);
+    return a.n + ' reflection' + (a.n === 1 ? '' : 's') + ' in ' + a.weeks + ' week' + (a.weeks === 1 ? '' : 's') + ' · ' + m.n + ' match moment' + (m.n === 1 ? '' : 's') + ' in ' + m.games + ' game' + (m.games === 1 ? '' : 's');
+  }
   function ifaStats(key){
     var st = { n:0, rv:0, games:0, up:0, down:0 };
     ipTracks().forEach(function(m){
@@ -6440,13 +6450,10 @@
     var wrap = document.getElementById('progress-ifa-links');
     if(!wrap) return;
     wrap.innerHTML = IDP_IFAS.map(function(ifa){
-      var wkSeen = {};
-      state.reflections.forEach(function(r){ if(r.date && getLinkedIfas(r).indexOf(ifa.key) > -1) wkSeen[weekOf(r.date)] = true; });
-      var count = Object.keys(wkSeen).length;
-      var mm = matchIfaMoments(ifa.key);
       return '<div class="card pressable" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;" data-progress-ifa="' + ifa.key + '">' +
-        '<div style="font-family:\'Oswald\',sans-serif; font-weight:600; font-size:13.5px; color:var(--text);">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</div>' +
-        '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;"><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--lime);">' + count + '</span><span style="font-size:11px; color:var(--text-faint);">weeks</span><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--cyan); margin-left:8px;">' + mm + '</span><span style="font-size:11px; color:var(--text-faint);">match moments →</span></div>' +
+        '<div><div style="font-family:\'Oswald\',sans-serif; font-weight:600; font-size:13.5px; color:var(--text);">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</div>' +
+        '<div class="card-meta" style="margin-top:3px;">' + escapeHtml(ifaLine(ifa.key)) + '</div></div>' +
+        '<span style="font-size:11px; color:var(--text-faint); flex-shrink:0;">evidence →</span>' +
       '</div>';
     }).join('');
     wrap.querySelectorAll('[data-progress-ifa]').forEach(function(card){
