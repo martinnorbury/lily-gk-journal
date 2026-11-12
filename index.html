@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v76 — 11 Nov 2026 -->
+<!-- Lily GK Journal — v77 — 12 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -831,8 +831,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v76';
+  var APP_VERSION = 'v77';
   var CHANGELOG = [
+    { version:'v77', notes:'Add a moment I missed: in a finished match review, pick what happened and the match-clock time and it is added to the timeline in the right place (half-time position kept correct), then opens straight into the review screen for pick lists, IFA tag and notes.' },
     { version:'v76', notes:'Tidy up in the match review: tick moments in the timeline and delete them all at once, to keep only the key events. A quick button ticks every moment with no points, leaving out goals and anything with a note, coach question, review tag, IFA tag or clip pick. Half-time position is kept correct when moments are removed.' },
     { version:'v75', notes:'Stripped back. The live tracker now has two buttons, Out of possession and In possession, and only events that can gain or lose a point. Out: save +0.1, big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2, penalty conceded -0.5, mistake with an opposition chance following -0.2 (and the red GOAL CONCEDED -0.5). In: pass started an attack +0.1, created a clear chance +0.2, assist +0.5, turnover with an opposition chance following -0.2. Everything else (where it started, pressure, hands or feet, who to, length, what the mistake was, where a shot came from, good save) is added later in the review, which is also where IFAs link. Old areas and events stay in past games and score as before. Tracker settings shows the two new lists.' },
     { version:'v74', notes:'Tracker settings: every event now has a Button dropdown so it can be moved to a different area by picking it from a list (no typing, and past games keep their link). Scoring unchanged.' },
@@ -4029,6 +4030,40 @@
     ov.querySelector('#tg-done').addEventListener('click', finish);
   }
 
+  // v77: add a moment you missed to a finished game
+  function renderTrackerAdd(id, fromLive){
+    var track = state.matchTracks.find(function(t){ return t.id === id; });
+    if(!track) return;
+    var ov = trackerOverlayEl();
+    var last = track.events.length ? track.events[track.events.length - 1].t : 0;
+    var optGroups = TRACKER_AREAS.map(function(a){
+      var keys = a.good.concat(a.neutral || [], a.bad);
+      return '<optgroup label="' + escapeHtml(a.label) + '">' + keys.map(function(k){ var o = trackerOpt(k); return o ? '<option value="' + k + '">' + escapeHtml(o.label) + (o.delta ? ' (' + fmtDelta(o.delta) + ')' : '') + '</option>' : ''; }).join('') + '</optgroup>';
+    }).join('');
+    ov.innerHTML =
+      '<div class="trk-top"><button type="button" class="trk-mini" id="ad-back">Cancel</button><div class="trk-title">Add a moment</div><span style="width:60px;"></span></div>' +
+      '<div class="hint" style="margin:6px 0 10px;">Add something you missed. It goes into the timeline at the time you give, and then you can add the extra detail, an IFA tag or a note.</div>' +
+      '<div class="field"><label>What happened</label><select id="ad-key"><option value="goal">Goal conceded (' + fmtDelta(trackerOpt('goal').delta) + ')</option>' + optGroups + '</select></div>' +
+      '<div class="field" style="margin-top:10px;"><label>Time on the match clock (minutes:seconds, like the other moments, e.g. 23:40)</label><input type="text" id="ad-time" inputmode="numeric" placeholder="e.g. 23:40" value=""></div>' +
+      '<div class="hint" id="ad-err" style="color:var(--red); min-height:18px;"></div>' +
+      '<button type="button" class="btn btn-primary" id="ad-save" style="margin-top:6px;">Add to the game</button>';
+    ov.querySelector('#ad-back').addEventListener('click', function(){ openTrackerReview(id, fromLive); });
+    ov.querySelector('#ad-save').addEventListener('click', function(){
+      var tv = ov.querySelector('#ad-time').value.trim();
+      if(!/^\d{1,3}(:\d{1,2})?$/.test(tv)){ ov.querySelector('#ad-err').textContent = 'Enter a time like 23:40 or just minutes like 23'; return; }
+      var t = parseClock(tv);
+      var key = ov.querySelector('#ad-key').value, o = trackerOpt(key);
+      if(!o) return;
+      var pos = track.events.length;
+      for(var i = 0; i < track.events.length; i++){ if(track.events[i].t > t){ pos = i; break; } }
+      var ne = { t:t, sign:'+', key:o.key, label:o.label, delta:o.delta, ifa:o.ifa || null, added:true };
+      trackerSync(ne);
+      track.events.splice(pos, 0, ne);
+      (track.markers || []).forEach(function(m){ if(typeof m.n === 'number' && (pos < m.n || (pos === m.n && t < m.t))) m.n++; });
+      saveData();
+      renderTrackerTag(id, pos, fromLive);
+    });
+  }
   function openTrackerReview(id, fromLive){
     var track = findTrack(id);
     if(!track){ closeTrackerOverlay(); return; }
@@ -4107,6 +4142,7 @@
         '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
       trackerRevSummary(track) + trackerChelseaLines(track) +
       '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
+      (trackerOverlayState.tidy ? '' : '<button type="button" class="btn btn-ghost" id="add-mom" style="margin-bottom:8px;">+ Add a moment I missed</button>') +
       (trackerOverlayState.tidy
         ? '<div class="card" style="margin-bottom:8px;"><div class="hint" style="margin:0 0 8px;">Tap moments to tick them, then delete the ticked ones. Moments with a note, a coach question, a review tag or a clip pick are never ticked by the quick button.</div>' +
           '<div class="trk-detail"><button type="button" class="trk-chip" id="tidy-zero">Tick all with no points</button><button type="button" class="trk-chip" id="tidy-none">Untick all</button></div>' +
@@ -4126,6 +4162,7 @@
       b.addEventListener('click', function(){ trackerOverlayState.ifaFilter = b.getAttribute('data-ifaf'); openTrackerReview(id, fromLive); });
     });
     function tidyRedraw(){ var st = ov.scrollTop; openTrackerReview(id, fromLive); ov.scrollTop = st; }
+    var addM = q('#add-mom'); if(addM) addM.addEventListener('click', function(){ renderTrackerAdd(id, fromLive); });
     var tOn = q('#tidy-on'); if(tOn) tOn.addEventListener('click', function(){ trackerOverlayState.tidy = true; trackerOverlayState.tidySel = []; tidyRedraw(); });
     var tCancel = q('#tidy-cancel'); if(tCancel) tCancel.addEventListener('click', function(){ trackerOverlayState.tidy = false; trackerOverlayState.tidySel = []; tidyRedraw(); });
     var tNone = q('#tidy-none'); if(tNone) tNone.addEventListener('click', function(){ trackerOverlayState.tidySel = []; tidyRedraw(); });
