@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v77 — 12 Nov 2026 -->
+<!-- Lily GK Journal — v79 — 12 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -831,8 +831,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v77';
+  var APP_VERSION = 'v79';
   var CHANGELOG = [
+    { version:'v79', notes:'Chelsea GK Profile in the review. Each match moment now has Position, Decision and Execution (slide 10 corners) with the Chelsea attribute words to pick from; the app\'s own earlier tags sit under "Other tags". New Chelsea syllabus label per moment (Dominate the Space, Area, Goal on slide 11; Play outside, inside, over on slide 13). The Who-to list now uses Chelsea\'s words (centre back, full back, pivot, pocket, winger, front line). Weekly review: new Position, Decision and Execution questions asked the same every week, a Quick 5-minute mode for Lily, a Martin\'s view mode, the prompt now returns Chelsea attributes with a quote and who said it (Lily or Martin), and any week since 27 July can be selected. Which corner each attribute sits in is the app\'s reading of the slide layout, not stated by Chelsea.' },
+    { version:'v78', notes:'New third live button, Distribution (IFA 2, no points): Pass around, Pass through, Pass over. They score 0 and are tagged IFA 2 so they feed the IFA 2 page and clips; started from, pressure, hands or feet, who to and length are added in review. The Tidy up quick button leaves them alone. Also available in Add a moment I missed.' },
     { version:'v77', notes:'Add a moment I missed: in a finished match review, pick what happened and the match-clock time and it is added to the timeline in the right place (half-time position kept correct), then opens straight into the review screen for pick lists, IFA tag and notes.' },
     { version:'v76', notes:'Tidy up in the match review: tick moments in the timeline and delete them all at once, to keep only the key events. A quick button ticks every moment with no points, leaving out goals and anything with a note, coach question, review tag, IFA tag or clip pick. Half-time position is kept correct when moments are removed.' },
     { version:'v75', notes:'Stripped back. The live tracker now has two buttons, Out of possession and In possession, and only events that can gain or lose a point. Out: save +0.1, big save +0.5, penalty saved +0.5, 1v1 won +0.5, cross claimed +0.2, ball in behind cleared +0.2, penalty conceded -0.5, mistake with an opposition chance following -0.2 (and the red GOAL CONCEDED -0.5). In: pass started an attack +0.1, created a clear chance +0.2, assist +0.5, turnover with an opposition chance following -0.2. Everything else (where it started, pressure, hands or feet, who to, length, what the mistake was, where a shot came from, good save) is added later in the review, which is also where IFAs link. Old areas and events stay in past games and score as before. Tracker settings shows the two new lists.' },
@@ -1600,8 +1602,8 @@
     function count(keys){ var n = 0; tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(keys.indexOf(e.key) > -1) n++; }); }); return n; }
     function tagN(dim, val){ var n = 0; tracks.forEach(function(m){ n += revCount(m.t.events || [], dim, val); }); return n; }
     return {
-      brave: count(['brave', 'bounce']) + tagN('mind', 'brave') + tagN('mind', 'bounce'),
-      lead: count(['call']) + tagN('comm', 'clear') + tagN('comm', 'control'),
+      brave: count(['brave', 'bounce']) + tagN('mind', 'brave') + tagN('mind', 'bounce') + tagN('dec', 'brave'),
+      lead: count(['call']) + tagN('comm', 'clear') + tagN('comm', 'control') + tagN('dec', 'leader'),
       edgeNotes: refs.filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length,
       edgePicks: tracks.reduce(function(a, m){ return a + (m.t.events || []).filter(function(e){ return e.iapPick; }).length; }, 0),
       edgeReviews: (state.weeklyReviews || []).filter(function(w){ return w.weekStart >= weekOf(IP_FROM); }).length
@@ -2108,7 +2110,7 @@
 
     // Standards: weekly review ratings (training side) next to match tag counts
     var attr = {};
-    tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(!e.rev) return; REVIEW_DIMS.forEach(function(d){ var v = e.rev[d.k]; if(!v || !d.std) return; attr[d.std] = (attr[d.std] || 0) + 1; }); }); });
+    tracks.forEach(function(m){ (m.t.events || []).forEach(function(e){ if(!e.rev) return; REVIEW_DIMS.forEach(function(d){ var v = e.rev[d.k]; if(!v) return; var o = d.opts.find(function(x){ return x[0] === v; }); var sd = (o && o[2]) || d.std; if(!sd) return; attr[sd] = (attr[sd] || 0) + 1; }); }); });
     var wrs = (state.weeklyReviews || []).filter(function(w){ return w.standards; }).sort(function(a, b){ return a.weekStart < b.weekStart ? -1 : 1; });
     var stdMap = { tactical:'Tactical', technical:'Technical', psych:'Psychological', physical:'Physical', social:'Social' };
     var stdHtml = ATTR_KEYS.map(function(k){
@@ -2930,7 +2932,10 @@
     { key:'pensave',   label:'Penalty saved',                  delta:0.5 },
     { key:'in_start',  label:'Pass started an attack',         delta:0.1, ifa:'ifa2' },
     { key:'in_chance', label:'Pass created a clear chance',    delta:0.2, ifa:'ifa2' },
-    { key:'in_assist', label:'Assist',                         delta:0.5, ifa:'ifa2' }
+    { key:'in_assist', label:'Assist',                         delta:0.5, ifa:'ifa2' },
+    { key:'in_around', label:'Pass around (short, to the side)', delta:0, ifa:'ifa2' },
+    { key:'in_through', label:'Pass through (splits the press or a line)', delta:0, ifa:'ifa2' },
+    { key:'in_over', label:'Pass over (long, into, onto or in behind)', delta:0, ifa:'ifa2' }
   ];
   // Chelsea's In-Possession wording: play around / through / over (into, onto, in behind), by hands or feet.
   var DIST_TYPES = [
@@ -2963,10 +2968,14 @@
   TRACKER_AREAS.forEach(function(a){ a.legacy = true; });
   TRACKER_AREAS.unshift(
     { key:'out', label:'Out of possession', good:['save', 'bigsave', 'pensave', 'won1v1', 'cross', 'bib_clear'], neutral:[], bad:['penconceded', 'mistake_chance'], detail:[] },
-    { key:'in',  label:'In possession',     good:['in_start', 'in_chance', 'in_assist'], neutral:[], bad:['turnover_chance'], detail:[] }
+    { key:'in',  label:'In possession',     good:['in_start', 'in_chance', 'in_assist'], neutral:[], bad:['turnover_chance'], detail:[] },
+    { key:'ifa2', label:'Distribution (IFA 2, no points)', good:[], neutral:['in_around', 'in_through', 'in_over'], bad:[], detail:[] }
   );
   // Review layer (added while watching the video). Five independent dimensions, one choice each, all optional.
   var REVIEW_DIMS = [
+    { k:'pos', label:'Position', std:null, opts:[['intelligent','Intelligent','Tactical'],['connected','Connected','Tactical'],['influential','Influential','Tactical']] },
+    { k:'dec', label:'Decision', std:null, opts:[['brave','Brave','Psychological'],['edge','Edge','Psychological'],['controlled','Controlled','Psychological'],['committed','Committed','Psychological'],['independent','Independent','Psychological'],['leader','Leader','Social'],['coachable','Coachable','Social'],['team_player','Team Player','Social']] },
+    { k:'exe', label:'Execution', std:null, opts:[['effective','Effective','Technical'],['impactful','Impactful','Technical'],['consistent','Consistent','Technical'],['quick','Quick','Physical'],['reactive','Reactive','Physical'],['presence','Presence','Physical'],['explosive','Explosive','Physical'],['strong','Strong','Physical'],['robust','Robust','Physical']] },
     { k:'set',      label:'Set & anticipation',   std:'Tactical',      opts:[['early_high','Set early & high'],['late_low','Set late or low'],['alive','Alive early'],['late_react','Reacted late']] },
     { k:'decision', label:'Decision',             std:'Tactical',      opts:[['read','Read it & waited'],['right','Right option'],['rushed','Rushed'],['hesitated','Hesitated'],['wrong','Wrong option']] },
     { k:'comm',     label:'Command & voice',      std:'Social',        opts:[['clear','Called early & clear'],['control','Took control'],['late','Late or no call'],['clash','Got in each other\'s way']] },
@@ -3002,8 +3011,8 @@
   function revIfaOf(e){
     var a = trackerAreaOf(e.key);
     var out = [];
-    if(e.rev && e.rev.comm) out.push('ifa1');
-    if(e.rev && (e.rev.decision || e.rev.set || e.rev.pass)){
+    if(e.rev && (e.rev.comm || e.rev.dec === 'leader' || e.rev.dec === 'team_player')) out.push('ifa1');
+    if(e.rev && (e.rev.decision || e.rev.set || e.rev.pass || e.rev.pos || e.rev.dec)){
       if((a && a.key === 'dist') || evOptIfa(e) === 'ifa2' || /^d[hf]_|^bp_/.test(e.key)) out.push('ifa2');
       if((a && a.key === 'cross') || evOptIfa(e) === 'ifa3') out.push('ifa3');
     }
@@ -3013,10 +3022,11 @@
     var ev = (track.events || []).filter(function(e){ return e.rev; });
     if(!ev.length) return '';
     var byStd = {};
-    REVIEW_DIMS.forEach(function(d){ if(!d.std) return;
+    REVIEW_DIMS.forEach(function(d){
       d.opts.forEach(function(o){
+        var sd = o[2] || d.std; if(!sd) return;
         var hit = ev.filter(function(e){ return e.rev[d.k] === o[0]; });
-        if(hit.length){ (byStd[d.std] = byStd[d.std] || []).push(o[1] + ' ' + hit.length + ' (video ' + hit.map(function(e){ return fmtClock((track.videoOffsetSec || 0) + e.t); }).join(', ') + ')'); }
+        if(hit.length){ (byStd[sd] = byStd[sd] || []).push(o[1] + ' ' + hit.length + ' (video ' + hit.map(function(e){ return fmtClock((track.videoOffsetSec || 0) + e.t); }).join(', ') + ')'); }
       });
     });
     var stdLines = ['Tactical','Technical','Psychological','Physical','Social'].map(function(k){ return byStd[k] ? '<div class="eng-char"><b>' + k + ':</b> ' + escapeHtml(byStd[k].join(' · ')) + '</div>' : '<div class="eng-char" style="opacity:0.6;"><b>' + k + ':</b> nothing tagged yet</div>'; }).join('');
@@ -3035,7 +3045,8 @@
     Physical:['Explosive','Strong','Robust','Quick','Reactive','Presence'] };
   var REV_ATTR = { set:'Intelligent', decision:'Intelligent', comm:'Leader', hands:'Effective', pass:'Impactful',
     phys:'Reactive', 'phys:strong':'Strong', mind:'Controlled', 'mind:brave':'Brave', 'mind:bounce':'Brave' };
-  var REV_BLUE = { 'mind:brave':'Brave', 'mind:bounce':'Brave', 'comm:clear':'Lead', 'comm:control':'Lead', 'comm:late':'Lead', 'comm:clash':'Lead' };
+  REVIEW_DIMS.filter(function(d){ return /^(pos|dec|exe)$/.test(d.k); }).forEach(function(d){ d.opts.forEach(function(o){ REV_ATTR[d.k + ':' + o[0]] = o[1]; }); });
+  var REV_BLUE = { 'dec:brave':'Brave', 'dec:edge':'Edge', 'dec:leader':'Lead', 'dec:team_player':'Unite', 'mind:brave':'Brave', 'mind:bounce':'Brave', 'comm:clear':'Lead', 'comm:control':'Lead', 'comm:late':'Lead', 'comm:clash':'Lead' };
   function trackerChelseaLines(track){
     var events = track.events || [], off = track.videoOffsetSec || 0;
     var attr = {}, blue = {};
@@ -3044,7 +3055,7 @@
       if(e.rev){ REVIEW_DIMS.forEach(function(d){
         var v = e.rev[d.k]; if(!v) return;
         var a = REV_ATTR[d.k + ':' + v] || REV_ATTR[d.k];
-        if(a && d.std) (attr[a] = attr[a] || []).push(vt(e));
+        if(a && (d.std || /^(pos|dec|exe)$/.test(d.k))) (attr[a] = attr[a] || []).push(vt(e));
         var b = REV_BLUE[d.k + ':' + v]; if(b) (blue[b] = blue[b] || []).push(vt(e));
       }); }
       if(/^bp_p_/.test(e.key)) (blue.Brave = blue.Brave || []).push(vt(e));
@@ -3065,7 +3076,35 @@
   // ---------- v69: grouped, single-answer detail (each question answered once) ----------
   var TK_START = ['Back-pass','Goal kick','Free kick / offside','After a save or catch','Opposition pass, she got there first','Other'];
   var TK_PRESS = [['P','Pressed'],['N','Not pressed']];
-  var TK_TO = ['Full-back','Centre-back','Midfielder','Forward'];
+  var TK_TO = ['Centre back','Full back','Pivot','Pocket','Winger','Front line'];
+  // Chelsea syllabus (GK Induction 26/27, slides 11 and 13). Names are Chelsea's.
+  var SYL_OUT = (function(){
+    var ca = ['Central areas', 'Angled areas'], r = [];
+    [['Dominate the Space', 'Through ball', ca], ['Dominate the Space', 'Ball in behind', ca],
+     ['Dominate the Area', 'Cross', ['Deep cross', 'Wide cross', 'Narrow cross', 'Cut-back cross']],
+     ['Dominate the Area', 'Set play', ['Deep free kick', 'Wide free kick', 'Narrow free kick', 'Corner', 'Long throw']],
+     ['Dominate the Goal', '1v1', ca], ['Dominate the Goal', 'Close range shot 0-12', ca], ['Dominate the Goal', 'Mid range shot 12-22', ca], ['Dominate the Goal', 'Long range shot 22+', ca],
+     ['Dominate the Goal', 'Set play', ['Direct free kick', 'Penalty']]].forEach(function(g){ g[2].forEach(function(x){ r.push(g[0] + ' · ' + g[1] + ' · ' + x); }); });
+    return r;
+  })();
+  var SYL_IN = (function(){
+    var r = [];
+    [['Play outside the opposition structure', 'Play around', ['Centre backs', 'Full backs']],
+     ['Play inside the opposition structure', 'Play through', ['Full backs', 'Pivots', 'Pockets', 'Front line']],
+     ['Play over the opposition structure', 'Play into', ['Full backs', 'Wingers', 'Pockets', 'Front line']],
+     ['Play over the opposition structure', 'Play onto', ['Full backs', 'Wingers', 'Pockets', 'Front line']],
+     ['Play over the opposition structure', 'Play in behind', ['Front line']]].forEach(function(g){ g[2].forEach(function(x){ r.push(g[0] + ' · ' + g[1] + ' · ' + x); }); });
+    return r;
+  })();
+  function evSylList(ev){
+    if(!ev) return [];
+    if(ev.key === 'goal') return SYL_OUT;
+    var a = trackerAreaOf(ev.key);
+    if(!a) return [];
+    if(a.key === 'out' || a.key === 'shot' || a.key === 'one' || a.key === 'space' || a.key === 'cross') return SYL_OUT;
+    if(a.key === 'in' || a.key === 'ifa2' || a.key === 'dist') return SYL_IN;
+    return [];
+  }
   var TK_LEN = ['Short','Medium','Long'];
   var TK_AROSE = ['Corner','Free kick','Penalty','Cross','Ball in behind','After a save (rebound)','Second ball, not cleared','After Lily\'s turnover','After a teammate\'s turnover','Dribble into the box','Long-range shot','Other'];
   var TK_SRC = ['Open play', 'Corner', 'Free kick', 'Cross', 'Close range', 'Long range', 'Rebound'];
@@ -3108,7 +3147,7 @@
     return out;
   }
   function evDetailText(ev){
-    var parts = [ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.led ? ({ start:'Started an attack', chance:'Created a chance', assist:'Assist' }[ev.led] || '') : '', ev.src, ev.what, ev.arose, ev.outside ? 'Outside the box' : '', ev.oppch === '1' ? 'Chance followed' : '', ev.goodSave === '1' ? 'Good save' : ''];
+    var parts = [ev.syl, ev.start, ev.press === 'P' ? 'Pressed' : (ev.press === 'N' ? 'Not pressed' : ''), ev.how ? 'tried ' + ev.how : '', ev.shape, ev.to ? 'to ' + ev.to : '', ev.len, ev.led ? ({ start:'Started an attack', chance:'Created a chance', assist:'Assist' }[ev.led] || '') : '', ev.src, ev.what, ev.arose, ev.outside ? 'Outside the box' : '', ev.oppch === '1' ? 'Chance followed' : '', ev.goodSave === '1' ? 'Good save' : ''];
     return parts.concat(ev.details || []).filter(Boolean).join(' · ');
   }
   // Plain counts for a match. No scoring.
@@ -3954,7 +3993,8 @@
       evDetailGroups(ev, true).concat(evExtraGroups(ev, true)).map(function(g){
         return '<div class="trk-detail"><span class="hint" style="margin:0; min-width:92px;">' + escapeHtml(g.label) + ':</span>' +
           g.opts.map(function(o){ return '<button type="button" class="trk-chip' + (String(ev[g.f]) === String(o[0]) ? ' on' : '') + '" data-tgrp="' + g.f + '" data-val="' + escapeHtml(o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
-      }).join('');
+      }).join('') +
+      (evSylList(ev).length ? '<div class="field" style="margin-top:8px;"><label>Chelsea syllabus (slides 11 and 13)</label><select id="tg-syl"><option value="">Not set</option>' + evSylList(ev).map(function(x){ return '<option value="' + escapeHtml(x) + '"' + (ev.syl === x ? ' selected' : '') + '>' + escapeHtml(x) + '</option>'; }).join('') + '</select></div>' : '');
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="tg-back">Done</button><div class="trk-title">Review this moment</div><span style="width:60px;"></span></div>' +
       '<div class="card"><div class="card-title" style="font-size:15px;">' + escapeHtml(ev.label) + (ev.detail ? ' · ' + escapeHtml(ev.detail) : '') + '</div>' +
@@ -3962,12 +4002,18 @@
       editBlock +
       '<div class="trk-detail" style="margin-top:12px;"><span class="hint" style="margin:0;">Tagging as:</span>' +
         '<button type="button" class="trk-chip' + (by === 'M' ? ' on' : '') + '" data-by="M">Martin</button><button type="button" class="trk-chip' + (by === 'L' ? ' on' : '') + '" data-by="L">Lily</button></div>' +
-      REVIEW_DIMS.map(function(d){
-        return '<div class="section-label" style="margin-top:14px;">' + escapeHtml(d.label) + (d.std ? ' <span class="card-meta" style="text-transform:none;">· ' + d.std + '</span>' : '') + '</div>' +
-          '<div class="trk-detail">' + d.opts.map(function(o){
-            return '<button type="button" class="trk-chip' + (R[d.k] === o[0] ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>';
-          }).join('') + '</div>';
-      }).join('') +
+      (function(){
+        function row(d){
+          return '<div class="section-label" style="margin-top:14px;">' + escapeHtml(d.label) + (d.std ? ' <span class="card-meta" style="text-transform:none;">· ' + d.std + '</span>' : (/^(pos|dec|exe)$/.test(d.k) ? ' <span class="card-meta" style="text-transform:none;">· Chelsea GK Profile, slide 10</span>' : '')) + '</div>' +
+            '<div class="trk-detail">' + d.opts.map(function(o){
+              return '<button type="button" class="trk-chip' + (R[d.k] === o[0] ? ' on' : '') + '" data-dim="' + d.k + '" data-val="' + o[0] + '">' + escapeHtml(o[1]) + '</button>';
+            }).join('') + '</div>';
+        }
+        var fresh = REVIEW_DIMS.filter(function(d){ return /^(pos|dec|exe)$/.test(d.k); });
+        var older = REVIEW_DIMS.filter(function(d){ return !/^(pos|dec|exe)$/.test(d.k); });
+        var hasOlder = older.some(function(d){ return R[d.k]; });
+        return fresh.map(row).join('') + '<details class="cfg-sec" style="margin-top:14px;"' + (hasOlder ? ' open' : '') + '><summary>Other tags (this app\'s own, from earlier)</summary>' + older.map(row).join('') + '</details>';
+      })() +
       '<div class="section-label" style="margin-top:14px;">IFA tag for this moment <span class="card-meta" style="text-transform:none;">· adds it to that IFA page' + (evOptIfa(ev) ? ' (already linked to ' + escapeHtml(evOptIfa(ev).toUpperCase().replace('IFA', 'IFA ')) + ' by what it is)' : '') + '</span></div>' +
       '<div class="trk-detail">' + IDP_IFAS.map(function(i){ return '<button type="button" class="trk-chip' + ((ev.ifas || []).indexOf(i.key) >= 0 ? ' on' : '') + '" data-ifatag="' + i.key + '">' + i.key.toUpperCase().replace('IFA', 'IFA ') + '</button>'; }).join('') + '</div>' +
       (by === 'L' ? '<div class="section-label" style="margin-top:14px;">My Hudl playlist <span class="card-meta" style="text-transform:none;">· Lily\'s own pick for the Dec playlist</span></div>' +
@@ -3985,6 +4031,11 @@
         ev.note = (ov.querySelector('#tg-note').value || '').trim();
         saveData(); renderTrackerTag(id, idx, fromLive);
       });
+    });
+    var sylSel = ov.querySelector('#tg-syl');
+    if(sylSel) sylSel.addEventListener('change', function(){
+      if(sylSel.value) ev.syl = sylSel.value; else delete ev.syl;
+      ev.detail = evDetailText(ev); ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); renderTrackerTag(id, idx, fromLive);
     });
     ov.querySelectorAll('[data-tgrp]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -4144,7 +4195,7 @@
       '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
       (trackerOverlayState.tidy ? '' : '<button type="button" class="btn btn-ghost" id="add-mom" style="margin-bottom:8px;">+ Add a moment I missed</button>') +
       (trackerOverlayState.tidy
-        ? '<div class="card" style="margin-bottom:8px;"><div class="hint" style="margin:0 0 8px;">Tap moments to tick them, then delete the ticked ones. Moments with a note, a coach question, a review tag or a clip pick are never ticked by the quick button.</div>' +
+        ? '<div class="card" style="margin-bottom:8px;"><div class="hint" style="margin:0 0 8px;">Tap moments to tick them, then delete the ticked ones. Moments with a note, a coach question, a review tag or a clip pick, and the IFA 2 distribution moments, are never ticked by the quick button.</div>' +
           '<div class="trk-detail"><button type="button" class="trk-chip" id="tidy-zero">Tick all with no points</button><button type="button" class="trk-chip" id="tidy-none">Untick all</button></div>' +
           '<button type="button" class="btn btn-ghost" id="tidy-del" style="margin-top:8px; color:var(--red); border-color:rgba(255,128,128,0.3);"' + ((trackerOverlayState.tidySel || []).length ? '' : ' disabled') + '>Delete ' + (trackerOverlayState.tidySel || []).length + ' ticked</button>' +
           '<button type="button" class="btn btn-ghost" id="tidy-cancel" style="margin-top:6px;">Finish tidying</button></div>'
@@ -4171,7 +4222,7 @@
       ev.forEach(function(e, i){
         if(ifaF && !evHasIfa(e, ifaF) && revIfaOf(e).indexOf(ifaF) < 0) return;
         var hasMeaning = e.note || e.ask || e.iapPick || e.answer || (e.rev && Object.keys(e.rev).length) || (e.revL && Object.keys(e.revL).length) || (e.ifas && e.ifas.length);
-        if(e.key !== 'goal' && trackerEvDelta(e) === 0 && !hasMeaning && sel.indexOf(i) < 0) sel.push(i);
+        if(e.key !== 'goal' && !/^in_(around|through|over)$/.test(e.key) && trackerEvDelta(e) === 0 && !hasMeaning && sel.indexOf(i) < 0) sel.push(i);
       });
       trackerOverlayState.tidySel = sel; tidyRedraw();
     });
@@ -5125,7 +5176,9 @@
   // do, and only then saves. Lily never has to log anything.
   function wrWeekChoices(){
     var thisW = mondayOf(new Date());
-    return [0, -1, -2].map(function(k){ var d = new Date(thisW); d.setDate(thisW.getDate() + k * 7); return d; });
+    var out = [], d = new Date(thisW), first = new Date('2026-07-27T00:00:00');
+    while(d >= first){ out.push(new Date(d)); d.setDate(d.getDate() - 7); }
+    return out;
   }
 
   function wrBuildPrompt(weekStartIso){
@@ -5152,6 +5205,7 @@
       '- OPTIONAL: if Lily scored herself on the 5 Standards (tactical, technical, psych, physical, social) in the chat, add them as "standards" (1 to 5). Only if she said them. Otherwise leave "standards" out.',
       '- OPTIONAL: "goalProgress" = what she said about her personal goals this week (short phrases). "iapTalkingPoints" = up to 3 things she said she wants to raise with the coaches at her IAP review. Leave out if not mentioned.',
       '- "ifas" are the Chelsea Focus Areas the session touched; "england" are the England goalkeeper characteristic ids it touched. Only include those that clearly fit.',
+      '- "attributeEvidence": whenever the transcript clearly shows one of the Chelsea GK Profile attributes, add { "attribute": one of ' + Object.keys(CHELSEA_ATTRS).reduce(function(a, k){ return a.concat(CHELSEA_ATTRS[k]); }, []).join(', ') + ', "quote": a short phrase taken from the transcript, "source": "Lily" if she said it, "Martin" if only Martin said or observed it }. Only when clearly said. Never write Martin\'s observations as Lily\'s words. If nothing clearly shows an attribute, use an empty list.',
       '- Reply with ONE JSON block only, no other text.',
       '',
       'THE WEEK: Monday ' + weekStartIso + ' to Sunday ' + toIsoDate(we),
@@ -5177,6 +5231,7 @@
       '  "standards": { "tactical": 4, "technical": 4, "psych": 3, "physical": 4, "social": 4 },',
       '  "goalProgress": ["short phrase"],',
       '  "iapTalkingPoints": ["short question or point"],',
+      '  "attributeEvidence": [ { "attribute": "Brave", "quote": "short phrase from the transcript", "source": "Lily" } ],',
       '  "sessions": [',
       '    { "date": "YYYY-MM-DD", "rating": null, "ratingEstimated": false,',
       '      "wentWell": ["short first-person phrase"], "workOn": "one thing to work on",',
@@ -5202,7 +5257,7 @@
     BRAVE:'make brave decisions, bounce back from mistakes, want the ball',
     EDGE:'take ownership, play to your strengths, keep striving for more'
   };
-  function wrQuestions(weekIso){
+  function wrQuestions(weekIso, mode){
     var we = new Date(weekIso + 'T00:00:00'); we.setDate(we.getDate() + 6);
     var weekEnd = toIsoDate(we);
     var syl = getSyllabusForWeek(weekIso);
@@ -5231,18 +5286,53 @@
       { t:'5 Standards (every few weeks)', q:'Score yourself out of 5 on each: Tactical, Technical, Psychological, Physical and Social. Why that number?' },
       { t:'Think like a No.1', q:'Pick one moment from this week. What would the best goalkeeper in the world have done there?' }
     ];
-    return { main:q, optional:opt };
+    // v79: questions built on the Chelsea GK Profile (slide 10). Same core every week so weeks can be compared.
+    var core = [
+      { t:'Position', a:'Intelligent · Connected · Influential', q:'Think of a moment this week where you were in the right place at the right time. Where were you, and what helped you get there?' },
+      { t:'Position · your voice', a:'Influential · Leader · Team Player', q:'Did you use your voice or your positioning to help a team-mate this week? What did you say or do?' },
+      { t:'Decision', a:'Brave · Controlled · Edge', q:'Tell me about a decision you made under pressure. What were your options, what did you choose, and how did it work out?' },
+      { t:'Decision · going for it', a:'Brave · Edge', q:'Was there a moment you could have played it safe but went for it? Or the other way round?' },
+      { t:'Decision · when it went against you', a:'Controlled · Committed', q:'When something went against you, what did you do next?' },
+      { t:'Execution', a:'Effective · Impactful · Consistent', q:'What did you do really well technically this week? A save, a catch, a pass or a kick. What made it work?' },
+      { t:'Execution · what to change', a:'Consistent', q:'Something that did not go to plan. What happened, and what would you change?' },
+      { t:'Execution · physical', a:'Quick · Reactive · Explosive · Strong · Robust · Presence', q:'How did your body feel this week: sharp, quick and strong, or tired? Was there a moment you felt explosive or strong?' },
+      { t:'On your own', a:'Independent · Coachable · Committed', q:'What did you do on your own this week without being told? What feedback did you act on?' }
+    ];
+    function byT(t){ return q.filter(function(x){ return x.t === t; })[0]; }
+    var matchQs = q.filter(function(x){ return /^Match/.test(x.t); }).map(function(x){ return { t:x.t, a:'Position · Decision · Execution', q:'Pick one moment from the game. Where were you, what did you choose, and how did you carry it out? Is there a moment worth putting on Hudl for your IAP playlist?' }; });
+    if(mode === 'quick'){
+      return { main:[
+        byT('Best moment'),
+        { t:'On your own', a:'Independent · Coachable · Committed', q:'What did you do on your own this week without being told?' },
+        byT('Next week')
+      ].filter(Boolean), optional:[] };
+    }
+    if(mode === 'martin'){
+      return { main:[
+        { t:'Position', a:'Intelligent · Connected · Influential', q:'Where did you see her in the right place this week, in training or a game? What helped her get there?' },
+        { t:'Decision', a:'Brave · Controlled · Edge', q:'A decision she made under pressure. What did she choose and how did it go?' },
+        { t:'Execution', a:'Effective · Impactful · Consistent', q:'Something she executed really well, and something that let her down.' },
+        { t:'Physical', a:'Quick · Reactive · Explosive · Strong · Robust · Presence', q:'How did she look physically this week: sharp, quick, strong, or tired in spells?' },
+        { t:'On her own', a:'Independent · Coachable · Committed', q:'What did she do without being told? What feedback did she act on?' }
+      ].concat(matchQs, [byT('Coach feedback')].filter(Boolean)), optional:[] };
+    }
+    var full = [];
+    q.forEach(function(x){ full.push(x); if(x.t === 'Best moment') core.forEach(function(c){ full.push(c); }); });
+    full = full.map(function(x){ return /^Match/.test(x.t) ? matchQs.filter(function(m){ return m.t === x.t; })[0] || x : x; });
+    return { main:full, optional:opt };
   }
 
-  function openWeeklyQuestions(weekIso){
-    var set = wrQuestions(weekIso);
+  function openWeeklyQuestions(weekIso, mode){
+    mode = mode || 'full';
+    var set = wrQuestions(weekIso, mode);
     var text = set.main.map(function(x, i){ return (i + 1) + '. ' + x.q; }).join('\n');
     openModal(
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Questions for Lily</h2><button class="modal-close" id="close-modal">×</button></div>' +
-      '<div class="hint" style="margin-bottom:10px;">Week of ' + escapeHtml(fmtDate(weekIso)) + '. About ten minutes. Ask them in this order, relaxed, and let her talk. They are built from this week\'s theme, the block behaviour, her focus areas and the coaches\' feedback.</div>' +
+      '<div class="trk-detail" style="margin-bottom:8px;"><button type="button" class="trk-chip' + (mode === 'full' ? ' on' : '') + '" data-wqm="full">Full</button><button type="button" class="trk-chip' + (mode === 'quick' ? ' on' : '') + '" data-wqm="quick">Quick (5 min, Lily)</button><button type="button" class="trk-chip' + (mode === 'martin' ? ' on' : '') + '" data-wqm="martin">Martin\'s view</button></div>' +
+      '<div class="hint" style="margin-bottom:10px;">Week of ' + escapeHtml(fmtDate(weekIso)) + '. ' + (mode === 'quick' ? 'Three questions, one at a time. She can skip any. Nothing about the score or goals.' : (mode === 'martin' ? 'Your own observations, same Position, Decision and Execution questions. They are recorded as Martin\'s view, not Lily\'s words.' : 'About fifteen minutes. Relaxed, and let her talk. The Position, Decision and Execution questions are the same every week so weeks can be compared.')) + '</div>' +
       set.main.map(function(x, i){
-        return '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 4px;">' + (i + 1) + ' · ' + escapeHtml(x.t) + '</div><div style="font-size:14.5px; line-height:1.5;">' + escapeHtml(x.q) + '</div></div>';
+        return '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 4px;">' + (i + 1) + ' · ' + escapeHtml(x.t) + '</div><div style="font-size:14.5px; line-height:1.5;">' + escapeHtml(x.q) + '</div>' + (x.a ? '<div class="card-meta" style="margin-top:4px;">Chelsea: ' + escapeHtml(x.a) + '</div>' : '') + '</div>';
       }).join('') +
       '<div class="section-label">Now and then</div>' +
       set.optional.map(function(x){
@@ -5254,6 +5344,7 @@
     );
     document.getElementById('close-modal').addEventListener('click', closeModal);
     document.getElementById('wq-back').addEventListener('click', openWeeklyReview);
+    document.querySelectorAll('[data-wqm]').forEach(function(b){ b.addEventListener('click', function(){ openWeeklyQuestions(weekIso, b.getAttribute('data-wqm')); }); });
     document.getElementById('wq-copy').addEventListener('click', function(){
       var note = document.getElementById('wq-copied');
       function fallback(){ note.style.display = 'block'; note.innerHTML = 'Select all of this and copy it:<textarea rows="6" style="width:100%; margin-top:6px;" readonly>' + escapeHtml(text) + '</textarea>'; }
@@ -5356,6 +5447,9 @@
     var skills = Array.isArray(nw.focusSkills) ? nw.focusSkills.map(String).filter(Boolean).slice(0, 6) : [];
     var focuses = (Array.isArray(nw.sessionFocus) ? nw.sessionFocus : []).filter(function(f){ return f && f.date && f.focus; });
     var summary = data.summary ? String(data.summary) : '';
+    var attrNames = Object.keys(CHELSEA_ATTRS).reduce(function(a, k){ return a.concat(CHELSEA_ATTRS[k]); }, []);
+    var attrEv = (Array.isArray(data.attributeEvidence) ? data.attributeEvidence : []).filter(function(x){ return x && attrNames.indexOf(x.attribute) >= 0 && x.quote; })
+      .map(function(x){ return { attribute:x.attribute, quote:ipSafe(String(x.quote)).slice(0, 240), source:(x.source === 'Martin' ? 'Martin' : 'Lily') }; }).filter(function(x){ return x.quote; });
     var wsRaw = parseInt(data.weekScore, 10);
     var weekScoreIn = (wsRaw >= 1 && wsRaw <= 5) ? wsRaw : null;
     var weekScoreEst = weekScoreIn !== null && !!data.weekScoreEstimated;
@@ -5391,6 +5485,7 @@
       '<div class="modal-handle"></div>' +
       '<div class="modal-header"><h2>Check the review</h2><button class="modal-close" id="close-modal">×</button></div>' +
       weekScoreHtml +
+      (attrEv.length ? '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 6px;">Chelsea attributes shown (from the chat)</div>' + attrEv.map(function(x){ return '<div class="eng-char"><b>' + escapeHtml(x.attribute) + '</b> · ' + escapeHtml(x.source) + ': ' + escapeHtml(x.quote) + '</div>'; }).join('') + '</div>' : '') +
       (summary ? '<div class="card" style="margin-top:8px;"><div class="section-label" style="margin:0 0 6px;">Week summary</div><div style="font-size:14px; line-height:1.5;">' + escapeHtml(summary) + '</div></div>' : '') +
       (rowsHtml ? '<div class="section-label">Sessions</div>' + rowsHtml : '<div class="hint">No sessions to add.</div>') +
       extraHtml +
@@ -5445,7 +5540,7 @@
         state.schedule.forEach(function(s){ if(s.date === f.date && (s.type === 'training' || s.type === 'match')){ s.focus = String(f.focus); } });
       });
       state.weeklyReviews = (state.weeklyReviews || []).filter(function(w){ return w.weekStart !== weekIso; });
-      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now(), weekScore: wsv, weekScoreEstimated: (wsv !== null && weekScoreEst && wsv === weekScoreIn), standards: hasStd ? stdIn : null, goalProgress: goalIn, iapTalkingPoints: talkIn });
+      state.weeklyReviews.push({ id: uid(), weekStart: weekIso, summary: summary, createdAt: Date.now(), weekScore: wsv, weekScoreEstimated: (wsv !== null && weekScoreEst && wsv === weekScoreIn), standards: hasStd ? stdIn : null, goalProgress: goalIn, iapTalkingPoints: talkIn, attrEvidence: attrEv });
       saveData();
       closeModal();
       switchView('today');
