@@ -1,4 +1,4 @@
-<!-- Lily GK Journal — v82 — 12 Nov 2026 -->
+<!-- Lily GK Journal — v84 — 12 Nov 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -734,15 +734,16 @@
     <div class="section-label">Season Overview</div>
     <div class="stat-grid" id="progress-stats"></div>
 
-    <div class="section-label">Weekly Temperature Check</div>
-    <div class="card" id="temp-gauge-wrap"></div>
-
     <div class="section-label">Week By Week</div>
     <div id="progress-week-list"></div>
 
     <div class="section-label">Linked To My Focus Areas</div>
-    <div class="hint" style="margin-bottom:0;">How many weeks touched each IFA so far. Tap one to see the evidence.</div>
+    <div class="hint" style="margin-bottom:0;">Weeks that touched each IFA, and match moments linked to it. Tap one to see the evidence.</div>
     <div id="progress-ifa-links"></div>
+
+    <div class="section-label">Chelsea GK Profile Attributes</div>
+    <div class="hint" style="margin-bottom:0;">Match moments tagged with each attribute (and weekly-review mentions). A filled chip has evidence, an empty one is still to find.</div>
+    <div id="progress-attrs"></div>
 
     <div class="section-label">My Story So Far</div>
     <div class="card">
@@ -831,8 +832,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v82';
+  var APP_VERSION = 'v84';
   var CHANGELOG = [
+    { version:'v84', notes:'Season overview simplified. Removed Weeks reviewed, Average week, Good or great weeks, Best week, Sessions and the Weekly temperature check. Overview now shows Matches, Clean sheets and Goals conceded. Linked to my focus areas now counts weeks and match moments for each IFA. New Chelsea GK Profile Attributes section: all 20 attributes with how many match moments (and weekly-review mentions) show each, empty ones are still to find, with links into the all-games review.' },
+    { version:'v83', notes:'Review across all games. New button on the Tracker page. Four views of every tagged moment from every finished game, newest first, each with game, time, video time, IFA, Position, Decision, Execution, attributes and note: by IFA, by attribute (and which attributes have no moment yet), by Position/Decision/Execution, and the picked Success and Learning clips. Tap a moment to edit it and come back to the same view. Counts and moments only, no scores.' },
     { version:'v82', notes:'Attributes are now multi-select, so one moment can show several. Each moment has an exact time in the game and on the video (mm:ss) that you can type, so it is easy to find again. The final match screen is calmer: the "What happened" counts, Review tags and Self-reflection cards are gone. In their place one card, Moments to talk about, lists the moments linked to each IFA with time, video time, Position, Decision, Execution and the attributes shown. Link, Hudl time and Chelsea game label are folded into Match details.' },
     { version:'v81', notes:'Review split in two. 1) Position, Decision, Execution (the slide 10 headings) as a quick self-review lens: Good, Partly or Not good for each. 2) Chelsea GK attribute shown: the 20 attribute words (Brave, Intelligent and so on) grouped as on the slide, pick the one that fits best. Attributes no longer sit under the three headings, because Chelsea does not say which corner they belong to.' },
     { version:'v80', notes:'Less noise on the review screen: the app\'s own earlier tag lists (Set, Decision, Comm and so on) are hidden unless that moment already has one of them set.' },
@@ -3619,7 +3622,7 @@
         '<span class="trk-pill" style="background:' + c.bg + '; color:' + c.fg + '; padding:4px 12px;"><b style="font-size:20px;">' + trackerFinalRating(t).toFixed(1) + '</b></span></div></div>';
     }).join('');
     el.innerHTML = '<div class="section-label" style="margin-top:6px;">Match Tracker</div><div class="card">' + top + '</div>' +
-      (done.length ? '<div class="section-label" style="margin-top:18px;">Finished matches</div>' + past : '') +
+      (done.length ? '<button type="button" class="btn btn-primary" id="trk-all-btn" style="margin-top:14px;">Review across all games</button><div class="section-label" style="margin-top:18px;">Finished matches</div>' + past : '') +
       '<button type="button" class="btn btn-ghost" id="trk-settings-btn" style="margin-top:18px;">Tracker settings (areas, options, points, IFA tags)</button>';
     wireTrackerCard();
   }
@@ -3627,6 +3630,7 @@
   function wireTrackerCard(){
     var startBtn = document.getElementById('trk-start-btn');
     if(startBtn) startBtn.addEventListener('click', startTrackerNow);
+    var allB = document.getElementById('trk-all-btn'); if(allB) allB.addEventListener('click', openAllReview);
     var setBtn = document.getElementById('trk-settings-btn');
     if(setBtn) setBtn.addEventListener('click', openTrackerSettings);
     var recapBtn = document.getElementById('trk-recap-btn');
@@ -4062,7 +4066,7 @@
       '<div class="field" style="margin-top:10px;"><label>Question or note (optional)</label><textarea id="tg-note" rows="2" placeholder="e.g. Who should take the ball here?">' + escapeHtml(ev.note || '') + '</textarea></div>' +
       '<button type="button" class="btn btn-primary" id="tg-done" style="margin-top:12px;">Done</button>' +
       '<button type="button" class="btn btn-ghost" id="tg-delete" style="margin-top:8px; color:var(--red);">Delete this moment</button>';
-    function finish(){ ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); openTrackerReview(id, fromLive); }
+    function finish(){ ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); if(trackerOverlayState.fromAll){ openAllReview(); } else openTrackerReview(id, fromLive); }
     ov.querySelectorAll('[data-dim]').forEach(function(b){
       b.addEventListener('click', function(){
         var k = b.getAttribute('data-dim'), v = b.getAttribute('data-val');
@@ -4099,7 +4103,7 @@
     var delBtn = ov.querySelector('#tg-delete');
     if(delBtn) delBtn.addEventListener('click', function(){
       if(!confirm('Delete this moment from the match? This cannot be undone.')) return;
-      track.events.splice(idx, 1); saveData(); openTrackerReview(id, fromLive);
+      track.events.splice(idx, 1); saveData(); if(trackerOverlayState.fromAll){ openAllReview(); } else openTrackerReview(id, fromLive);
     });
     ov.querySelectorAll('[data-ifatag]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -4161,7 +4165,58 @@
       renderTrackerTag(id, pos, fromLive);
     });
   }
+  // v83: review across every finished game.
+  var allRevView = 'ifa';
+  function openAllReview(){
+    var ov = trackerOverlayEl(); trackerOverlayState.fromAll = true;
+    var PDE = { good:'Good', part:'Partly', poor:'Not good' };
+    var items = [];
+    (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).forEach(function(t){
+      (t.events || []).forEach(function(e, i){ items.push({ t:t, e:e, i:i, sk:(t.date || '') + String(100000 + (e.t || 0)) }); });
+    });
+    var tagged = items.filter(function(x){ var r = x.e.rev || {}; return r.pos || r.dec || r.exe || rvArr(r.attr).length || evIfaList(x.e).length || x.e.iapPick || x.e.note; });
+    function row(x){
+      var e = x.e, r = e.rev || {}, off = x.t.videoOffsetSec || 0;
+      var pde = [['pos','Position'],['dec','Decision'],['exe','Execution']].filter(function(k){ return r[k[0]]; }).map(function(k){ return k[1] + ' ' + PDE[r[k[0]]].toLowerCase(); }).join(' · ');
+      var at = rvArr(r.attr).map(function(v){ return revLabel('attr', v); }).filter(Boolean).join(', ');
+      var ifa = evIfaList(e).concat(revIfaOf(e).filter(function(k){ return evIfaList(e).indexOf(k) < 0; })).map(function(k){ return k.toUpperCase().replace('IFA', 'IFA '); }).join(', ');
+      return '<div class="eng-char" style="cursor:pointer;" data-all="' + x.t.id + '|' + x.i + '"><b>' + (x.t.opponent ? escapeHtml(x.t.opponent) : 'Match') + '</b> <span class="card-meta">' + escapeHtml(fmtDate(x.t.date)) + '</span> · ' + fmtClock(e.t) + ' <span style="color:var(--cyan);">▶ ' + fmtClock(off + e.t) + (off ? '' : ' *') + '</span>' + (e.iapPick ? (e.iapPick === 'S' ? ' ⭐' : ' 📘') : '') +
+        '<br>' + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') +
+        (ifa ? '<br><span class="card-meta">' + ifa + '</span>' : '') + (pde ? '<br><span class="card-meta">' + escapeHtml(pde) + '</span>' : '') + (at ? '<br><span class="card-meta">Shows: ' + escapeHtml(at) + '</span>' : '') +
+        (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</div>';
+    }
+    function sorted(l){ return l.slice().sort(function(a, b){ return a.sk < b.sk ? 1 : -1; }); }
+    function group(title, l){ return l.length ? '<div class="section-label" style="margin:14px 0 2px;">' + escapeHtml(title) + ' <span class="card-meta" style="text-transform:none;">· ' + l.length + '</span></div>' + sorted(l).map(row).join('') : ''; }
+    var body = '';
+    if(allRevView === 'ifa'){
+      IDP_IFAS.forEach(function(ifa){ body += group(ifa.title, tagged.filter(function(x){ return evHasIfa(x.e, ifa.key) || revIfaOf(x.e).indexOf(ifa.key) >= 0; })); });
+      body += group('Not linked to an IFA', tagged.filter(function(x){ return !evIfaList(x.e).length && !revIfaOf(x.e).length; }));
+    } else if(allRevView === 'attr'){
+      var dim = REVIEW_DIMS.find(function(d){ return d.k === 'attr'; });
+      ['Tactical','Technical','Psychological','Social','Physical'].forEach(function(g){
+        dim.opts.filter(function(o){ return o[2] === g; }).forEach(function(o){ body += group(o[1] + ' (' + g + ')', tagged.filter(function(x){ return rvArr((x.e.rev || {}).attr).indexOf(o[0]) >= 0; })); });
+      });
+      var none = ['Tactical','Technical','Psychological','Social','Physical'].map(function(g){ return dim.opts.filter(function(o){ return o[2] === g && !tagged.some(function(x){ return rvArr((x.e.rev || {}).attr).indexOf(o[0]) >= 0; }); }).map(function(o){ return o[1]; }); }).reduce(function(a, b){ return a.concat(b); }, []);
+      body += none.length ? '<div class="hint" style="margin-top:14px;">No moment yet for: ' + escapeHtml(none.join(', ')) + '</div>' : '';
+    } else if(allRevView === 'pde'){
+      [['pos','Position'],['dec','Decision'],['exe','Execution']].forEach(function(k){
+        ['good','part','poor'].forEach(function(v){ body += group(k[1] + ' · ' + PDE[v], tagged.filter(function(x){ return (x.e.rev || {})[k[0]] === v; })); });
+      });
+    } else {
+      body += group('⭐ Success clips', tagged.filter(function(x){ return x.e.iapPick === 'S'; })) + group('📘 Learning clips', tagged.filter(function(x){ return x.e.iapPick === 'L'; }));
+      if(!body) body = '<div class="hint">No clips picked yet. Open a moment and choose Success or Learning clip.</div>';
+    }
+    var games = (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).length;
+    var chips = [['ifa','By IFA'],['attr','By attribute'],['pde','Position, Decision, Execution'],['clips','Clips']].map(function(c){ return '<button type="button" class="trk-chip' + (allRevView === c[0] ? ' on' : '') + '" data-av="' + c[0] + '">' + c[1] + '</button>'; }).join('');
+    ov.innerHTML = '<div class="trk-top"><button type="button" class="trk-mini" id="av-close">Close</button><div class="trk-title">All games</div><span style="width:60px;"></span></div>' +
+      '<div class="hint" style="margin:0 0 8px;">' + games + ' games · ' + tagged.length + ' moments with a tag, IFA, note or clip. Newest first. Tap a moment to edit it. * = video time not set for that game.</div>' +
+      '<div class="trk-detail">' + chips + '</div>' + (body || '<div class="hint" style="margin-top:12px;">Nothing here yet.</div>');
+    ov.querySelector('#av-close').addEventListener('click', function(){ trackerOverlayState.fromAll = false; closeTrackerOverlay(); });
+    ov.querySelectorAll('[data-av]').forEach(function(b){ b.addEventListener('click', function(){ allRevView = b.getAttribute('data-av'); openAllReview(); }); });
+    ov.querySelectorAll('[data-all]').forEach(function(r){ r.addEventListener('click', function(){ var p = r.getAttribute('data-all').split('|'); renderTrackerTag(p[0], parseInt(p[1], 10), false); }); });
+  }
   function openTrackerReview(id, fromLive){
+    trackerOverlayState.fromAll = false;
     var track = findTrack(id);
     if(!track){ closeTrackerOverlay(); return; }
     var ov = trackerOverlayEl();
@@ -6348,22 +6403,38 @@
     var conceded = goals.reduce(function(a, g){ return a + g; }, 0);
     function card(n, l){ return '<div class="stat-card"><div class="stat-num">' + n + '</div><div class="stat-label">' + l + '</div></div>'; }
     statsEl.innerHTML =
-      card(scored.length, 'Weeks Reviewed') +
-      card(avgWeek + (scored.length ? '<span style="font-size:0.5em;">/5</span>' : ''), 'Average Week') +
-      card(good + ' / ' + scored.length, 'Good Or Great Weeks') +
-      card(best ? '<span style="font-size:0.6em;">' + escapeHtml(fmtDate(best.weekStart)) + '</span>' : '—', 'Best Week') +
-      card(sessions, 'Sessions') +
       card(matches, 'Matches') +
       card(clean, 'Clean Sheets') +
       card(conceded, 'Goals Conceded');
-    renderWeekTemp(weeks);
     renderWeekList(weeks);
     renderProgressIfaLinks();
+    renderProgressAttrs();
   }
 
   // Progress-tab view of the same Focus Area linkage shown on Standards — so the
   // "how is she actually doing against what Chelsea want" question can be answered
   // from the stats screen itself, with a tap-through to the actual evidence.
+  function matchIfaMoments(key){
+    var n = 0;
+    (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).forEach(function(t){ (t.events || []).forEach(function(e){ if(evHasIfa(e, key) || revIfaOf(e).indexOf(key) >= 0) n++; }); });
+    return n;
+  }
+  function renderProgressAttrs(){
+    var wrap = document.getElementById('progress-attrs'); if(!wrap) return;
+    var dim = REVIEW_DIMS.find(function(d){ return d.k === 'attr'; });
+    var mc = {}, wc = {};
+    (state.matchTracks || []).filter(function(t){ return t.status === 'done'; }).forEach(function(t){ (t.events || []).forEach(function(e){ rvArr((e.rev || {}).attr).forEach(function(v){ mc[v] = (mc[v] || 0) + 1; }); }); });
+    (state.weeklyReviews || []).forEach(function(w){ (w.attrEvidence || []).forEach(function(x){ var o = dim.opts.find(function(q){ return q[1] === x.attribute; }); if(o) wc[o[0]] = (wc[o[0]] || 0) + 1; }); });
+    wrap.innerHTML = ['Tactical','Technical','Psychological','Social','Physical'].map(function(g){
+      return '<div class="card-meta" style="margin:10px 0 2px;">' + g + '</div><div class="trk-detail">' + dim.opts.filter(function(o){ return o[2] === g; }).map(function(o){
+        var m = mc[o[0]] || 0, w = wc[o[0]] || 0;
+        return '<span class="trk-chip' + (m + w ? ' on' : '') + '" style="cursor:default;">' + escapeHtml(o[1]) + ' · ' + m + (w ? ' + ' + w + ' wk' : '') + '</span>';
+      }).join('') + '</div>';
+    }).join('') + '<button type="button" class="btn btn-ghost" id="progress-attr-open" style="margin-top:10px;">See the match moments by attribute</button>' +
+      '<button type="button" class="btn btn-ghost" id="progress-ifa-open" style="margin-top:6px;">See the match moments by focus area</button>';
+    document.getElementById('progress-attr-open').addEventListener('click', function(){ allRevView = 'attr'; openAllReview(); });
+    document.getElementById('progress-ifa-open').addEventListener('click', function(){ allRevView = 'ifa'; openAllReview(); });
+  }
   function renderProgressIfaLinks(){
     var wrap = document.getElementById('progress-ifa-links');
     if(!wrap) return;
@@ -6371,9 +6442,10 @@
       var wkSeen = {};
       state.reflections.forEach(function(r){ if(r.date && getLinkedIfas(r).indexOf(ifa.key) > -1) wkSeen[weekOf(r.date)] = true; });
       var count = Object.keys(wkSeen).length;
+      var mm = matchIfaMoments(ifa.key);
       return '<div class="card pressable" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;" data-progress-ifa="' + ifa.key + '">' +
         '<div style="font-family:\'Oswald\',sans-serif; font-weight:600; font-size:13.5px; color:var(--text);">' + escapeHtml(ifa.title.replace(/^IFA \d — /, '')) + '</div>' +
-        '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;"><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--lime);">' + count + '</span><span style="font-size:11px; color:var(--text-faint);">linked →</span></div>' +
+        '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;"><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--lime);">' + count + '</span><span style="font-size:11px; color:var(--text-faint);">weeks</span><span style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:18px; color:var(--cyan); margin-left:8px;">' + mm + '</span><span style="font-size:11px; color:var(--text-faint);">match moments →</span></div>' +
       '</div>';
     }).join('');
     wrap.querySelectorAll('[data-progress-ifa]').forEach(function(card){
