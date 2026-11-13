@@ -723,10 +723,10 @@
 
   <!-- JOURNAL VIEW -->
   <div class="gk-view hidden" id="view-journal">
-    <div class="section-label">Block Journal</div>
-    <div class="hint" style="margin-bottom:8px;">One card for each Chelsea block. The match evidence fills in by itself. Answer the four questions at the end of a block, or whenever you like. Nothing here is marked or scored.</div>
+    <div class="section-label">Journal</div>
+    <div class="hint" style="margin-bottom:8px;">Built automatically, block by block, from the weekly reviews, what Lily wrote before and the match moments. Nothing to fill in.</div>
     <div id="journal-list"></div>
-    <button class="btn btn-primary" id="weekly-summary-btn" style="margin-top:14px; display:none;">Weekly Summary (PDF)</button>
+    <button class="btn btn-primary" id="weekly-summary-btn" style="margin-top:14px;">Weekly Summary (PDF)</button>
     <button class="btn btn-ghost" id="backup-btn" style="margin-top:10px;">Backup / Restore Records</button>
   </div>
 
@@ -830,8 +830,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v92';
+  var APP_VERSION = 'v93';
   var CHANGELOG = [
+    { version:'v93', notes:'Journal corrected: no questions for Lily. The Journal is now built automatically, block by block (Unite, Lead, Brave, Edge), from the weekly reviews Martin adds from the catch-up transcripts, what Lily wrote before, and the match moments. Each week card also shows the match moments reviewed that week. The answer boxes and the block reflections in the briefing are removed. Weekly Summary is back.' },
     { version:'v92', notes:'The Journal tab is now a Block Journal. One card per Chelsea block (Block 1 Unite, Block 2 Lead, Block 3 Brave, Block 4 Edge) with the match evidence for that block\'s theme filled in automatically and four short questions for Lily to answer when she is ready. The weekly reflections list and Weekly Summary are no longer shown (nothing is deleted). Block reflections appear in the IAP briefing.' },
     { version:'v91', notes:'My Story so far is rebuilt on match evidence: a start-to-finish list of the games, with each tagged moment (Went Well, Learning, IFA, Position/Decision/Execution, attributes, Oct 2 targets), instead of the old journal-entry story.' },
     { version:'v90', notes:'Xmas cards now use match evidence (games, tagged moments, best Went Well moment per IFA). New Oct 2 staff feedback tags on each moment, with a progress card and best example clip in the IAP briefing. Recorded-footage reviews are treated as verified Hudl times (no asterisk); a Hudl offset check lists only live pitch-side matches. Score lock freezes a finished match score and its tags. The briefing PDF section is fitted to one page.' },
@@ -2062,7 +2063,6 @@
       '<div class="field" style="margin-top:8px;"><select id="ip-fb-type"><option value="praised">Praised</option><option value="workOn">Work on</option><option value="note">Note</option></select>' +
       '<input type="text" id="ip-fb-text" placeholder="Add something a coach said" style="margin-top:6px;"></div>' +
       '<button type="button" class="btn btn-ghost" id="ip-fb-add">Add coach feedback</button>' +
-      (ipBlockReflections().length ? '<div class="section-label">My block reflections</div>' + ipBlockReflections().map(function(b){ return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(b.title) + '</div>' + b.items.map(function(i){ return '<div class="ip-moment"><b>' + escapeHtml(i.q) + '</b><br>' + escapeHtml(i.a) + '</div>'; }).join('') + '</div>'; }).join('') : '') +
       '<div class="section-label">Questions I want to ask Josh, Seb and Kiera</div>' +
       [0, 1, 2].map(function(i){ return '<div class="field"><input type="text" class="ip-q" data-i="' + i + '" value="' + escapeHtml(dq[i] || '') + '" placeholder="' + escapeHtml(ph[i] || 'My question') + '"></div>'; }).join('') +
       '</div>';
@@ -2198,8 +2198,6 @@
     if(ipFeedbackBy('praised').length) para('Praised: ' + ipFeedbackLine('praised'), { indent:2 });
     if(ipFeedbackBy('workOn').length) para('Work on: ' + ipFeedbackLine('workOn'), { indent:2 });
     ipFeedbackBy('note').slice(0, 2).forEach(function(f){ para(ipSafe(f.text), { indent:2, color:[90, 100, 120] }); });
-    var bjr = ipBlockReflections();
-    if(bjr.length){ y += 2; head('Lily\'s block reflections'); bjr.forEach(function(b){ b.items.slice(0, 2).forEach(function(i){ para(b.title + ' - ' + i.q + ' ' + truncate(i.a, 150), { indent:2, size:8.5, lh:4 }); }); }); }
     y += 2; head('Questions Lily wants to ask Josh, Seb and Kiera');
     var dq = (state.iapDiscussionPoints || []).filter(function(p){ return p && p.trim(); });
     if(!dq.length) para('Not filled in yet.', { color:[140, 140, 150] });
@@ -6256,60 +6254,53 @@
   var BLOCK_ATTR = { UNITE:'team_player', LEAD:'leader', BRAVE:'brave', EDGE:'edge' };
   var BLOCK_WORD = { UNITE:'Unite', LEAD:'Lead', BRAVE:'Brave', EDGE:'Edge' };
   var BLOCK_DEF = { LEAD:'Lead: communicate, take control, inspire others.', BRAVE:'Brave: mental and moral strength to deal with danger, fear or adversity.', EDGE:'Edge: winning behaviours and a relentless desire to be the best.', UNITE:'' };
-  var BLOCK_QS = [
-    { k:'proud', q:'What am I proudest of in this block?' },
-    { k:'hard',  q:'What was hardest, and what did I do about it?' },
-    { k:'theme', q:null },
-    { k:'next',  q:'What will I take into the next block?' }
-  ];
   function blockKey(b){ return b.name.toLowerCase().replace(/\s+/g, ''); }
   function blockEvidence(b){
     var attr = BLOCK_ATTR[b.theme], games = ipTracks().filter(function(m){ return m.date && m.date >= b.from && m.date <= b.to; });
-    var themed = [], ww = 0, rev = 0;
+    var themed = 0, ww = 0, rev = 0;
     games.forEach(function(m){ (m.t.events || []).forEach(function(e){
       if(momentTagged(e)) rev++;
       if(momScore(e) >= 1) ww++;
-      if(rvArr((e.rev || {}).attr).indexOf(attr) >= 0) themed.push(momRef(m, e));
+      if(rvArr((e.rev || {}).attr).indexOf(attr) >= 0) themed++;
     }); });
-    themed.sort(function(a, c){ return c.score - a.score || (a.date < c.date ? 1 : -1); });
     return { games:games.length, rev:rev, ww:ww, themed:themed };
+  }
+  function weekMatchEvidence(w){
+    var rev = 0, ww = 0, best = null;
+    ipTracks().filter(function(m){ return m.date && weekOf(m.date) === w.weekStart; }).forEach(function(m){ (m.t.events || []).forEach(function(e){
+      if(momentTagged(e)) rev++;
+      var sc = momScore(e); if(sc >= 1){ ww++; if(!best || sc > best.score) best = momRef(m, e); }
+    }); });
+    if(!rev && !ww) return '';
+    return '<div class="eng-char"><b>Match moments:</b> ' + rev + ' reviewed, ' + ww + ' went well' + (best ? ' · best: ' + momLine(best) + ' ' + escapeHtml(best.label) : '') + '</div>';
   }
   function renderJournal(){
     var list = document.getElementById('journal-list'), today = todayIso();
-    state.blockJournal = state.blockJournal || {};
-    list.innerHTML = BLUE_BLOCKS.map(function(b){
-      var key = blockKey(b), bj = state.blockJournal[key] || {}, status = today > b.to ? 'done' : (today >= b.from ? 'now' : 'soon');
-      var word = BLOCK_WORD[b.theme], ev = blockEvidence(b);
-      var head = escapeHtml(b.name + ' · ' + word) + ' <span class="card-meta">· ' + escapeHtml(fmtDate(b.from) + ' to ' + fmtDate(b.to)) + ' · ' + (status === 'now' ? 'this block' : status === 'done' ? 'finished' : 'coming up') + '</span>';
-      var body;
-      if(status === 'soon'){
-        body = '<div class="hint" style="margin-top:8px;">Opens on ' + escapeHtml(fmtDate(b.from)) + '. The theme is ' + escapeHtml(word) + '.' + (BLOCK_DEF[b.theme] ? ' ' + escapeHtml(BLOCK_DEF[b.theme]) : '') + '</div>';
-      } else {
-        body = '<div class="hint" style="margin:8px 0 6px;">' + (BLOCK_DEF[b.theme] ? escapeHtml(BLOCK_DEF[b.theme]) + ' ' : '') + 'Match evidence for this block: ' + ev.games + ' game' + (ev.games === 1 ? '' : 's') + ', ' + ev.rev + ' reviewed moment' + (ev.rev === 1 ? '' : 's') + ', ' + ev.ww + ' went well.</div>' +
-          '<div class="journal-detail-row"><div class="k">Moments showing ' + escapeHtml(word) + '</div><div class="v">' + ev.themed.length + '</div></div>' +
-          ev.themed.slice(0, 3).map(function(r){ return '<div class="eng-char" style="margin:4px 0;">▶ ' + momLine(r) + ' · ' + escapeHtml(r.label) + '</div>'; }).join('') +
-          BLOCK_QS.map(function(x){
-            var q = x.q || ('How did I show ' + word + ' in this block?');
-            return '<div class="field" style="margin-top:10px;"><label>' + escapeHtml(q) + '</label><textarea rows="2" class="bj-in" data-bj="' + key + '" data-k="' + x.k + '">' + escapeHtml(bj[x.k] || '') + '</textarea></div>';
-          }).join('');
-      }
-      return '<details class="cfg-sec" style="margin-top:10px;"' + (status === 'now' ? ' open' : '') + '><summary>' + head + '</summary>' + body + '</details>';
-    }).join('');
-    list.querySelectorAll('.bj-in').forEach(function(t){
-      t.addEventListener('input', function(){
-        var k = t.getAttribute('data-bj'); state.blockJournal[k] = state.blockJournal[k] || {};
-        state.blockJournal[k][t.getAttribute('data-k')] = t.value; state.blockJournal[k].updated = todayIso(); saveData();
-      });
+    var weeks = buildWeeks().filter(function(w){ return w.refs.length || w.review || w.tracks.length || w.photos.length; }).reverse();
+    if(!weeks.length){
+      list.innerHTML = '<div class="empty-state"><span class="disp">Nothing yet</span>Weeks appear here from the weekly reviews and the match moments.</div>';
+      return;
+    }
+    function addDays(iso, n){ var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return toIsoDate(d); }
+    var groups = BLUE_BLOCKS.filter(function(b){ return b.from <= today; }).slice().reverse().map(function(b){ return { b:b, weeks:[] }; });
+    var other = { b:null, weeks:[] };
+    weeks.forEach(function(w){
+      var g = groups.find(function(x){ return w.weekStart <= x.b.to && addDays(w.weekStart, 6) >= x.b.from; });
+      (g || other).weeks.push(w);
     });
-  }
-  function ipBlockReflections(){
-    var out = [];
-    BLUE_BLOCKS.forEach(function(b){
-      var bj = (state.blockJournal || {})[blockKey(b)] || {};
-      var items = BLOCK_QS.map(function(x){ var a = ipSafe(bj[x.k] || '').trim(); return a ? { q:x.q || ('How did I show ' + BLOCK_WORD[b.theme] + '?'), a:a } : null; }).filter(Boolean);
-      if(items.length) out.push({ title:b.name + ' · ' + BLOCK_WORD[b.theme], items:items });
+    var html = '';
+    groups.forEach(function(g){
+      var b = g.b, ev = blockEvidence(b), word = BLOCK_WORD[b.theme];
+      html += '<div class="section-label" style="margin-top:18px;">' + escapeHtml(b.name + ' · ' + word) + '</div>' +
+        '<div class="hint" style="margin:0 0 4px;">' + escapeHtml(fmtDate(b.from) + ' to ' + fmtDate(b.to)) + (today > b.to ? ' · finished' : ' · this block') + (BLOCK_DEF[b.theme] ? ' · ' + escapeHtml(BLOCK_DEF[b.theme]) : '') + '</div>' +
+        '<div class="hint" style="margin:0;">Matches: ' + ev.games + ' game' + (ev.games === 1 ? '' : 's') + ', ' + ev.rev + ' reviewed moments, ' + ev.ww + ' went well, ' + ev.themed + ' showing ' + escapeHtml(word) + '.</div>' +
+        (g.weeks.length ? g.weeks.map(weekCardHtml).join('') : '<div class="hint" style="margin-top:8px;">No weeks recorded in this block yet.</div>');
     });
-    return out;
+    if(other.weeks.length) html += '<div class="section-label" style="margin-top:18px;">Before the blocks and between them</div>' + other.weeks.map(weekCardHtml).join('');
+    list.innerHTML = html;
+    list.querySelectorAll('[data-week]').forEach(function(c){
+      c.addEventListener('click', function(){ openWeekDetail(c.getAttribute('data-week')); });
+    });
   }
   function renderJournalOld(){
     var list = document.getElementById('journal-list');
@@ -6538,7 +6529,7 @@
       (w.summary ? '<div class="card-focus">' + escapeHtml(truncate(w.summary, 160)) + '</div>' : '') +
       (went.length ? '<div class="eng-char"><b>Went well:</b> ' + escapeHtml(went.join(' · ')) + '</div>' : '') +
       (work.length ? '<div class="eng-char"><b>Work on:</b> ' + escapeHtml(work.join(' · ')) + '</div>' : '') +
-      w.matchList.slice(0, 2).map(function(m){ return '<div class="eng-char"><b>Match:</b> ' + escapeHtml(weekMatchLine(m)) + '</div>'; }).join('') +
+      w.matchList.slice(0, 2).map(function(m){ return '<div class="eng-char"><b>Match:</b> ' + escapeHtml(weekMatchLine(m)) + '</div>'; }).join('') + weekMatchEvidence(w) +
       (w.ifas.length ? '<div style="margin-top:6px;">' + w.ifas.map(function(k){ return '<span class="theme-chip">' + escapeHtml(k.toUpperCase().replace('IFA', 'IFA ')) + '</span>'; }).join(' ') + '</div>' : '') +
       (w.photos.length ? '<div style="display:flex; gap:6px; margin-top:8px; align-items:center;">' + w.photos.slice(0, 4).map(function(x){ return '<img src="' + x.photo + '" alt="" style="width:44px; height:44px; object-fit:cover; border-radius:6px;">'; }).join('') + '<span class="card-meta">' + w.photos.length + (w.photos.length === 1 ? ' photo' : ' photos') + '</span></div>' : '') +
       '</div>';
