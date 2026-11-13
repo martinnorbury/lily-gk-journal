@@ -830,8 +830,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v94';
+  var APP_VERSION = 'v96';
   var CHANGELOG = [
+    { version:'v96', notes:'Block dates: Chelsea does not publish fixed start and end dates for the 2026/27 blocks (Induction slide 22: Pre-season, Block 1 and Block 2 to December; Blocks 3 to 5 to May; blocks run about six weeks and are flexible). The Journal now uses two start dates you can change at the bottom of the Journal tab. Defaults follow the six-week syllabus cycles: Block 1 from 7 Sep, Block 2 from 19 Oct. Nothing else uses these dates.' },
+    { version:'v95', notes:'Aligned to the 2026/27 GK structure. Blocks are Pre-season / Summer, Block 1 and Block 2 (current); Blocks 3 to 5 are left open. No block is tied to Unite, Lead, Brave or Edge: those four are shown as qualities across every block (Edge = ownership actions). Xmas cards are now three: first-half numbers (with minutes played), match evidence on the 20 attributes with the 2 Oct feedback, and Jan to May goals. Each finished match has a Locked / Verified toggle at the top of its review and a badge in the list. The weekly review prompt asks about the four qualities every week.' },
     { version:'v94', notes:'Journal is now results by block, not by week. Each block (Unite, Lead, Brave, Edge, plus the summer before Block 1) is one card holding everything in its dates: matches, training notes, weekly reviews, the 3 IFAs, attributes shown and the match moments. No week cards, so no missing weeks.' },
     { version:'v93', notes:'Journal corrected: no questions for Lily. The Journal is now built automatically, block by block (Unite, Lead, Brave, Edge), from the weekly reviews Martin adds from the catch-up transcripts, what Lily wrote before, and the match moments. Each week card also shows the match moments reviewed that week. The answer boxes and the block reflections in the briefing are removed. Weekly Summary is back.' },
     { version:'v92', notes:'The Journal tab is now a Block Journal. One card per Chelsea block (Block 1 Unite, Block 2 Lead, Block 3 Brave, Block 4 Edge) with the match evidence for that block\'s theme filled in automatically and four short questions for Lily to answer when she is ready. The weekly reflections list and Weekly Summary are no longer shown (nothing is deleted). Block reflections appear in the IAP briefing.' },
@@ -1115,12 +1117,19 @@
     { weekStart:'2026-12-14', projected:true, primaryTheme:'Dominate the Space', secondaryTheme:'Dominate the Goal', focusSkills:['Sweeper-keeper positioning','Intercepting through-balls','Deceleration strides'] }
   ];
   // Chelsea's block themes (Ops & Tech Induction): each block lines up with one BLUE behaviour.
-  var BLUE_BLOCKS = [
-    { name:'Block 1', theme:'UNITE', from:'2026-09-01', to:'2026-10-26' },
-    { name:'Block 2', theme:'LEAD',  from:'2026-11-03', to:'2026-12-20' },
-    { name:'Block 3', theme:'BRAVE', from:'2027-01-02', to:'2027-02-15' },
-    { name:'Block 4', theme:'EDGE',  from:'2027-02-23', to:'2027-04-06' }
-  ];
+  // v95: 2026/27 GK structure (Induction slide 22). Blocks are not tied to a BLUE behaviour; the start dates only decide
+  // which block a game or note falls into. Blocks 3 to 5 are left open until the dates are confirmed.
+  // Chelsea publishes no fixed dates for the blocks (about six weeks each, flexible). These defaults follow the
+  // six-week syllabus cycles; Martin can change the two start dates in the Journal tab (state.blockDates).
+  var BLOCK_DEFAULTS = { b1:'2026-09-07', b2:'2026-10-19' };
+  function seasonBlocks(){
+    var bd = state.blockDates || {};
+    return [
+      { name:'Pre-season / Summer', from:IP_FROM, note:'Tour, baseline and setup' },
+      { name:'Block 1', from:bd.b1 || BLOCK_DEFAULTS.b1, note:'Early season, building connections' },
+      { name:'Block 2', from:bd.b2 || BLOCK_DEFAULTS.b2, note:'Current block, to the 14 Dec Hudl deadline and 15 Dec IAP review' }
+    ];
+  }
 
   function getIdpState(){
     if(!state.idp){
@@ -1545,6 +1554,8 @@
     var sess = m.t.sessionId ? state.schedule.find(function(x){ return x.id === m.t.sessionId; }) : null;
     return { opp:m.opp, date:m.date, clock:fmtClock((m.t.videoOffsetSec || 0) + (e.t || 0)) + trkStar(m.t), label:e.label, link:(sess && sess.hudlLink) || '', tags:momentTagLine(e), score:momScore(e) };
   }
+  function ipMinutes(t){ return t.recap ? Math.round(t.recapMin || 0) : Math.round(trackerElapsed(t) / 60); }
+  function ipTotalMinutes(){ return ipTracks().reduce(function(a, m){ return a + ipMinutes(m.t); }, 0); }
   function ipOctStats(){
     var out = OCT_TARGETS.map(function(t){ return { key:t.key, title:t.title, count:0, games:0, best:null }; });
     ipTracks().forEach(function(m){
@@ -1996,6 +2007,7 @@
     }).join('');
     var card1 = '<div class="card ip-card"><div class="ip-card-t">Card 1 · My first-half numbers (from my matches)</div>' +
       '<div class="journal-detail-row"><div class="k">Games logged</div><div class="v">' + tracks.length + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Minutes played</div><div class="v">' + (ipTotalMinutes() || '—') + '</div></div>' +
       '<div class="journal-detail-row"><div class="k">Profile balance</div><div class="v">' + bal.total + ' tagged moments · Position ' + bal.pos + ' · Decision ' + bal.dec + ' · Execution ' + bal.exe + '</div></div>' +
       '<div class="section-label" style="margin-top:8px;">Chelsea standards: match moments against my own ratings</div>' + stdRows2 +
       '<div class="hint" style="margin-top:8px;">Match moments are counts of moments tagged with a Chelsea attribute in each Standard. The ratings are my own 1 to 5 scores, with my August starting point in brackets. Counts and ratings are different things, so they sit side by side rather than being compared.</div></div>';
@@ -2005,7 +2017,7 @@
         '<div class="ip-moment">▶ ' + momLine(w.best) + ' — ' + escapeHtml(w.best.label) + '</div>' + (w.best.tags ? '<div class="card-meta">' + escapeHtml(w.best.tags) + '</div>' : '') :
         '<div class="hint">No Went Well moment tagged to this IFA yet.</div>') + '</div>';
     }).join('') + '</div>';
-    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 3 · My 3 IFAs and Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ev.map(function(e){
+    var card2 = '<div class="card ip-card"><div class="ip-card-t">My 3 IFAs and Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ev.map(function(e){
       var q = e.quotes.length ? e.quotes.map(function(x){ return '<div class="ip-quote">“' + escapeHtml(x.text) + '”<span> ' + escapeHtml(fmtDate(x.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes linked yet.</div>';
       var m = e.moments.map(function(x){ return '<div class="ip-moment">▶ ' + escapeHtml(ipMatchLabel(x.date, x.opp)) + ' — ' + escapeHtml(x.label) + '</div>'; }).join('');
       return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + '</div>' + q + m + '</div>';
@@ -2017,7 +2029,7 @@
       (ipFeedbackBy('praised').length ? '<div class="ip-ifa"><div class="ip-ifa-t">What the coaches praised</div><div class="ip-moment">' + escapeHtml(ipFeedbackLine('praised')) + '</div></div>' : '') +
       '</div>';
     var tg = ipPrepState().targets, sugg = ipSuggestedTargets(), goals = ipGoalNotes();
-    var card3 = '<div class="card ip-card"><div class="ip-card-t">Card 4 · My IFAs for January to May 2027</div><div class="hint" style="margin-bottom:8px;">Chelsea asks for adjustments to my 3 IFAs or new ones for the second half of the season.</div>' +
+    var card3 = '<div class="card ip-card"><div class="ip-card-t">Card 3 · My goals for January to May 2027</div><div class="hint" style="margin-bottom:8px;">Chelsea asks for adjustments to my 3 IFAs or new ones for the second half of the season.</div>' +
       [0, 1, 2].map(function(i){
         return '<div class="field"><label>IFA ' + (i + 1) + ' for Jan to May</label><input type="text" class="ip-target" data-i="' + i + '" value="' + escapeHtml(tg[i].target) + '" placeholder="Keep, adjust or a new focus area">' +
           '<input type="text" class="ip-adjust" data-i="' + i + '" value="' + escapeHtml(tg[i].adjust) + '" placeholder="What I will change to get there" style="margin-top:6px;"></div>';
@@ -2026,7 +2038,12 @@
       (ipFeedbackBy('workOn').length ? '<div class="hint" style="margin:10px 0 4px;">The coaches asked me to work on: ' + escapeHtml(ipFeedbackLine('workOn')) + '</div>' : '') +
       (goals.length ? '<div class="hint" style="margin:10px 0 4px;">Goal notes from my catch-ups:</div>' + goals.map(function(g){ return '<div class="ip-moment">' + escapeHtml(g) + '</div>'; }).join('') : '') +
       '</div>';
-    return card1 + cardM + card2 + card3;
+    var attrs20 = ipAttrEvidence();
+    var attrBlock = '<div class="section-label" style="margin-top:12px;">The 20 Chelsea attributes: moments from my matches</div>' + ['Tactical','Technical','Psychological','Social','Physical'].map(function(g){
+      return '<div class="journal-detail-row"><div class="k">' + g + '</div><div class="v">' + attrs20.filter(function(a){ return a.group === g; }).map(function(a){ return escapeHtml(a.label) + ' ' + a.list.length; }).join(' · ') + '</div></div>';
+    }).join('');
+    var card2m = card2.replace(/^<div class="card ip-card"><div class="ip-card-t">[^<]*<\/div>/, '<div class="section-label" style="margin-top:12px;">My 3 IFAs and the Oct 2 feedback</div>');
+    return card1 + cardM.slice(0, -6) + attrBlock + card2m + card3;
   }
 
   function ipBriefHtml(){
@@ -2037,7 +2054,7 @@
     var growth = (gr.first && gr.later) ? 'Average week score ' + gr.first + ' (to Oct) to ' + gr.later + ' (Nov onwards).' :
       (gr.first || gr.later) ? 'Average week score ' + (gr.first || gr.later) + ' so far.' : (ipTracks().length + ' games reviewed in the tracker. Weekly scores have not restarted yet, so the evidence below comes from matches.');
     return '<div class="card ip-card"><div class="ip-card-t">Lily Norbury — U15 Block 2 IAP Review Briefing (15 Dec 2026)</div>' +
-      '<div class="hint">Tue 15 Dec 2026 · 18:50–19:10 · with Kiera, Josh and Seb · Block 2 theme: LEAD</div>' +
+      '<div class="hint">Tue 15 Dec 2026 · 18:50–19:10 · with Kiera, Josh and Seb · Block 2</div>' +
       '<div class="section-label">Mid-season progress</div><div class="ip-quote" style="margin-top:0;">' + escapeHtml(growth) + '</div>' +
       ev.map(function(e){
         var q = e.quotes[0] ? '“' + e.quotes[0].text + '”' : 'No notes linked yet.';
@@ -2131,6 +2148,7 @@
     head('Card 1 - My first-half numbers (from my matches)');
     var balP = ipProfileBalance(), gcP = ipGroupCounts();
     line('Games logged', String(ipTracks().length));
+    line('Minutes played', String(ipTotalMinutes() || '-'));
     line('Profile balance', balP.total + ' tagged: Position ' + balP.pos + ', Decision ' + balP.dec + ', Execution ' + balP.exe);
     ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], gcP[k] + ' match moments; my ratings ' + (st[k] ? st[k].avg + '/5' : '-') + ' (Aug ' + AUG_BASELINE[k].toFixed(1) + ')'); });
     para('Match moments are counts of moments tagged with a Chelsea attribute. Ratings are my own 1 to 5 scores; Aug is my starting point.', { size:8, color:[110, 120, 140], lh:3.8 });
@@ -2140,8 +2158,11 @@
       para(w.ifa.title, { bold:true, color:[30, 55, 100] });
       para(w.best ? (w.best.opp ? 'vs ' + w.best.opp + ', ' : '') + (w.best.date ? fmtDate(w.best.date) + ', ' : '') + w.best.clock + ' - ' + w.best.label + (w.best.tags ? ' (' + w.best.tags + ')' : '') : 'No Went Well moment tagged to this IFA yet.', { indent:3, color:w.best ? [3, 70, 148] : [140, 140, 150] });
     });
-    y += 3;
-    head('Card 3 - My 3 IFAs and ' + IP_OCT_LABEL);
+    para('The 20 Chelsea attributes (moments from my matches)', { bold:true, color:[30, 55, 100] });
+    var ae20 = ipAttrEvidence();
+    ['Tactical','Technical','Psychological','Social','Physical'].forEach(function(g){ para(g + ': ' + ae20.filter(function(a){ return a.group === g; }).map(function(a){ return a.label + ' ' + a.list.length; }).join(', '), { indent:3, size:8.5, lh:4 }); });
+    y += 2;
+    para('My 3 IFAs and ' + IP_OCT_LABEL, { bold:true, color:[3, 70, 148] });
     ev.forEach(function(e){
       para(e.ifa.title, { bold:true, color:[30, 55, 100] });
       if(!e.quotes.length && !e.moments.length) para('Nothing linked yet.', { indent:3, color:[140, 140, 150] });
@@ -2158,7 +2179,7 @@
     y += 1.5;
     if(ipFeedbackBy('praised').length){ para('What the coaches praised: ' + ipFeedbackLine('praised'), { bold:true, color:[30, 55, 100] }); }
     y += 2;
-    head('Card 4 - My IFAs for January to May 2027: adjusted or new');
+    head('Card 3 - My goals for January to May 2027: adjusted or new');
     var anyT = false;
     tg.forEach(function(t, i){
       if(!t.target && !t.adjust) return; anyT = true;
@@ -2171,7 +2192,7 @@
     // 3 · Joint briefing (one page): drawn on a scratch page first and shrunk until it fits
     var gr = ipGrowth(), dna = ipDna(), idp = getIdpState();
     function drawBrief(){
-    band('Lily Norbury - U15 Block 2 IAP Review Briefing (15 Dec 2026)', '18:50-19:10 · with Kiera, Josh and Seb · Block 2 theme: LEAD');
+    band('Lily Norbury - U15 Block 2 IAP Review Briefing (15 Dec 2026)', '18:50-19:10 · with Kiera, Josh and Seb · Block 2');
     head('Mid-season progress');
     para((gr.first && gr.later) ? 'Average week score ' + gr.first + ' (to Oct) to ' + gr.later + ' (Nov onwards).' : (gr.first || gr.later) ? 'Average week score ' + (gr.first || gr.later) + ' so far.' : (ipTracks().length + ' games reviewed in the tracker. Weekly scores have not restarted yet, so the evidence below comes from matches.'));
     y += 1;
@@ -3790,7 +3811,7 @@
       return '<div class="card pressable" style="margin-top:8px;" data-trk-review-id="' + t.id + '">' +
         '<div class="card-top"><div><div class="card-title" style="font-size:14px;">' + (t.opponent ? 'vs ' + escapeHtml(t.opponent) : 'Match') + '</div>' +
         '<div class="card-meta">' + fmtDate(t.date) + (trackerPlayedText(t) ? ' · ' + trackerPlayedText(t) : '') + ' · ' + escapeHtml(trackerLinkText(t)) + '</div></div>' +
-        '<span class="trk-pill" style="background:' + c.bg + '; color:' + c.fg + '; padding:4px 12px;"><b style="font-size:20px;">' + trackerFinalRating(t).toFixed(1) + '</b></span></div></div>';
+        '<span class="trk-pill" style="background:' + c.bg + '; color:' + c.fg + '; padding:4px 12px;"><b style="font-size:20px;">' + trackerFinalRating(t).toFixed(1) + '</b></span></div>' + (t.scoreLock ? '<div class="card-meta" style="margin-top:4px;">🔒 Locked / Verified</div>' : '') + '</div>';
     }).join('');
     el.innerHTML = '<div class="section-label" style="margin-top:6px;">Match Tracker</div><div class="card">' + top + '</div>' +
       (done.length ? '<button type="button" class="btn btn-primary" id="trk-all-btn" style="margin-top:14px;">Review across all games</button><div class="section-label" style="margin-top:18px;">Finished matches</div>' + past : '') +
@@ -4487,6 +4508,7 @@
         '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
       '</details>' +
       '<div class="section-label">Moment by moment <span class="card-meta" style="text-transform:none;">· tap a moment to review it on the video</span></div>' +
+      (track.status === 'done' ? '<button type="button" class="btn ' + (track.scoreLock ? 'btn-primary' : 'btn-ghost') + '" id="trk-lock-top" style="margin-bottom:8px;">' + (track.scoreLock ? '🔒 Locked / Verified: tap to unlock' : '🔓 Not locked: tap to lock this match as verified') + '</button>' : '') +
       (trackerOverlayState.tidy ? '' : '<button type="button" class="btn btn-ghost" id="add-mom" style="margin-bottom:8px;">+ Add a moment I missed</button>') +
       (trackerOverlayState.tidy
         ? '<div class="card" style="margin-bottom:8px;"><div class="hint" style="margin:0 0 8px;">Tap moments to tick them, then delete the ticked ones. Moments with a note, a coach question, a review tag or a clip pick, and the IFA 2 distribution moments, are never ticked by the quick button.</div>' +
@@ -4563,12 +4585,11 @@
         openTrackerReview(id, fromLive);
       });
     });
-    var lk = q('#trk-lock');
-    if(lk) lk.addEventListener('click', function(){
+    [q('#trk-lock'), q('#trk-lock-top')].filter(Boolean).forEach(function(lk){ lk.addEventListener('click', function(){
       if(track.scoreLock){ if(!confirm('Unlock this score? It will follow the current settings again.')) return; trackerUnlock(track); }
-      else trackerLock(track);
+      else { trackerLock(track); track.offsetOk = true; }
       saveData(); openTrackerReview(id, fromLive);
-    });
+    }); });
     var off = q('#trk-offset');
     off.addEventListener('change', function(){
       track.videoOffsetSec = parseClock(off.value); track.offsetOk = true;
@@ -5566,7 +5587,6 @@
     var we = new Date(weekIso + 'T00:00:00'); we.setDate(we.getDate() + 6);
     var weekEnd = toIsoDate(we);
     var syl = getSyllabusForWeek(weekIso);
-    var blk = null; BLUE_BLOCKS.forEach(function(b){ if(weekIso >= b.from && weekIso <= b.to) blk = b; });
     var matches = state.schedule.filter(function(x){ return x.type === 'match' && x.date >= weekIso && x.date <= weekEnd; });
     var fb = ipFeedbackBy('workOn');
     var wkNo = Math.max(0, Math.floor((new Date(weekIso + 'T00:00:00') - new Date('2026-07-27T00:00:00')) / 604800000));
@@ -5579,7 +5599,7 @@
     } else if(syl){
       q.push({ t:'Free week', q:'This was a free week for your own focus. Which of your three focus areas did you work on, and how?' });
     }
-    if(blk) q.push({ t:'Block behaviour', q:'This block is ' + blk.theme + ': ' + WR_BLOCK_DEF[blk.theme] + '. What did you do this week that showed it? What could you do next week?' });
+    q.push({ t:'BLUE qualities', q:'Which of Brave, Lead, Unite or Edge showed up this week, and where? (Brave: ' + WR_BLOCK_DEF.BRAVE + '. Lead: ' + WR_BLOCK_DEF.LEAD + '. Unite: ' + WR_BLOCK_DEF.UNITE + '. Edge: ' + WR_BLOCK_DEF.EDGE + '.)' });
     q.push({ t:'Your focus areas', q:'Communication, distribution, crosses. Which of your three focus areas came up most this week? What happened, and what did you try?' });
     if(pick) q.push({ t:'Coach feedback', q:'The coaches asked you to work on: "' + ipSafe(pick.text) + '". Did you notice it this week? What did you try?' });
     matches.forEach(function(m){
@@ -6252,47 +6272,58 @@
 
   // ---------- Render: Journal ----------
   // ---------- v92: Block Journal ----------
-  var BLOCK_ATTR = { UNITE:'team_player', LEAD:'leader', BRAVE:'brave', EDGE:'edge' };
-  var BLOCK_WORD = { UNITE:'Unite', LEAD:'Lead', BRAVE:'Brave', EDGE:'Edge' };
-  var BLOCK_DEF = { LEAD:'Lead: communicate, take control, inspire others.', BRAVE:'Brave: mental and moral strength to deal with danger, fear or adversity.', EDGE:'Edge: winning behaviours and a relentless desire to be the best.', UNITE:'' };
-  function blockKey(b){ return b.name.toLowerCase().replace(/\s+/g, ''); }
+  var BLUE_DEF = { BRAVE:'Brave: mental and moral strength to deal with danger, fear or adversity.', LEAD:'Lead: communicate, take control, inspire others.', UNITE:'Unite: be a good team-mate and support the GK group.', EDGE:'Edge: winning behaviours and a relentless desire to be the best.' };
   function blockGroups(){
-    var today = todayIso(), out = [{ name:'Summer before Block 1', theme:null, from:IP_FROM, to:'2026-08-31' }];
-    BLUE_BLOCKS.forEach(function(b, i){
-      var nx = BLUE_BLOCKS[i + 1], end = b.to;
+    var today = todayIso(), out = [];
+    var SB = seasonBlocks();
+    SB.forEach(function(b, i){
+      var nx = SB[i + 1], end = '2099-12-31';
       if(nx){ var d = new Date(nx.from + 'T00:00:00'); d.setDate(d.getDate() - 1); end = toIsoDate(d); }
-      out.push({ name:b.name, theme:b.theme, from:b.from, to:end, blockEnd:b.to });
+      out.push({ name:b.name, note:b.note, from:b.from, to:end, open:!nx });
     });
     return out.filter(function(g){ return g.from <= today; });
   }
-  function blockEvidence(g){
-    var attr = g.theme ? BLOCK_ATTR[g.theme] : null, games = ipTracks().filter(function(m){ return m.date && m.date >= g.from && m.date <= g.to; });
-    var themed = 0, ww = 0, rev = 0, attrs = {};
-    games.forEach(function(m){ (m.t.events || []).forEach(function(e){
-      if(momentTagged(e)) rev++;
-      if(momScore(e) >= 1) ww++;
-      rvArr((e.rev || {}).attr).forEach(function(k){ attrs[k] = (attrs[k] || 0) + 1; if(k === attr) themed++; });
-    }); });
-    return { games:games, rev:rev, ww:ww, themed:themed, attrs:attrs };
+  function blockEvidence(g, refs, reviews){
+    var games = ipTracks().filter(function(m){ return m.date && m.date >= g.from && m.date <= g.to; });
+    var ww = 0, rev = 0, attrs = {}, q = { brave:0, lead:0, unite:0, picks:0 };
+    function tagN(events, dim, val){ return revCount(events, dim, val); }
+    games.forEach(function(m){
+      var evs = m.t.events || [];
+      evs.forEach(function(e){
+        if(momentTagged(e)) rev++;
+        if(momScore(e) >= 1) ww++;
+        var at = rvArr((e.rev || {}).attr);
+        at.forEach(function(k){ attrs[k] = (attrs[k] || 0) + 1; });
+        if(e.key === 'brave' || e.key === 'bounce' || at.indexOf('brave') >= 0) q.brave++;
+        if(e.key === 'call' || at.indexOf('leader') >= 0) q.lead++;
+        if(at.indexOf('team_player') >= 0) q.unite++;
+        if(e.iapPick) q.picks++;
+      });
+      q.brave += tagN(evs, 'mind', 'brave') + tagN(evs, 'mind', 'bounce');
+      q.lead += tagN(evs, 'comm', 'clear') + tagN(evs, 'comm', 'control');
+    });
+    var steps = (refs || []).filter(function(r){ return ipSafe(r.action) || ipSafe(r.evenBetterIf); }).length;
+    q.edge = steps + q.picks + (reviews || []).length; q.steps = steps; q.reviews = (reviews || []).length;
+    return { games:games, rev:rev, ww:ww, attrs:attrs, q:q };
   }
   function renderJournal(){
     var list = document.getElementById('journal-list'), today = todayIso();
     var groups = blockGroups().slice().reverse();
     function inRange(d, g){ return d && d >= g.from && d <= g.to; }
     list.innerHTML = groups.map(function(g, gi){
-      var ev = blockEvidence(g), word = g.theme ? BLOCK_WORD[g.theme] : '';
       var refs = (state.reflections || []).filter(function(r){ return r.type !== 'gym' && inRange(r.date, g); }).sort(function(a, b){ return a.date < b.date ? -1 : 1; });
       var trainRefs = refs.filter(function(r){ return r.type === 'training'; });
       var reviews = (state.weeklyReviews || []).filter(function(w){ return w.weekStart && w.weekStart <= g.to && w.weekStart >= weekOf(g.from); }).sort(function(a, b){ return a.weekStart < b.weekStart ? -1 : 1; });
-      var cs = 0, gc = 0;
-      ev.games.forEach(function(m){ var n = trackerGoalsConceded(m.t); gc += n; if(!n) cs++; });
+      var ev = blockEvidence(g, refs, reviews);
+      var cs = 0, gc = 0, mins = 0;
+      ev.games.forEach(function(m){ var n = trackerGoalsConceded(m.t); gc += n; if(!n) cs++; mins += ipMinutes(m.t); });
       var glance = [
-        [ev.games.length, 'Matches'], [cs, 'Clean sheets'], [gc, 'Goals conceded'], [trainRefs.length, 'Training notes'], [reviews.length, 'Weekly reviews'], [ev.rev, 'Moments reviewed'], [ev.ww, 'Went well']
+        [ev.games.length, 'Matches'], [mins ? mins : '—', 'Minutes played'], [cs, 'Clean sheets'], [gc, 'Goals conceded'], [trainRefs.length, 'Training notes'], [reviews.length, 'Weekly reviews'], [ev.rev, 'Moments reviewed'], [ev.ww, 'Went well']
       ].map(function(x){ return '<div class="journal-detail-row"><div class="k">' + x[1] + '</div><div class="v">' + x[0] + '</div></div>'; }).join('');
       var matchesH = ev.games.slice().sort(function(a, b){ return a.date < b.date ? 1 : -1; }).map(function(m){
         var evs = m.t.events || [], r = evs.filter(function(e){ return momentTagged(e); }).length, w = evs.filter(function(e){ return momScore(e) >= 1; }).length;
         var best = null; evs.forEach(function(e){ var sc = momScore(e); if(sc >= 1 && (!best || sc > best.score)) best = momRef(m, e); });
-        return '<div class="eng-char" style="margin:6px 0;"><b>' + escapeHtml(m.opp || 'Match') + '</b> <span class="card-meta">' + escapeHtml(m.date ? fmtDate(m.date) : '') + ' · conceded ' + trackerGoalsConceded(m.t) + ' · rating ' + trackerFinalRating(m.t).toFixed(1) + ' · ' + r + ' reviewed, ' + w + ' went well</span>' + (best ? '<br><span class="card-meta">Best: ▶ ' + escapeHtml(best.clock) + ' ' + escapeHtml(best.label) + (best.tags ? ' · ' + escapeHtml(best.tags) : '') + '</span>' : '') + '</div>';
+        return '<div class="eng-char" style="margin:6px 0;"><b>' + escapeHtml(m.opp || 'Match') + '</b> <span class="card-meta">' + escapeHtml(m.date ? fmtDate(m.date) : '') + ' · ' + (ipMinutes(m.t) ? ipMinutes(m.t) + ' min · ' : '') + 'conceded ' + trackerGoalsConceded(m.t) + ' · rating ' + trackerFinalRating(m.t).toFixed(1) + (m.t.scoreLock ? ' 🔒' : '') + ' · ' + r + ' reviewed, ' + w + ' went well</span>' + (best ? '<br><span class="card-meta">Best: ▶ ' + escapeHtml(best.clock) + ' ' + escapeHtml(best.label) + (best.tags ? ' · ' + escapeHtml(best.tags) : '') + '</span>' : '') + '</div>';
       }).join('') || '<div class="hint">No games in this block yet.</div>';
       var trainH = refs.map(function(r){
         var bits = [r.wentWell, r.evenBetterIf, r.action].filter(Boolean).map(function(t){ return truncate(String(t), 140); });
@@ -6309,15 +6340,23 @@
       }).join('');
       var attrDim = REVIEW_DIMS.find(function(d){ return d.k === 'attr'; });
       var attrH = attrDim.opts.filter(function(o){ return ev.attrs[o[0]]; }).sort(function(a, b){ return ev.attrs[b[0]] - ev.attrs[a[0]]; }).map(function(o){ return o[1] + ' ' + ev.attrs[o[0]]; }).join(' · ') || 'None tagged yet.';
-      var open = gi === 0 ? ' open' : '';
+      var q = ev.q;
+      var blueH = [['Brave', q.brave + ' brave or bounce-back moments', BLUE_DEF.BRAVE], ['Lead', q.lead + ' good calls or Leader moments', BLUE_DEF.LEAD], ['Unite', q.unite + ' Team Player moments', BLUE_DEF.UNITE], ['Edge', q.edge + ' ownership actions: ' + q.steps + ' next steps named, ' + q.picks + ' clips picked, ' + q.reviews + ' reviews done', BLUE_DEF.EDGE]].map(function(x){
+        return '<div class="journal-detail-row"><div class="k">' + x[0] + '</div><div class="v">' + escapeHtml(x[1]) + '</div></div>';
+      }).join('') + '<div class="hint" style="margin-top:6px;">BLUE qualities run through every block. They are counted, not scored. Edge is Lily\'s ownership actions.</div>';
       function sec(t, b){ return '<details class="cfg-sec" style="margin-top:8px;"><summary>' + t + '</summary>' + b + '</details>'; }
-      var title = g.theme ? escapeHtml(g.name + ' · ' + word) : escapeHtml(g.name);
-      var sub = escapeHtml(fmtDate(g.from) + ' to ' + fmtDate(g.blockEnd || g.to)) + (g.theme && today <= g.to && today >= g.from ? ' · this block' : ' · finished') + (g.theme && BLOCK_DEF[g.theme] ? ' · ' + escapeHtml(BLOCK_DEF[g.theme]) : '');
-      return '<details class="card cfg-sec" style="margin-top:12px;"' + open + '><summary><b>' + title + '</b> <span class="card-meta">· ' + ev.games.length + ' match' + (ev.games.length === 1 ? '' : 'es') + ', ' + ev.ww + ' went well</span></summary>' +
+      var sub = escapeHtml(fmtDate(g.from) + (g.open ? ' onwards' : ' to ' + fmtDate(g.to))) + (g.open ? ' · current block' : ' · finished') + (g.note ? ' · ' + escapeHtml(g.note) : '');
+      return '<details class="card cfg-sec" style="margin-top:12px;"' + (gi === 0 ? ' open' : '') + '><summary><b>' + escapeHtml(g.name) + '</b> <span class="card-meta">· ' + ev.games.length + ' match' + (ev.games.length === 1 ? '' : 'es') + ', ' + ev.ww + ' went well</span></summary>' +
         '<div class="hint" style="margin:8px 0;">' + sub + '</div>' + glance +
-        (g.theme ? '<div class="journal-detail-row"><div class="k">Moments showing ' + escapeHtml(word) + '</div><div class="v">' + ev.themed + '</div></div>' : '') +
-        sec('Matches', matchesH) + sec('Training and notes from Lily', trainH) + sec('Weekly reviews', revH) + sec('My 3 IFAs in this block', ifaH) + sec('Chelsea attributes shown', '<div class="eng-char">' + escapeHtml(attrH) + '</div>') + '</details>';
-    }).join('');
+        sec('BLUE qualities in this block', blueH) + sec('Matches', matchesH) + sec('Training and notes from Lily', trainH) + sec('Weekly reviews', revH) + sec('My 3 IFAs in this block', ifaH) + sec('Chelsea attributes shown', '<div class="eng-char">' + escapeHtml(attrH) + '</div>') + '</details>';
+    }).join('') + '<div class="hint" style="margin-top:12px;">Chelsea does not publish fixed dates for the blocks (about six weeks each, flexible). Blocks 3, 4 and 5 (December to May) will appear when they start.</div>' +
+      '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">When each block started</div><div class="hint" style="margin:0 0 6px;">Only used to sort games and notes into blocks. Change a date if the club tells you.</div>' +
+      '<div class="field"><label>Block 1 started</label><input type="date" id="bd-b1" value="' + (((state.blockDates || {}).b1) || BLOCK_DEFAULTS.b1) + '"></div>' +
+      '<div class="field"><label>Block 2 started</label><input type="date" id="bd-b2" value="' + (((state.blockDates || {}).b2) || BLOCK_DEFAULTS.b2) + '"></div></div>';
+    ['b1', 'b2'].forEach(function(k){
+      var inp = document.getElementById('bd-' + k);
+      if(inp) inp.addEventListener('change', function(){ if(!inp.value) return; state.blockDates = state.blockDates || {}; state.blockDates[k] = inp.value; saveData(); renderJournal(); });
+    });
   }
   function renderJournalOld(){
     var list = document.getElementById('journal-list');
