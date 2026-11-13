@@ -829,8 +829,9 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v89';
+  var APP_VERSION = 'v90';
   var CHANGELOG = [
+    { version:'v90', notes:'Xmas cards now use match evidence (games, tagged moments, best Went Well moment per IFA). New Oct 2 staff feedback tags on each moment, with a progress card and best example clip in the IAP briefing. Recorded-footage reviews are treated as verified Hudl times (no asterisk); a Hudl offset check lists only live pitch-side matches. Score lock freezes a finished match score and its tags. The briefing PDF section is fitted to one page.' },
     { version:'v89', notes:'IAP briefing and PDF: where there are no weekly scores, the Mid-season progress line now says how many games have been reviewed and that the evidence comes from matches, instead of "not enough scored weeks".' },
     { version:'v88', notes:'IAP and Xmas prep. Clips (Hudl clips and My clips) now show each moment\'s IFA, Position, Decision, Execution and attributes. The 12-clip suggestion slightly favours moments you have tagged. IFA pages and the briefing use the same IFA line as the rest of the app and show attributes per IFA. New Chelsea GK profile section in the briefing and the PDF: each attribute with its count and example clips, and which have no moment yet. Hudl tab now says where the coaches\' work-on list comes from (the 2 Oct meeting feedback saved in the app) and lists all of it. "Lily\'s pick" wording is now just "pick".' },
     { version:'v87', notes:'Same IFA line everywhere. Progress and the Standards focus-area cards now both read, for example, "6 reflections in 3 weeks · 5 match moments in 2 games" (reflections and weeks are training notes, match moments come from the tracker). The IFA pages, evidence page and IAP briefing use the same helper and the same set of reflections (from 1 July).' },
@@ -1519,13 +1520,80 @@
   }
   function momentTagged(e){ var r = (e && e.rev) || {}; return !!(r.pos || r.dec || r.exe || rvArr(r.attr).length); }
   // Chelsea attribute evidence across games: attribute -> list of moments.
+
+  // v90: video time is exact for recorded-footage reviews; only live pitch-side matches need an offset.
+  function trkStar(t){ return (t.liveClock && !t.offsetOk && !t.videoOffsetSec) ? ' *' : ''; }
+  var OCT_TARGETS = [
+    { key:'set',   title:'1 · Set stance height' },
+    { key:'alive', title:'2 · Anticipation vs reaction (alive earlier)' },
+    { key:'cross', title:'3 · Crossing patience' },
+    { key:'mind',  title:'4 · Shot-stopping first and resilience' }
+  ];
+  function momScore(e){
+    var r = e.rev || {}, n = 0;
+    if(e.iapPick === 'S') n += 3; if(e.iapPick === 'L') n -= 3;
+    ['pos','dec','exe'].forEach(function(k){ if(r[k] === 'good') n += 1; if(r[k] === 'poor') n -= 1; });
+    if((e.delta || 0) > 0) n += 1;
+    return n;
+  }
+  function momRef(m, e){
+    var sess = m.t.sessionId ? state.schedule.find(function(x){ return x.id === m.t.sessionId; }) : null;
+    return { opp:m.opp, date:m.date, clock:fmtClock((m.t.videoOffsetSec || 0) + (e.t || 0)) + trkStar(m.t), label:e.label, link:(sess && sess.hudlLink) || '', tags:momentTagLine(e), score:momScore(e) };
+  }
+  function ipOctStats(){
+    var out = OCT_TARGETS.map(function(t){ return { key:t.key, title:t.title, count:0, games:0, best:null }; });
+    ipTracks().forEach(function(m){
+      var seen = {};
+      (m.t.events || []).forEach(function(e){
+        (Array.isArray(e.oct) ? e.oct : []).forEach(function(k){
+          var o = out.find(function(x){ return x.key === k; }); if(!o) return;
+          o.count++; seen[k] = 1;
+          var ref = momRef(m, e);
+          if(!o.best || ref.score > o.best.score || (ref.score === o.best.score && ref.date > o.best.date)) o.best = ref;
+        });
+      });
+      Object.keys(seen).forEach(function(k){ out.find(function(x){ return x.key === k; }).games++; });
+    });
+    return out;
+  }
+  function ipWentWell(){
+    var out = [];
+    IDP_IFAS.forEach(function(ifa){
+      var best = null;
+      ipTracks().forEach(function(m){ (m.t.events || []).forEach(function(e){
+        if(!evLinked(e, ifa.key)) return;
+        var ref = momRef(m, e);
+        if(ref.score < 1) return;
+        if(!best || ref.score > best.score || (ref.score === best.score && ref.date > best.date)) best = ref;
+      }); });
+      out.push({ ifa:ifa, best:best });
+    });
+    return out;
+  }
+  function ipProfileBalance(){
+    var c = { pos:0, dec:0, exe:0 };
+    ipTracks().forEach(function(m){ (m.t.events || []).forEach(function(e){ var r = e.rev || {}; ['pos','dec','exe'].forEach(function(k){ if(r[k]) c[k]++; }); }); });
+    c.total = c.pos + c.dec + c.exe; return c;
+  }
+  function ipGroupCounts(){
+    var g = { tactical:0, technical:0, psych:0, physical:0, social:0 }, M = { Tactical:'tactical', Technical:'technical', Psychological:'psych', Physical:'physical', Social:'social' };
+    ipAttrEvidence().forEach(function(a){ if(M[a.group]) g[M[a.group]] += a.list.length; });
+    return g;
+  }
+  function momLine(r){ return escapeHtml((r.opp ? 'vs ' + r.opp + ', ' : '') + (r.date ? fmtDate(r.date) : '') + ' · ▶ ' + r.clock); }
+  function ipOctRowsHtml(){
+    return ipOctStats().map(function(t){
+      return '<div class="journal-detail-row"><div class="k">' + escapeHtml(t.title) + '</div><div class="v">tagged ' + t.count + (t.count === 1 ? ' time' : ' times') + ' in ' + t.games + (t.games === 1 ? ' match' : ' matches') +
+        (t.best ? '<div class="hint" style="margin-top:3px;">Best example: ' + momLine(t.best) + ' · ' + escapeHtml(t.best.label) + (t.best.link ? ' · <a href="' + escapeHtml(t.best.link) + '" target="_blank" rel="noopener">Open in Hudl</a>' : '') + '</div>' : '<div class="hint" style="margin-top:3px;">No example tagged yet.</div>') + '</div></div>';
+    }).join('');
+  }
   function ipAttrEvidence(){
     var dim = REVIEW_DIMS.find(function(d){ return d.k === 'attr'; }), out = [];
     dim.opts.forEach(function(o){
       var list = [];
       ipTracks().forEach(function(m){
         var off = m.t.videoOffsetSec || 0;
-        (m.t.events || []).forEach(function(e){ if(rvArr((e.rev || {}).attr).indexOf(o[0]) >= 0) list.push({ date:m.date, opp:m.opp, clock:fmtClock(off + (e.t || 0)) + (off ? '' : ' *'), label:e.label, pick:e.iapPick }); });
+        (m.t.events || []).forEach(function(e){ if(rvArr((e.rev || {}).attr).indexOf(o[0]) >= 0) list.push({ date:m.date, opp:m.opp, clock:fmtClock(off + (e.t || 0)) + trkStar(m.t), label:e.label, pick:e.iapPick }); });
       });
       list.sort(function(a, b){ return a.date < b.date ? 1 : -1; });
       out.push({ key:o[0], label:o[1], group:o[2], list:list });
@@ -1542,12 +1610,12 @@
         var off = m.t.videoOffsetSec || 0;
         (m.t.markers || []).forEach(function(mk){
           if(mk.clip && mk.area === area.key && mk.type){
-            var it0 = { date:m.date, opp:m.opp, clock:fmtClock(off + (mk.t || 0)) + (off ? '' : ' *'), key:'clip', label:'Clip', mine:true, delta:(mk.type === 'S' ? 99 : -99) };
+            var it0 = { date:m.date, opp:m.opp, clock:fmtClock(off + (mk.t || 0)) + trkStar(m.t), key:'clip', label:'Clip', mine:true, delta:(mk.type === 'S' ? 99 : -99) };
             (mk.type === 'S' ? succ : learn).push(it0);
           }
         });
         (m.t.events || []).forEach(function(e){
-          var clock = fmtClock(off + (e.t || 0)) + (off ? '' : ' *');
+          var clock = fmtClock(off + (e.t || 0)) + trkStar(m.t);
           var item = { date:m.date, opp:m.opp, clock:clock, key:e.key, label:e.label, delta:e.delta, tags:momentTagLine(e), tagged:momentTagged(e) };
           var mine = e.iapPick && ipInArea(area, e);
           if(mine){ item.mine = true; if(e.iapPick === 'S'){ item.delta = 99; succ.push(item); } else { item.delta = -99; learn.push(item); } }
@@ -1839,10 +1907,10 @@
       var sess = m.t.sessionId ? state.schedule.find(function(x){ return x.id === m.t.sessionId; }) : null;
       var link = (sess && sess.hudlLink) || '';
       (m.t.markers || []).forEach(function(mk, i){
-        if(mk.clip) out.push({ tid:m.t.id, mi:i, date:m.date, opp:m.opp, t:mk.t || 0, clock:fmtClock(off + (mk.t || 0)) + (off ? '' : ' *'), link:link, kind:'marker', label:'Star clip', area:mk.area || '', type:mk.type || '' });
+        if(mk.clip) out.push({ tid:m.t.id, mi:i, date:m.date, opp:m.opp, t:mk.t || 0, clock:fmtClock(off + (mk.t || 0)) + trkStar(m.t), link:link, kind:'marker', label:'Star clip', area:mk.area || '', type:mk.type || '' });
       });
       (m.t.events || []).forEach(function(e){
-        if(e.iapPick) out.push({ tid:m.t.id, date:m.date, opp:m.opp, t:e.t || 0, clock:fmtClock(off + (e.t || 0)) + (off ? '' : ' *'), link:link, kind:'pick', label:e.label, type:e.iapPick, tags:momentTagLine(e) });
+        if(e.iapPick) out.push({ tid:m.t.id, date:m.date, opp:m.opp, t:e.t || 0, clock:fmtClock(off + (e.t || 0)) + trkStar(m.t), link:link, kind:'pick', label:e.label, type:e.iapPick, tags:momentTagLine(e) });
       });
     });
     out.sort(function(a, b){ return (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.t - b.t)); });
@@ -1866,7 +1934,7 @@
           '<button type="button" class="btn btn-ghost" style="flex:1; padding:8px;" data-clip-copy="' + escapeHtml(c.clock.replace(' *', '')) + '">Copy time</button></div>' +
         (c.kind === 'marker' ? '<select class="ip-clip-assign" style="margin-top:6px; width:100%;" data-clip-tid="' + escapeHtml(String(c.tid)) + '" data-clip-mi="' + c.mi + '">' + opts.replace('value="' + cur + '"', 'value="' + cur + '" selected') + '</select>' : '') +
         '</div>';
-    }).join('') + '<div class="hint" style="margin-top:10px;">A * means the Hudl offset is not set for that match yet, so the time is the match clock.</div>';
+    }).join('') + '<div class="hint" style="margin-top:10px;">Times are video times as logged. Only a match captured live pitch-side shows a * until its Hudl offset is confirmed (Tracker, All games, Hudl offset check).</div>';
   }
 
   function ipIfaPagesHtml(){
@@ -1906,7 +1974,7 @@
     html += '<div class="hint" style="margin-top:10px;">' +
       (c.trackedCount === 0 ? 'No tracked matches yet, so clips come from journal notes only. ' : c.trackedCount + ' tracked match' + (c.trackedCount === 1 ? '' : 'es') + ' used. ') +
       (c.gaps ? c.gaps + ' clip' + (c.gaps === 1 ? ' is' : 's are') + ' still missing. ' : 'All 12 clips have a candidate. ') +
-      IP_HUDL_RULES + ' Times are Hudl video times. A * means the Hudl offset has not been set for that match (Tracker, then the match review), so it is the match clock. “find it” means the moment came from a journal note with no time, so rewatch that match. Set stance is not tracked directly, so the Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).</div>';
+      IP_HUDL_RULES + ' Times are Hudl video times. Matches reviewed from recorded footage use the logged time as the video time. A * appears only for a live pitch-side match whose Hudl offset is not confirmed yet. “find it” means the moment came from a journal note with no time, so rewatch that match. Set stance is not tracked directly, so the Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).</div>';
     return html;
   }
 
@@ -1917,26 +1985,34 @@
     var stdRows = ATTR_KEYS.map(function(k){
       return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + (st[k] ? st[k].avg + ' / 5' : '—') + ' <span class="card-meta">(Aug ' + AUG_BASELINE[k].toFixed(1) + ')</span></div></div>';
     }).join('');
-    var card1 = '<div class="card ip-card"><div class="ip-card-t">Card 1 · My first-half numbers</div>' + stdRows +
-      '<div class="journal-detail-row"><div class="k">Recovery score</div><div class="v">' + (rec.score === null ? '—' : rec.score + ' · ' + rec.band) + '</div></div>' +
-      '<div class="journal-detail-row"><div class="k">Average week score</div><div class="v">' + (avg ? avg + ' / 5' : '—') + '</div></div>' +
-      '<div class="journal-detail-row"><div class="k">Weeks reviewed</div><div class="v">' + wks.length + '</div></div>' +
-      '<div class="journal-detail-row"><div class="k">Sessions in my journal</div><div class="v">' + ipRefs().length + '</div></div>' +
-      '<div class="journal-detail-row"><div class="k">Matches tracked</div><div class="v">' + tracks.length + '</div></div>' +
-      '<div class="hint" style="margin-top:8px;">July to December. Recovery score is my average on Chelsea\'s 100-point system' + (rec.n ? ' (' + rec.n + ' check-ins)' : '') + '; 100+ is Excellent, 80-99 Good, 60-79 Fair. Standards averages only count the sessions or weeks I scored.</div></div>';
-    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 2 · My 3 IFAs and Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ev.map(function(e){
+    var bal = ipProfileBalance(), gc = ipGroupCounts();
+    var stdRows2 = ATTR_KEYS.map(function(k){
+      return '<div class="journal-detail-row"><div class="k">' + ATTR_LABELS[k] + '</div><div class="v">' + gc[k] + ' match moment' + (gc[k] === 1 ? '' : 's') + ' <span class="card-meta">· my ratings ' + (st[k] ? st[k].avg + ' / 5' : '—') + ' (Aug ' + AUG_BASELINE[k].toFixed(1) + ')</span></div></div>';
+    }).join('');
+    var card1 = '<div class="card ip-card"><div class="ip-card-t">Card 1 · My first-half numbers (from my matches)</div>' +
+      '<div class="journal-detail-row"><div class="k">Games logged</div><div class="v">' + tracks.length + '</div></div>' +
+      '<div class="journal-detail-row"><div class="k">Profile balance</div><div class="v">' + bal.total + ' tagged moments · Position ' + bal.pos + ' · Decision ' + bal.dec + ' · Execution ' + bal.exe + '</div></div>' +
+      '<div class="section-label" style="margin-top:8px;">Chelsea standards: match moments against my own ratings</div>' + stdRows2 +
+      '<div class="hint" style="margin-top:8px;">Match moments are counts of moments tagged with a Chelsea attribute in each Standard. The ratings are my own 1 to 5 scores, with my August starting point in brackets. Counts and ratings are different things, so they sit side by side rather than being compared.</div></div>';
+    var ww = ipWentWell();
+    var cardM = '<div class="card ip-card"><div class="ip-card-t">Card 2 · Match evidence and breakthroughs</div><div class="hint" style="margin-bottom:6px;">My best Went Well moment for each of my 3 IFAs.</div>' + ww.map(function(w){
+      return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(w.ifa.title) + '</div>' + (w.best ?
+        '<div class="ip-moment">▶ ' + momLine(w.best) + ' — ' + escapeHtml(w.best.label) + '</div>' + (w.best.tags ? '<div class="card-meta">' + escapeHtml(w.best.tags) + '</div>' : '') :
+        '<div class="hint">No Went Well moment tagged to this IFA yet.</div>') + '</div>';
+    }).join('') + '</div>';
+    var card2 = '<div class="card ip-card"><div class="ip-card-t">Card 3 · My 3 IFAs and Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ev.map(function(e){
       var q = e.quotes.length ? e.quotes.map(function(x){ return '<div class="ip-quote">“' + escapeHtml(x.text) + '”<span> ' + escapeHtml(fmtDate(x.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes linked yet.</div>';
       var m = e.moments.map(function(x){ return '<div class="ip-moment">▶ ' + escapeHtml(ipMatchLabel(x.date, x.opp)) + ' — ' + escapeHtml(x.label) + '</div>'; }).join('');
       return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(e.ifa.title) + '</div>' + q + m + '</div>';
     }).join('') +
-      '<div class="ip-ifa"><div class="ip-ifa-t">Seb, Josh &amp; Kiera Feedback (Oct 2 Review): my progress</div>' + ipTargetEvidence().map(function(t){
+      '<div class="ip-ifa"><div class="ip-ifa-t">Oct 2 staff feedback progress (from matches)</div>' + ipOctRowsHtml() + '</div><div class="ip-ifa"><div class="ip-ifa-t">Seb, Josh &amp; Kiera Feedback (Oct 2 Review): my notes</div>' + ipTargetEvidence().map(function(t){
         return '<div class="ip-moment"><b>' + escapeHtml(t.title) + '</b>' + (t.stat ? ' · ' + escapeHtml(t.stat) : '') + '</div>' +
           (t.quotes.length ? t.quotes.map(function(q){ return '<div class="ip-quote">“' + escapeHtml(q.text) + '”<span> ' + escapeHtml(fmtDate(q.date)) + '</span></div>'; }).join('') : '<div class="hint">No notes since 2 Oct yet.</div>');
       }).join('') + '</div>' +
       (ipFeedbackBy('praised').length ? '<div class="ip-ifa"><div class="ip-ifa-t">What the coaches praised</div><div class="ip-moment">' + escapeHtml(ipFeedbackLine('praised')) + '</div></div>' : '') +
       '</div>';
     var tg = ipPrepState().targets, sugg = ipSuggestedTargets(), goals = ipGoalNotes();
-    var card3 = '<div class="card ip-card"><div class="ip-card-t">Card 3 · My IFAs for January to May 2027</div><div class="hint" style="margin-bottom:8px;">Chelsea asks for adjustments to my 3 IFAs or new ones for the second half of the season.</div>' +
+    var card3 = '<div class="card ip-card"><div class="ip-card-t">Card 4 · My IFAs for January to May 2027</div><div class="hint" style="margin-bottom:8px;">Chelsea asks for adjustments to my 3 IFAs or new ones for the second half of the season.</div>' +
       [0, 1, 2].map(function(i){
         return '<div class="field"><label>IFA ' + (i + 1) + ' for Jan to May</label><input type="text" class="ip-target" data-i="' + i + '" value="' + escapeHtml(tg[i].target) + '" placeholder="Keep, adjust or a new focus area">' +
           '<input type="text" class="ip-adjust" data-i="' + i + '" value="' + escapeHtml(tg[i].adjust) + '" placeholder="What I will change to get there" style="margin-top:6px;"></div>';
@@ -1945,7 +2021,7 @@
       (ipFeedbackBy('workOn').length ? '<div class="hint" style="margin:10px 0 4px;">The coaches asked me to work on: ' + escapeHtml(ipFeedbackLine('workOn')) + '</div>' : '') +
       (goals.length ? '<div class="hint" style="margin:10px 0 4px;">Goal notes from my catch-ups:</div>' + goals.map(function(g){ return '<div class="ip-moment">' + escapeHtml(g) + '</div>'; }).join('') : '') +
       '</div>';
-    return card1 + card2 + card3;
+    return card1 + cardM + card2 + card3;
   }
 
   function ipBriefHtml(){
@@ -1964,16 +2040,14 @@
           '<div class="ip-moment">' + escapeHtml(ifaLine(e.ifa.key)) + (e.avg ? ' · average ' + e.avg + '/5' : '') + '</div>' +
           '<div class="ip-quote">' + escapeHtml(q) + '</div></div>';
       }).join('') +
-      '<div class="section-label">Seb, Josh &amp; Kiera Feedback (Oct 2 Review)</div>' + ipTargetEvidence().map(function(t){
-        return '<div class="journal-detail-row"><div class="k">' + escapeHtml(t.title) + '</div><div class="v">' + (t.count ? t.count + ' note' + (t.count === 1 ? '' : 's') : 'no notes yet') + (t.stat ? ' · ' + escapeHtml(t.stat) : '') + '</div></div>';
-      }).join('') +
+      '<div class="section-label">Oct 2 Staff Feedback Progress</div>' + ipOctRowsHtml() +
       '<div class="section-label">Chelsea GK DNA</div>' +
       '<div class="hint" style="margin-bottom:6px;">Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.</div>' +
       '<div class="journal-detail-row"><div class="k">Brave</div><div class="v">' + dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's') + ' tracked</div></div>' +
       '<div class="journal-detail-row"><div class="k">Leading</div><div class="v">' + dna.lead + ' good call' + (dna.lead === 1 ? '' : 's') + ' tracked</div></div>' +
       '<div class="journal-detail-row"><div class="k">Edge</div><div class="v">' + (dna.edgeNotes + dna.edgePicks + dna.edgeReviews) + ' ownership actions: ' + dna.edgeNotes + ' next steps she named, ' + dna.edgePicks + ' Hudl clips she picked, ' + dna.edgeReviews + ' weekly reviews completed</div></div>' +
       '<div class="section-label">Chelsea GK profile: evidence from matches</div>' +
-      '<div class="hint" style="margin-bottom:6px;">Moments tagged in the match review. Counts only. * means the Hudl time is not set for that game.</div>' +
+      '<div class="hint" style="margin-bottom:6px;">Moments tagged in the match review. Counts only.</div>' +
       ipAttrEvidence().map(function(a){
         return '<div class="journal-detail-row"><div class="k">' + escapeHtml(a.label) + ' <span class="card-meta">' + a.group + '</span></div><div class="v">' + (a.list.length ? a.list.length + ' · ' + a.list.slice(0, 2).map(function(x){ return escapeHtml(ipMatchLabel(x.date, x.opp) + ' ▶ ' + x.clock); }).join('; ') : '<span style="opacity:0.6;">none yet</span>') + '</div></div>';
       }).join('') +
@@ -1993,7 +2067,7 @@
   function ipExportPdf(){
     if(!(window.jspdf && window.jspdf.jsPDF)){ alert('The PDF tool has not loaded. Check the connection and try again.'); return; }
     var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
-    var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), mx = 15, y = 0;
+    var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), mx = 15, y = 0, SC = 1;
     function safe(s){
       return String(s == null ? '' : s).replace(/→/g, '->').replace(/[▶✓●○]/g, '').replace(/·/g, '-')
         .replace(/[^\x20-\x7E -ÿ–—‘’“”…]/g, '');
@@ -2005,16 +2079,16 @@
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text(safe(sub), mx, 18.5);
       y = 32;
     }
-    function head(t){ need(10); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(3, 70, 148); doc.text(safe(t), mx, y); y += 5.5; }
+    function head(t){ need(10 * SC); doc.setFont('helvetica', 'bold'); doc.setFontSize(11 * SC); doc.setTextColor(3, 70, 148); doc.text(safe(t), mx, y); y += 5.5 * SC; }
     function para(t, o){
       o = o || {};
-      doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize(o.size || 9.5);
+      doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize((o.size || 9.5) * SC);
       var c = o.color || [50, 60, 80]; doc.setTextColor(c[0], c[1], c[2]);
-      doc.splitTextToSize(safe(t), W - mx * 2 - (o.indent || 0)).forEach(function(l){ need(5); doc.text(l, mx + (o.indent || 0), y); y += o.lh || 4.6; });
+      doc.splitTextToSize(safe(t), W - mx * 2 - (o.indent || 0)).forEach(function(l){ need(5 * SC); doc.text(l, mx + (o.indent || 0), y); y += (o.lh || 4.6) * SC; });
     }
     function line(k, v){
-      need(5); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(90, 100, 120); doc.text(safe(k), mx + 2, y);
-      doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 30, 50); doc.text(safe(v), mx + 62, y); y += 5;
+      need(5 * SC); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5 * SC); doc.setTextColor(90, 100, 120); doc.text(safe(k), mx + 2, y);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 30, 50); doc.text(safe(v), mx + 40, y); y += 5 * SC;
     }
     var date = new Date().toLocaleDateString('en-GB');
 
@@ -2043,21 +2117,26 @@
     para(IP_HUDL_RULES, { size:8, color:[3, 70, 148], lh:3.8 });
     para('Lily\'s written IAP has 3 IFAs: IFA 1 Communication, IFA 2 Distribution, IFA 3 Crosses. The fourth playlist theme, Dominate the Goal, is for the Hudl clips only.', { size:8, color:[110, 120, 140], lh:3.8 });
     para('What each clip should show: ' + IP_AREAS.map(function(a){ return a.title.split(' · ')[0] + ' - success: ' + IP_CRITERIA[a.key].ok + ' Learning: ' + IP_CRITERIA[a.key].bad; }).join('  '), { size:8, color:[90, 100, 120], lh:3.8 });
-    para('Times are Hudl video times. An asterisk means the Hudl offset has not been set for that match, so the time is the match clock. "find it" means rewatch that match to find the moment. Set stance is not tracked directly, so Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).', { size:8, color:[110, 120, 140], lh:3.8 });
+    para('Times are Hudl video times. Matches reviewed from recorded footage use the logged time as the video time; an asterisk would only show for a live pitch-side match with no confirmed offset. "find it" means rewatch that match to find the moment. Set stance is not tracked directly, so Goal clips use saves and 1v1s (successes) and late or beaten moments (learning).', { size:8, color:[110, 120, 140], lh:3.8 });
 
     // 2 · Xmas cards (player only)
     doc.addPage(); y = 0;
     var st = ipStandards(), rec = ipRecovery(), rt = ipRatings(), ev = ipIfaEvidence(), tg = ipPrepState().targets;
     band('My mid-season review', 'Lily Norbury · U15 · presented by me, on my own');
-    head('Card 1 - My first-half numbers (July to December)');
-    ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], (st[k] ? st[k].avg + ' / 5' : '-') + '  (Aug ' + AUG_BASELINE[k].toFixed(1) + ')'); });
-    para('Aug = my own ratings in my journal in August, my starting point. My July IDP ratings were blank.', { size:8, color:[110, 120, 140], lh:3.8 });
-    line('Recovery score (100-point)', rec.score === null ? '—' : rec.score + ' - ' + rec.band);
-    var wksP = ipWeeks();
-    line('Average week score', wksP.length ? ipAvg(wksP.map(function(w){ return w.avg; })).toFixed(1) + ' / 5' : '—');
-    line('Weeks reviewed', String(wksP.length));
+    head('Card 1 - My first-half numbers (from my matches)');
+    var balP = ipProfileBalance(), gcP = ipGroupCounts();
+    line('Games logged', String(ipTracks().length));
+    line('Profile balance', balP.total + ' tagged: Position ' + balP.pos + ', Decision ' + balP.dec + ', Execution ' + balP.exe);
+    ATTR_KEYS.forEach(function(k){ line(ATTR_LABELS[k], gcP[k] + ' match moments; my ratings ' + (st[k] ? st[k].avg + '/5' : '-') + ' (Aug ' + AUG_BASELINE[k].toFixed(1) + ')'); });
+    para('Match moments are counts of moments tagged with a Chelsea attribute. Ratings are my own 1 to 5 scores; Aug is my starting point.', { size:8, color:[110, 120, 140], lh:3.8 });
     y += 3;
-    head('Card 2 - My 3 IFAs and ' + IP_OCT_LABEL);
+    head('Card 2 - Match evidence and breakthroughs');
+    ipWentWell().forEach(function(w){
+      para(w.ifa.title, { bold:true, color:[30, 55, 100] });
+      para(w.best ? (w.best.opp ? 'vs ' + w.best.opp + ', ' : '') + (w.best.date ? fmtDate(w.best.date) + ', ' : '') + w.best.clock + ' - ' + w.best.label + (w.best.tags ? ' (' + w.best.tags + ')' : '') : 'No Went Well moment tagged to this IFA yet.', { indent:3, color:w.best ? [3, 70, 148] : [140, 140, 150] });
+    });
+    y += 3;
+    head('Card 3 - My 3 IFAs and ' + IP_OCT_LABEL);
     ev.forEach(function(e){
       para(e.ifa.title, { bold:true, color:[30, 55, 100] });
       if(!e.quotes.length && !e.moments.length) para('Nothing linked yet.', { indent:3, color:[140, 140, 150] });
@@ -2074,7 +2153,7 @@
     y += 1.5;
     if(ipFeedbackBy('praised').length){ para('What the coaches praised: ' + ipFeedbackLine('praised'), { bold:true, color:[30, 55, 100] }); }
     y += 2;
-    head('Card 3 - My IFAs for January to May 2027: adjusted or new');
+    head('Card 4 - My IFAs for January to May 2027: adjusted or new');
     var anyT = false;
     tg.forEach(function(t, i){
       if(!t.target && !t.adjust) return; anyT = true;
@@ -2084,9 +2163,9 @@
     if(!anyT) para('Not filled in yet.', { color:[140, 140, 150] });
     if(ipFeedbackBy('workOn').length){ y += 1; para('The coaches asked me to work on: ' + ipFeedbackLine('workOn'), { color:[3, 70, 148] }); }
 
-    // 3 · Joint briefing (one page)
-    doc.addPage(); y = 0;
+    // 3 · Joint briefing (one page): drawn on a scratch page first and shrunk until it fits
     var gr = ipGrowth(), dna = ipDna(), idp = getIdpState();
+    function drawBrief(){
     band('Lily Norbury - U15 Block 2 IAP Review Briefing (15 Dec 2026)', '18:50-19:10 · with Kiera, Josh and Seb · Block 2 theme: LEAD');
     head('Mid-season progress');
     para((gr.first && gr.later) ? 'Average week score ' + gr.first + ' (to Oct) to ' + gr.later + ' (Nov onwards).' : (gr.first || gr.later) ? 'Average week score ' + (gr.first || gr.later) + ' so far.' : (ipTracks().length + ' games reviewed in the tracker. Weekly scores have not restarted yet, so the evidence below comes from matches.'));
@@ -2097,28 +2176,41 @@
       para(ifaLine(e.ifa.key) + (e.avg ? ', average ' + e.avg + '/5' : ''), { indent:3 });
       if(e.quotes[0]) para('"' + truncate(e.quotes[0].text, 110) + '"', { indent:3, color:[90, 100, 120] });
     });
-    y += 2; head(IP_OCT_LABEL);
-    ipTargetEvidence().forEach(function(t){ para(t.title + ': ' + (t.count ? t.count + ' note' + (t.count === 1 ? '' : 's') : 'no notes yet') + (t.stat ? ' - ' + t.stat : ''), { indent:2 }); });
     y += 2; head('Chelsea GK DNA');
     line('Brave', dna.brave + ' brave or bounce-back moment' + (dna.brave === 1 ? '' : 's'));
     line('Leading', dna.lead + ' good call' + (dna.lead === 1 ? '' : 's'));
     line('Edge', (dna.edgeNotes + dna.edgePicks + dna.edgeReviews) + ' ownership actions');
     para('Edge counts: ' + dna.edgeNotes + ' next steps she named, ' + dna.edgePicks + ' Hudl clips she picked herself, ' + dna.edgeReviews + ' weekly reviews completed.', { size:8, color:[110, 120, 140], lh:3.8, indent:2 });
     para('Brave: mental and moral strength to deal with danger, fear or adversity. Leading: communicate, take control, inspire others. Edge: winning behaviours and a relentless desire to be the best.', { size:8, color:[110, 120, 140], lh:3.8 });
-    y += 3; head('Chelsea GK profile: evidence from matches');
-    ipAttrEvidence().filter(function(a){ return a.list.length; }).forEach(function(a){
-      para(a.label + ' (' + a.group + '): ' + a.list.length + ' - ' + a.list.slice(0, 2).map(function(x){ return ipMatchLabel(x.date, x.opp) + ' ' + x.clock; }).join('; '), { indent:2 });
+    y += 2; head('Chelsea GK profile: 20 attributes, evidence from matches');
+    var ae = ipAttrEvidence();
+    ['Tactical','Technical','Psychological','Social','Physical'].forEach(function(g){
+      var inG = ae.filter(function(a){ return a.group === g; });
+      para(g + ': ' + inG.map(function(a){ return a.label + ' ' + a.list.length; }).join(', '), { indent:2, size:8.5, lh:4 });
     });
-    var noAttr = ipAttrEvidence().filter(function(a){ return !a.list.length; }).map(function(a){ return a.label; });
-    if(noAttr.length) para('No moment yet: ' + noAttr.join(', '), { indent:2, size:8, color:[110, 120, 140] });
-    y += 3; head('What the coaches said');
+    y += 2; head('Match progress on the 4 targets');
+    ipOctStats().forEach(function(t){ para(t.title + ': tagged ' + t.count + 'x in ' + t.games + ' match' + (t.games === 1 ? '' : 'es') + (t.best ? '. Best: ' + (t.best.opp ? 'vs ' + t.best.opp + ', ' : '') + (t.best.date ? fmtDate(t.best.date) + ', ' : '') + t.best.clock : ''), { indent:2, size:8.5, lh:4 }); });
+    y += 2; head('What the coaches said');
     if(ipFeedbackBy('praised').length) para('Praised: ' + ipFeedbackLine('praised'), { indent:2 });
     if(ipFeedbackBy('workOn').length) para('Work on: ' + ipFeedbackLine('workOn'), { indent:2 });
     ipFeedbackBy('note').slice(0, 2).forEach(function(f){ para(ipSafe(f.text), { indent:2, color:[90, 100, 120] }); });
-    y += 3; head('Questions Lily wants to ask Josh, Seb and Kiera');
+    y += 2; head('Questions Lily wants to ask Josh, Seb and Kiera');
     var dq = (state.iapDiscussionPoints || []).filter(function(p){ return p && p.trim(); });
     if(!dq.length) para('Not filled in yet.', { color:[140, 140, 150] });
     dq.slice(0, 3).forEach(function(p, i){ para((i + 1) + '. ' + p, { indent:2 }); });
+
+    }
+    var realDoc = doc;
+    var fitted = 1;
+    [1, 0.92, 0.85, 0.78, 0.72, 0.66].some(function(sc){
+      doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' }); SC = sc; y = 0; fitted = sc;
+      drawBrief();
+      return doc.internal.getNumberOfPages() <= 1;
+    });
+    doc = realDoc; SC = fitted; doc.addPage(); y = 0;
+    drawBrief();
+    SC = 1;
+    window.__ipBriefScale = fitted;
 
     var n = doc.internal.getNumberOfPages();
     for(var p = 1; p <= n; p++){
@@ -3565,6 +3657,7 @@
   }
   function trackerBonus(k){ return (TRACKER_BONUS[k] !== undefined) ? TRACKER_BONUS[k] : TRACKER_BONUS_DEF[k]; }
   function trackerEvDelta(e){
+    if(typeof e.dLock === 'number') return e.dLock;
     var o = trackerOpt(e.key);
     var d = o ? o.delta : (e.delta || 0);
     var det = e.details || (e.detail ? String(e.detail).split(' · ') : []);
@@ -3573,6 +3666,16 @@
     if(e.led && TRACKER_BONUS_DEF['led_' + e.led] !== undefined) d += trackerBonus('led_' + e.led);
     if(e.oppch === '1') d += trackerBonus('oppch');
     return Math.round(d * 100) / 100;
+  }
+  function trackerLock(track){
+    (track.events || []).forEach(function(e){ e.dLock = trackerEvDelta(e); e.delta = e.dLock; });
+    track.scoreLock = { at:new Date().toISOString(), rating:Math.round(trackerFinalRating(track) * 10) / 10 };
+  }
+  function trackerUnlock(track){ (track.events || []).forEach(function(e){ delete e.dLock; trackerSync(e); }); delete track.scoreLock; }
+  function trackerGuard(track){
+    if(!track.scoreLock) return true;
+    if(!confirm('This match score is locked (' + track.scoreLock.rating.toFixed(1) + '). Unlock it to make changes? Lock it again afterwards.')) return false;
+    trackerUnlock(track); saveData(); return true;
   }
   function trackerSplit(track){
     var pos = 0, neg = 0;
@@ -3759,7 +3862,7 @@
       id: uid(), sessionId: auto ? auto.id : null, date: todayIso(),
       opponent: auto ? (auto.opponent || '') : '', baseline: TRACKER_BASELINE,
       status: 'ready', startedAt: null, endedAt: null, locked: false,
-      events: [], markers: [], videoOffsetSec: 0
+      events: [], markers: [], videoOffsetSec: 0, liveClock: true
     };
     state.matchTracks = state.matchTracks || [];
     state.matchTracks.push(track);
@@ -4094,7 +4197,7 @@
     ov.innerHTML =
       '<div class="trk-top"><button type="button" class="trk-mini" id="tg-back">Done</button><div class="trk-title">Review this moment</div><span style="width:60px;"></span></div>' +
       '<div class="card"><div class="card-title" style="font-size:15px;">' + escapeHtml(ev.label) + (ev.detail ? ' · ' + escapeHtml(ev.detail) : '') + '</div>' +
-      '<div class="card-meta">' + 'Match ' + fmtClock(ev.t) + ' · video ' + fmtClock(offset + ev.t) + (offset ? '' : ' (set the video time first for an exact clip)') + '</div></div>' +
+      '<div class="card-meta">' + 'Match ' + fmtClock(ev.t) + ' · video ' + fmtClock(offset + ev.t) + ((track.liveClock && !track.offsetOk && !offset) ? ' (live match: confirm the Hudl offset first)' : '') + '</div></div>' +
       '<div class="card" style="margin-top:10px;"><div class="trk-detail" style="margin:0;">' +
         '<div class="field" style="flex:1; margin:0;"><label>Time in the game (mm:ss)</label><input type="text" id="tg-gt" value="' + fmtClock(ev.t) + '" inputmode="numeric"></div>' +
         '<div class="field" style="flex:1; margin:0;"><label>Time on the video (mm:ss)</label><input type="text" id="tg-vt" value="' + fmtClock(offset + ev.t) + '" inputmode="numeric"></div></div>' +
@@ -4120,6 +4223,8 @@
         var hasOlder = older.some(function(d){ return R[d.k]; });
         return fresh.map(function(d){ return d.k === 'attr' ? attrRow(d) : row(d); }).join('') + (hasOlder ? '<details class="cfg-sec" style="margin-top:14px;" open><summary>Earlier tags on this moment</summary>' + older.filter(function(d){ return R[d.k]; }).map(row).join('') + '</details>' : '');
       })() +
+      '<div class="section-label" style="margin-top:14px;">Oct 2 staff feedback <span class="card-meta" style="text-transform:none;">· optional, tap any this moment shows</span></div>' +
+      '<div class="trk-detail">' + OCT_TARGETS.map(function(o){ return '<button type="button" class="trk-chip' + ((ev.oct || []).indexOf(o.key) >= 0 ? ' on' : '') + '" data-oct="' + o.key + '">' + escapeHtml(o.title) + '</button>'; }).join('') + '</div>' +
       '<div class="section-label" style="margin-top:14px;">IFA tag for this moment <span class="card-meta" style="text-transform:none;">· adds it to that IFA page' + (evOptIfa(ev) ? ' (already linked to ' + escapeHtml(evOptIfa(ev).toUpperCase().replace('IFA', 'IFA ')) + ' by what it is)' : '') + '</span></div>' +
       '<div class="trk-detail">' + IDP_IFAS.map(function(i){ return '<button type="button" class="trk-chip' + ((ev.ifas || []).indexOf(i.key) >= 0 ? ' on' : '') + '" data-ifatag="' + i.key + '">' + i.key.toUpperCase().replace('IFA', 'IFA ') + '</button>'; }).join('') + '</div>' +
       (by === 'L' ? '<div class="section-label" style="margin-top:14px;">My Hudl playlist <span class="card-meta" style="text-transform:none;">· Lily\'s own pick for the Dec playlist</span></div>' +
@@ -4129,6 +4234,15 @@
       '<div class="field" style="margin-top:10px;"><label>Question or note (optional)</label><textarea id="tg-note" rows="2" placeholder="e.g. Who should take the ball here?">' + escapeHtml(ev.note || '') + '</textarea></div>' +
       '<button type="button" class="btn btn-primary" id="tg-done" style="margin-top:12px;">Done</button>' +
       '<button type="button" class="btn btn-ghost" id="tg-delete" style="margin-top:8px; color:var(--red);">Delete this moment</button>';
+    ov.querySelectorAll('[data-oct]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-oct'), arr = Array.isArray(ev.oct) ? ev.oct.slice() : [], at = arr.indexOf(k);
+        if(at >= 0) arr.splice(at, 1); else arr.push(k);
+        if(arr.length) ev.oct = arr; else delete ev.oct;
+        ev.note = (ov.querySelector('#tg-note').value || '').trim();
+        saveData(); renderTrackerTag(id, idx, fromLive);
+      });
+    });
     function finish(){ ev.note = (ov.querySelector('#tg-note').value || '').trim(); saveData(); if(trackerOverlayState.fromAll){ openAllReview(); } else openTrackerReview(id, fromLive); }
     ov.querySelectorAll('[data-dim]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -4243,14 +4357,14 @@
       var pde = [['pos','Position'],['dec','Decision'],['exe','Execution']].filter(function(k){ return r[k[0]]; }).map(function(k){ return k[1] + ' ' + PDE[r[k[0]]].toLowerCase(); }).join(' · ');
       var at = rvArr(r.attr).map(function(v){ return revLabel('attr', v); }).filter(Boolean).join(', ');
       var ifa = evIfaList(e).concat(revIfaOf(e).filter(function(k){ return evIfaList(e).indexOf(k) < 0; })).map(function(k){ return k.toUpperCase().replace('IFA', 'IFA '); }).join(', ');
-      return '<div class="eng-char" style="cursor:pointer;" data-all="' + x.t.id + '|' + x.i + '"><b>' + (x.t.opponent ? escapeHtml(x.t.opponent) : 'Match') + '</b> <span class="card-meta">' + escapeHtml(fmtDate(x.t.date)) + '</span> · ' + fmtClock(e.t) + ' <span style="color:var(--cyan);">▶ ' + fmtClock(off + e.t) + (off ? '' : ' *') + '</span>' + (e.iapPick ? (e.iapPick === 'S' ? ' ⭐' : ' 📘') : '') +
+      return '<div class="eng-char" style="cursor:pointer;" data-all="' + x.t.id + '|' + x.i + '"><b>' + (x.t.opponent ? escapeHtml(x.t.opponent) : 'Match') + '</b> <span class="card-meta">' + escapeHtml(fmtDate(x.t.date)) + '</span> · ' + fmtClock(e.t) + ' <span style="color:var(--cyan);">▶ ' + fmtClock(off + e.t) + trkStar(x.t) + '</span>' + (e.iapPick ? (e.iapPick === 'S' ? ' ⭐' : ' 📘') : '') +
         '<br>' + escapeHtml(e.label) + (e.detail ? ' · ' + escapeHtml(e.detail) : '') +
         (ifa ? '<br><span class="card-meta">' + ifa + '</span>' : '') + (pde ? '<br><span class="card-meta">' + escapeHtml(pde) + '</span>' : '') + (at ? '<br><span class="card-meta">Shows: ' + escapeHtml(at) + '</span>' : '') +
         (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</div>';
     }
     function sorted(l){ return l.slice().sort(function(a, b){ return a.sk < b.sk ? 1 : -1; }); }
     function group(title, l){ return l.length ? '<div class="section-label" style="margin:14px 0 2px;">' + escapeHtml(title) + ' <span class="card-meta" style="text-transform:none;">· ' + l.length + '</span></div>' + sorted(l).map(row).join('') : ''; }
-    var body = '';
+    var body = '', games2 = ipTracks().length;
     if(allRevView === 'ifa'){
       IDP_IFAS.forEach(function(ifa){ body += group(ifa.title, tagged.filter(function(x){ return evLinked(x.e, ifa.key); })); });
       body += group('Not linked to an IFA', tagged.filter(function(x){ return !IDP_IFAS.some(function(i){ return evLinked(x.e, i.key); }); }));
@@ -4265,17 +4379,24 @@
       [['pos','Position'],['dec','Decision'],['exe','Execution']].forEach(function(k){
         ['good','part','poor'].forEach(function(v){ body += group(k[1] + ' · ' + PDE[v], tagged.filter(function(x){ return (x.e.rev || {})[k[0]] === v; })); });
       });
+    } else if(allRevView === 'off'){
+      var needs = ipTracks().filter(function(x){ return x.t.liveClock && !x.t.offsetOk && !x.t.videoOffsetSec; });
+      body += '<div class="hint" style="margin-top:12px;">Matches reviewed from recorded footage already use the logged time as the video time, so they are verified. Only a match captured live pitch-side needs its offset confirmed.</div>';
+      if(!needs.length) body += '<div class="card" style="margin-top:10px;"><b>All ' + games2 + ' matches are verified.</b> Hudl times show as clean mm:ss.</div>';
+      needs.forEach(function(x){ body += '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">' + escapeHtml(ipMatchLabel(x.date, x.opp)) + '</div><div class="field"><label>Hudl video time at Kick Off (mm:ss)</label><input type="text" data-offv="' + x.t.id + '" value="0:00"></div><button type="button" class="btn btn-ghost" data-offok="' + x.t.id + '">Confirm offset</button> <button type="button" class="btn btn-ghost" data-offrec="' + x.t.id + '" style="margin-top:6px;">This was recorded footage: times are exact</button></div>'; });
     } else {
       body += group('⭐ Success clips', tagged.filter(function(x){ return x.e.iapPick === 'S'; })) + group('📘 Learning clips', tagged.filter(function(x){ return x.e.iapPick === 'L'; }));
       if(!body) body = '<div class="hint">No clips picked yet. Open a moment and choose Success or Learning clip.</div>';
     }
     var games = ipTracks().length;
-    var chips = [['ifa','By IFA'],['attr','By attribute'],['pde','Position, Decision, Execution'],['clips','Clips']].map(function(c){ return '<button type="button" class="trk-chip' + (allRevView === c[0] ? ' on' : '') + '" data-av="' + c[0] + '">' + c[1] + '</button>'; }).join('');
+    var chips = [['ifa','By IFA'],['attr','By attribute'],['pde','Position, Decision, Execution'],['clips','Clips'],['off','Hudl offset check']].map(function(c){ return '<button type="button" class="trk-chip' + (allRevView === c[0] ? ' on' : '') + '" data-av="' + c[0] + '">' + c[1] + '</button>'; }).join('');
     ov.innerHTML = '<div class="trk-top"><button type="button" class="trk-mini" id="av-close">Close</button><div class="trk-title">All games</div><span style="width:60px;"></span></div>' +
-      '<div class="hint" style="margin:0 0 8px;">' + games + ' games · ' + tagged.length + ' moments with a tag, IFA, note or clip. Newest first. Tap a moment to edit it. * = video time not set for that game.</div>' +
+      '<div class="hint" style="margin:0 0 8px;">' + games + ' games · ' + tagged.length + ' moments with a tag, IFA, note or clip. Newest first. Tap a moment to edit it. </div>' +
       '<div class="trk-detail">' + chips + '</div>' + (body || '<div class="hint" style="margin-top:12px;">Nothing here yet.</div>');
     ov.querySelector('#av-close').addEventListener('click', function(){ trackerOverlayState.fromAll = false; closeTrackerOverlay(); });
     ov.querySelectorAll('[data-av]').forEach(function(b){ b.addEventListener('click', function(){ allRevView = b.getAttribute('data-av'); openAllReview(); }); });
+    ov.querySelectorAll('[data-offok]').forEach(function(b){ b.addEventListener('click', function(){ var t = findTrack(b.getAttribute('data-offok')), inp = ov.querySelector('[data-offv="' + b.getAttribute('data-offok') + '"]'); if(!t) return; t.videoOffsetSec = parseClock(inp.value); t.offsetOk = true; saveData(); openAllReview(); }); });
+    ov.querySelectorAll('[data-offrec]').forEach(function(b){ b.addEventListener('click', function(){ var t = findTrack(b.getAttribute('data-offrec')); if(!t) return; delete t.liveClock; t.offsetOk = true; saveData(); openAllReview(); }); });
     ov.querySelectorAll('[data-all]').forEach(function(r){ r.addEventListener('click', function(){ var p = r.getAttribute('data-all').split('|'); renderTrackerTag(p[0], parseInt(p[1], 10), false); }); });
   }
   function openTrackerReview(id, fromLive){
@@ -4351,8 +4472,11 @@
         '<button type="button" class="btn btn-ghost" id="trk-relink" style="margin-top:8px;">' + (track.sessionId ? 'Change Match' : 'Link to a Match') + '</button></div>' : '') +
       '<div class="card" style="margin-top:10px;">' +
         '<div class="field" style="margin-bottom:6px;"><label>Hudl video time when you tapped Kick Off (mm:ss)</label><input type="text" id="trk-offset" value="' + fmtClock(offset) + '" placeholder="0:00"></div>' +
-        '<div class="hint" style="margin:0;">Enter where in the Hudl video you tapped Kick Off (for a second-half-only game, where the half Lily plays starts), and the blue ▶ times below become the exact moment to jump to.</div>' +
+        '<div class="hint" style="margin:0;">Only needed for a match recorded live pitch-side. If you reviewed from the recorded video, leave this at 0:00: the times are already video times.</div>' +
       '</div>' +
+      (track.status === 'done' ? '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Score lock</div>' +
+        (track.scoreLock ? '<div class="hint" style="margin:0 0 8px;">🔒 Locked on ' + escapeHtml(fmtDate(track.scoreLock.at.slice(0, 10))) + ' at ' + track.scoreLock.rating.toFixed(1) + '. Settings changes and edits will not move this score or its tags.</div><button type="button" class="btn btn-ghost" id="trk-lock">Unlock</button>'
+          : '<div class="hint" style="margin:0 0 8px;">Once you have checked this match, lock it. The score and moments then stay exactly as they are, even if you change the points in Tracker settings.</div><button type="button" class="btn btn-ghost" id="trk-lock">Lock this score</button>') + '</div>' : '') +
       '<div class="card" style="margin-top:10px;"><div class="card-title" style="font-size:14px;">Chelsea game label</div>' +
         '<div class="trk-detail">' + [['A','Assertive'],['B','Balanced'],['C','Challenge']].map(function(c){ return '<button type="button" class="trk-chip' + (track.ctx === c[0] ? ' on' : '') + '" data-ctx="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
         '<div class="hint" style="margin:8px 0 0;">Set by Chelsea. Enter it only when the club has told you; leave blank otherwise. Tap again to clear.</div></div>' +
@@ -4378,7 +4502,7 @@
       b.addEventListener('click', function(){ trackerOverlayState.ifaFilter = b.getAttribute('data-ifaf'); openTrackerReview(id, fromLive); });
     });
     function tidyRedraw(){ var st = ov.scrollTop; openTrackerReview(id, fromLive); ov.scrollTop = st; }
-    var addM = q('#add-mom'); if(addM) addM.addEventListener('click', function(){ renderTrackerAdd(id, fromLive); });
+    var addM = q('#add-mom'); if(addM) addM.addEventListener('click', function(){ if(!trackerGuard(track)) return; renderTrackerAdd(id, fromLive); });
     var tOn = q('#tidy-on'); if(tOn) tOn.addEventListener('click', function(){ trackerOverlayState.tidy = true; trackerOverlayState.tidySel = []; tidyRedraw(); });
     var tCancel = q('#tidy-cancel'); if(tCancel) tCancel.addEventListener('click', function(){ trackerOverlayState.tidy = false; trackerOverlayState.tidySel = []; tidyRedraw(); });
     var tNone = q('#tidy-none'); if(tNone) tNone.addEventListener('click', function(){ trackerOverlayState.tidySel = []; tidyRedraw(); });
@@ -4391,6 +4515,7 @@
       });
       trackerOverlayState.tidySel = sel; tidyRedraw();
     });
+    var tOn0 = q('#tidy-on'); if(tOn0) tOn0.addEventListener('click', function(ev0){ if(track.scoreLock){ ev0.stopImmediatePropagation(); if(trackerGuard(track)) openTrackerReview(id, fromLive); } }, true);
     var tDel = q('#tidy-del'); if(tDel) tDel.addEventListener('click', function(){
       var sel = (trackerOverlayState.tidySel || []).slice().sort(function(a, b){ return b - a; });
       if(!sel.length) return;
@@ -4409,6 +4534,7 @@
           var at = sel.indexOf(ix); if(at >= 0) sel.splice(at, 1); else sel.push(ix);
           tidyRedraw(); return;
         }
+        if(!trackerGuard(track)) return;
         renderTrackerTag(id, ix, fromLive);
       });
     });
@@ -4432,9 +4558,15 @@
         openTrackerReview(id, fromLive);
       });
     });
+    var lk = q('#trk-lock');
+    if(lk) lk.addEventListener('click', function(){
+      if(track.scoreLock){ if(!confirm('Unlock this score? It will follow the current settings again.')) return; trackerUnlock(track); }
+      else trackerLock(track);
+      saveData(); openTrackerReview(id, fromLive);
+    });
     var off = q('#trk-offset');
     off.addEventListener('change', function(){
-      track.videoOffsetSec = parseClock(off.value);
+      track.videoOffsetSec = parseClock(off.value); track.offsetOk = true;
       saveData();
       openTrackerReview(id, fromLive);
     });
