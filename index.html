@@ -723,9 +723,10 @@
 
   <!-- JOURNAL VIEW -->
   <div class="gk-view hidden" id="view-journal">
-    <div class="section-label">Reflections</div>
+    <div class="section-label">Block Journal</div>
+    <div class="hint" style="margin-bottom:8px;">One card for each Chelsea block. The match evidence fills in by itself. Answer the four questions at the end of a block, or whenever you like. Nothing here is marked or scored.</div>
     <div id="journal-list"></div>
-    <button class="btn btn-primary" id="weekly-summary-btn" style="margin-top:14px;">Weekly Summary (PDF)</button>
+    <button class="btn btn-primary" id="weekly-summary-btn" style="margin-top:14px; display:none;">Weekly Summary (PDF)</button>
     <button class="btn btn-ghost" id="backup-btn" style="margin-top:10px;">Backup / Restore Records</button>
   </div>
 
@@ -744,8 +745,8 @@
 
     <div class="section-label">My Story So Far</div>
     <div class="card">
-      <div class="hint" style="margin-bottom:12px;">Pull everything you've logged into one place — in your own words — so you've got it to hand at your IAP.</div>
-      <button class="btn btn-primary" id="open-my-story-btn">Build My Story</button>
+      <div class="hint" style="margin-bottom:12px;">The season game by game, built from the match moments you have reviewed: what went well, what to learn, and which IFA, attributes and Oct 2 targets each one shows.</div>
+      <button class="btn btn-primary" id="open-my-story-btn">Open My Story</button>
     </div>
 
     <!-- IAP Review Briefing button/card removed 2026-08-20 (v28) alongside the whole
@@ -829,8 +830,10 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   }
 
-  var APP_VERSION = 'v90';
+  var APP_VERSION = 'v92';
   var CHANGELOG = [
+    { version:'v92', notes:'The Journal tab is now a Block Journal. One card per Chelsea block (Block 1 Unite, Block 2 Lead, Block 3 Brave, Block 4 Edge) with the match evidence for that block\'s theme filled in automatically and four short questions for Lily to answer when she is ready. The weekly reflections list and Weekly Summary are no longer shown (nothing is deleted). Block reflections appear in the IAP briefing.' },
+    { version:'v91', notes:'My Story so far is rebuilt on match evidence: a start-to-finish list of the games, with each tagged moment (Went Well, Learning, IFA, Position/Decision/Execution, attributes, Oct 2 targets), instead of the old journal-entry story.' },
     { version:'v90', notes:'Xmas cards now use match evidence (games, tagged moments, best Went Well moment per IFA). New Oct 2 staff feedback tags on each moment, with a progress card and best example clip in the IAP briefing. Recorded-footage reviews are treated as verified Hudl times (no asterisk); a Hudl offset check lists only live pitch-side matches. Score lock freezes a finished match score and its tags. The briefing PDF section is fitted to one page.' },
     { version:'v89', notes:'IAP briefing and PDF: where there are no weekly scores, the Mid-season progress line now says how many games have been reviewed and that the evidence comes from matches, instead of "not enough scored weeks".' },
     { version:'v88', notes:'IAP and Xmas prep. Clips (Hudl clips and My clips) now show each moment\'s IFA, Position, Decision, Execution and attributes. The 12-clip suggestion slightly favours moments you have tagged. IFA pages and the briefing use the same IFA line as the rest of the app and show attributes per IFA. New Chelsea GK profile section in the briefing and the PDF: each attribute with its count and example clips, and which have no moment yet. Hudl tab now says where the coaches\' work-on list comes from (the 2 Oct meeting feedback saved in the app) and lists all of it. "Lily\'s pick" wording is now just "pick".' },
@@ -2059,6 +2062,7 @@
       '<div class="field" style="margin-top:8px;"><select id="ip-fb-type"><option value="praised">Praised</option><option value="workOn">Work on</option><option value="note">Note</option></select>' +
       '<input type="text" id="ip-fb-text" placeholder="Add something a coach said" style="margin-top:6px;"></div>' +
       '<button type="button" class="btn btn-ghost" id="ip-fb-add">Add coach feedback</button>' +
+      (ipBlockReflections().length ? '<div class="section-label">My block reflections</div>' + ipBlockReflections().map(function(b){ return '<div class="ip-ifa"><div class="ip-ifa-t">' + escapeHtml(b.title) + '</div>' + b.items.map(function(i){ return '<div class="ip-moment"><b>' + escapeHtml(i.q) + '</b><br>' + escapeHtml(i.a) + '</div>'; }).join('') + '</div>'; }).join('') : '') +
       '<div class="section-label">Questions I want to ask Josh, Seb and Kiera</div>' +
       [0, 1, 2].map(function(i){ return '<div class="field"><input type="text" class="ip-q" data-i="' + i + '" value="' + escapeHtml(dq[i] || '') + '" placeholder="' + escapeHtml(ph[i] || 'My question') + '"></div>'; }).join('') +
       '</div>';
@@ -2194,6 +2198,8 @@
     if(ipFeedbackBy('praised').length) para('Praised: ' + ipFeedbackLine('praised'), { indent:2 });
     if(ipFeedbackBy('workOn').length) para('Work on: ' + ipFeedbackLine('workOn'), { indent:2 });
     ipFeedbackBy('note').slice(0, 2).forEach(function(f){ para(ipSafe(f.text), { indent:2, color:[90, 100, 120] }); });
+    var bjr = ipBlockReflections();
+    if(bjr.length){ y += 2; head('Lily\'s block reflections'); bjr.forEach(function(b){ b.items.slice(0, 2).forEach(function(i){ para(b.title + ' - ' + i.q + ' ' + truncate(i.a, 150), { indent:2, size:8.5, lh:4 }); }); }); }
     y += 2; head('Questions Lily wants to ask Josh, Seb and Kiera');
     var dq = (state.iapDiscussionPoints || []).filter(function(p){ return p && p.trim(); });
     if(!dq.length) para('Not filled in yet.', { color:[140, 140, 150] });
@@ -6246,7 +6252,66 @@
 
 
   // ---------- Render: Journal ----------
+  // ---------- v92: Block Journal ----------
+  var BLOCK_ATTR = { UNITE:'team_player', LEAD:'leader', BRAVE:'brave', EDGE:'edge' };
+  var BLOCK_WORD = { UNITE:'Unite', LEAD:'Lead', BRAVE:'Brave', EDGE:'Edge' };
+  var BLOCK_DEF = { LEAD:'Lead: communicate, take control, inspire others.', BRAVE:'Brave: mental and moral strength to deal with danger, fear or adversity.', EDGE:'Edge: winning behaviours and a relentless desire to be the best.', UNITE:'' };
+  var BLOCK_QS = [
+    { k:'proud', q:'What am I proudest of in this block?' },
+    { k:'hard',  q:'What was hardest, and what did I do about it?' },
+    { k:'theme', q:null },
+    { k:'next',  q:'What will I take into the next block?' }
+  ];
+  function blockKey(b){ return b.name.toLowerCase().replace(/\s+/g, ''); }
+  function blockEvidence(b){
+    var attr = BLOCK_ATTR[b.theme], games = ipTracks().filter(function(m){ return m.date && m.date >= b.from && m.date <= b.to; });
+    var themed = [], ww = 0, rev = 0;
+    games.forEach(function(m){ (m.t.events || []).forEach(function(e){
+      if(momentTagged(e)) rev++;
+      if(momScore(e) >= 1) ww++;
+      if(rvArr((e.rev || {}).attr).indexOf(attr) >= 0) themed.push(momRef(m, e));
+    }); });
+    themed.sort(function(a, c){ return c.score - a.score || (a.date < c.date ? 1 : -1); });
+    return { games:games.length, rev:rev, ww:ww, themed:themed };
+  }
   function renderJournal(){
+    var list = document.getElementById('journal-list'), today = todayIso();
+    state.blockJournal = state.blockJournal || {};
+    list.innerHTML = BLUE_BLOCKS.map(function(b){
+      var key = blockKey(b), bj = state.blockJournal[key] || {}, status = today > b.to ? 'done' : (today >= b.from ? 'now' : 'soon');
+      var word = BLOCK_WORD[b.theme], ev = blockEvidence(b);
+      var head = escapeHtml(b.name + ' · ' + word) + ' <span class="card-meta">· ' + escapeHtml(fmtDate(b.from) + ' to ' + fmtDate(b.to)) + ' · ' + (status === 'now' ? 'this block' : status === 'done' ? 'finished' : 'coming up') + '</span>';
+      var body;
+      if(status === 'soon'){
+        body = '<div class="hint" style="margin-top:8px;">Opens on ' + escapeHtml(fmtDate(b.from)) + '. The theme is ' + escapeHtml(word) + '.' + (BLOCK_DEF[b.theme] ? ' ' + escapeHtml(BLOCK_DEF[b.theme]) : '') + '</div>';
+      } else {
+        body = '<div class="hint" style="margin:8px 0 6px;">' + (BLOCK_DEF[b.theme] ? escapeHtml(BLOCK_DEF[b.theme]) + ' ' : '') + 'Match evidence for this block: ' + ev.games + ' game' + (ev.games === 1 ? '' : 's') + ', ' + ev.rev + ' reviewed moment' + (ev.rev === 1 ? '' : 's') + ', ' + ev.ww + ' went well.</div>' +
+          '<div class="journal-detail-row"><div class="k">Moments showing ' + escapeHtml(word) + '</div><div class="v">' + ev.themed.length + '</div></div>' +
+          ev.themed.slice(0, 3).map(function(r){ return '<div class="eng-char" style="margin:4px 0;">▶ ' + momLine(r) + ' · ' + escapeHtml(r.label) + '</div>'; }).join('') +
+          BLOCK_QS.map(function(x){
+            var q = x.q || ('How did I show ' + word + ' in this block?');
+            return '<div class="field" style="margin-top:10px;"><label>' + escapeHtml(q) + '</label><textarea rows="2" class="bj-in" data-bj="' + key + '" data-k="' + x.k + '">' + escapeHtml(bj[x.k] || '') + '</textarea></div>';
+          }).join('');
+      }
+      return '<details class="cfg-sec" style="margin-top:10px;"' + (status === 'now' ? ' open' : '') + '><summary>' + head + '</summary>' + body + '</details>';
+    }).join('');
+    list.querySelectorAll('.bj-in').forEach(function(t){
+      t.addEventListener('input', function(){
+        var k = t.getAttribute('data-bj'); state.blockJournal[k] = state.blockJournal[k] || {};
+        state.blockJournal[k][t.getAttribute('data-k')] = t.value; state.blockJournal[k].updated = todayIso(); saveData();
+      });
+    });
+  }
+  function ipBlockReflections(){
+    var out = [];
+    BLUE_BLOCKS.forEach(function(b){
+      var bj = (state.blockJournal || {})[blockKey(b)] || {};
+      var items = BLOCK_QS.map(function(x){ var a = ipSafe(bj[x.k] || '').trim(); return a ? { q:x.q || ('How did I show ' + BLOCK_WORD[b.theme] + '?'), a:a } : null; }).filter(Boolean);
+      if(items.length) out.push({ title:b.name + ' · ' + BLOCK_WORD[b.theme], items:items });
+    });
+    return out;
+  }
+  function renderJournalOld(){
     var list = document.getElementById('journal-list');
     var weeks = buildWeeks().filter(function(w){ return w.refs.length || w.review || w.tracks.length || w.photos.length; }).reverse();
     if(!weeks.length){
@@ -6707,6 +6772,48 @@
     };
   }
 
+
+  // ---------- v91: My Story so far, built from match evidence ----------
+  function openMatchStory(){
+    var games = ipTracks().slice().sort(function(a, b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var octT = {}; OCT_TARGETS.forEach(function(o){ octT[o.key] = o.title.replace(/^\d · /, ''); });
+    var tot = { tagged:0, ww:0, learn:0, ifa:0 };
+    var gamesHtml = games.map(function(m){
+      var evs = (m.t.events || []).map(function(e, i){ return { e:e, i:i }; });
+      var goals = evs.filter(function(x){ return x.e.key === 'goal'; }).length;
+      var shown = evs.filter(function(x){ var e = x.e; return momentTagged(e) || (e.oct && e.oct.length) || e.iapPick || e.note || IDP_IFAS.some(function(i){ return evLinked(e, i.key); }); })
+        .sort(function(a, b){ return (a.e.t || 0) - (b.e.t || 0); });
+      var rows = shown.map(function(x){
+        var e = x.e, sc = momScore(e), mark = sc >= 1 ? '✓ Went well' : (sc <= -1 || e.iapPick === 'L' ? '📘 To learn' : '');
+        tot.tagged++; if(sc >= 1) tot.ww++; if(mark.charAt(0) === '📘') tot.learn++; if(IDP_IFAS.some(function(i){ return evLinked(e, i.key); })) tot.ifa++;
+        var oc = (Array.isArray(e.oct) ? e.oct : []).map(function(k){ return octT[k]; }).filter(Boolean).join(', ');
+        return '<div class="eng-char" style="margin:6px 0;"><b>▶ ' + escapeHtml(fmtClock((m.t.videoOffsetSec || 0) + (e.t || 0)) + trkStar(m.t)) + '</b> ' + escapeHtml(e.label) + (mark ? ' <span class="card-meta">· ' + mark + '</span>' : '') +
+          (momentTagLine(e) ? '<br><span class="card-meta">' + escapeHtml(momentTagLine(e)) + '</span>' : '') +
+          (oc ? '<br><span class="card-meta">Oct 2 targets: ' + escapeHtml(oc) + '</span>' : '') +
+          (e.note ? '<br><span class="card-meta">' + escapeHtml(e.note) + '</span>' : '') + '</div>';
+      }).join('');
+      return '<details class="cfg-sec" style="margin-top:8px;"><summary>' + escapeHtml((m.opp || 'Match') + ' · ' + (m.date ? fmtDate(m.date) : 'date not set')) + ' <span class="card-meta">· ' + shown.length + ' reviewed moment' + (shown.length === 1 ? '' : 's') + ', ' + goals + ' goal' + (goals === 1 ? '' : 's') + ' conceded</span></summary>' +
+        (rows || '<div class="hint" style="margin-top:8px;">No moments reviewed in this game yet.</div>') + '</details>';
+    }).join('');
+    var ifaHtml = IDP_IFAS.map(function(i){ return '<div class="journal-detail-row"><div class="k">' + escapeHtml(i.title.replace(/ —.*$/, '')) + '</div><div class="v">' + escapeHtml(ifaLine(i.key)) + '</div></div>'; }).join('');
+    var ww = ipWentWell().filter(function(w){ return w.best; });
+    openModal(
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><h2>My Story So Far</h2><button class="modal-close" id="close-modal">×</button></div>' +
+      '<div class="hint" style="margin-bottom:12px;">' + (games.length ? 'From ' + escapeHtml(games[0].date ? fmtDate(games[0].date) : 'the first game') + ' to ' + escapeHtml(games[games.length - 1].date ? fmtDate(games[games.length - 1].date) : 'the latest game') + '. Built from the match moments reviewed in the tracker.' : 'No finished games yet.') + '</div>' +
+      '<div class="stat-grid" style="margin-bottom:16px;">' +
+        '<div class="stat-card"><div class="stat-num">' + games.length + '</div><div class="stat-label">Games</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + tot.tagged + '</div><div class="stat-label">Moments reviewed</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + tot.ww + '</div><div class="stat-label">Went well</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + tot.learn + '</div><div class="stat-label">To learn from</div></div>' +
+      '</div>' +
+      '<div class="section-label" style="margin-top:0;">My 3 IFAs</div>' + ifaHtml +
+      (ww.length ? '<div class="section-label">My best moments</div>' + ww.map(function(w){ return '<div class="eng-char" style="margin:6px 0;"><b>' + escapeHtml(w.ifa.title.replace(/ —.*$/, '')) + '</b><br>' + momLine(w.best) + ' · ' + escapeHtml(w.best.label) + '</div>'; }).join('') : '') +
+      '<div class="section-label">Oct 2 staff feedback</div>' + ipOctRowsHtml() +
+      '<div class="section-label">Game by game</div>' + (gamesHtml || '<div class="hint">Nothing here yet.</div>')
+    );
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+  }
   function openMyStoryModal(){
     var data = buildMyStoryData();
     var talkingPoints = state.iapDiscussionPoints || ['', '', ''];
@@ -7680,7 +7787,7 @@
   }
 
   document.getElementById('backup-btn').addEventListener('click', openBackupModal);
-  document.getElementById('open-my-story-btn').addEventListener('click', openMyStoryModal);
+  document.getElementById('open-my-story-btn').addEventListener('click', openMatchStory);
 
   function openBackupModal(){
     var json = JSON.stringify(state, null, 2);
